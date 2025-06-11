@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  dev:
+    build: .
+    container_name: doc_ai_helper_dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - ENVIRONMENT=development
+    tty: true
+    stdin_open: true
