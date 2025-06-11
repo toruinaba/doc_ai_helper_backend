@@ -5,7 +5,8 @@ Configuration settings for the application.
 import os
 from typing import Optional
 
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -24,12 +25,11 @@ class Settings(BaseSettings):
     # API settings
     api_prefix: str = Field("/api/v1", env="API_PREFIX")
 
-    class Config:
-        """Pydantic config."""
-
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False
+    }
 
 
 settings = Settings()
