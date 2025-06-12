@@ -24,7 +24,3 @@ from doc_ai_helper_backend.main import app
 def client():
     """Create a test client."""
     return TestClient(app)
-
-
-# Import mock services for API testing
-from tests.api import mock_services
