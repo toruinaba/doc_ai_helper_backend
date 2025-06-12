@@ -7,11 +7,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Query
 
+from doc_ai_helper_backend.api.dependencies import get_document_service
 from doc_ai_helper_backend.core.exceptions import NotFoundException
 from doc_ai_helper_backend.models.document import (
     DocumentResponse,
     RepositoryStructureResponse,
 )
+from doc_ai_helper_backend.services.document_service import DocumentService
 
 # Logger
 logger = logging.getLogger("doc_ai_helper")
@@ -32,6 +34,7 @@ async def get_document(
     repo: str = Path(..., description="Repository name"),
     path: str = Path(..., description="Document path"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
+    document_service: DocumentService = Depends(get_document_service),
 ):
     """
     Get document from a Git repository.
@@ -42,6 +45,7 @@ async def get_document(
         repo: Repository name
         path: Document path
         ref: Branch or tag name. Default is "main"
+        document_service: Document service instance
 
     Returns:
         DocumentResponse: Document data
@@ -50,13 +54,11 @@ async def get_document(
         NotFoundException: If document is not found
         GitServiceException: If there is an error with the Git service
     """
-    # This is a placeholder for actual implementation
-    # In a real implementation, this would call a document service
-    # which would interact with the appropriate Git service
-    logger.info(f"Getting document from {service}/{owner}/{repo}/{path} at {ref}")
+    # Only allow GitHub for now
+    if service.lower() != "github":
+        raise NotFoundException(f"Unsupported Git service: {service}")
 
-    # For now, we'll just raise a NotFoundException as a placeholder
-    raise NotFoundException(f"Document not found: {path}")
+    return await document_service.get_document(service, owner, repo, path, ref)
 
 
 @router.get(
@@ -71,6 +73,7 @@ async def get_repository_structure(
     repo: str = Path(..., description="Repository name"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
     path: Optional[str] = Query(default="", description="Path prefix to filter by"),
+    document_service: DocumentService = Depends(get_document_service),
 ):
     """
     Get structure of a Git repository.
@@ -81,6 +84,7 @@ async def get_repository_structure(
         repo: Repository name
         ref: Branch or tag name. Default is "main"
         path: Path prefix to filter by. Default is ""
+        document_service: Document service instance
 
     Returns:
         RepositoryStructureResponse: Repository structure data
@@ -89,8 +93,10 @@ async def get_repository_structure(
         NotFoundException: If repository is not found
         GitServiceException: If there is an error with the Git service
     """
-    # This is a placeholder for actual implementation
-    logger.info(f"Getting structure of {service}/{owner}/{repo} at {ref}, path: {path}")
+    # Only allow GitHub for now
+    if service.lower() != "github":
+        raise NotFoundException(f"Unsupported Git service: {service}")
 
-    # For now, we'll just raise a NotFoundException as a placeholder
-    raise NotFoundException(f"Repository not found: {owner}/{repo}")
+    return await document_service.get_repository_structure(
+        service, owner, repo, ref, path
+    )

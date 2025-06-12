@@ -3,10 +3,19 @@ Search-related API endpoints.
 """
 
 import logging
+import time
+from typing import List
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Depends, Path
 
-from doc_ai_helper_backend.models.search import SearchQuery, SearchResponse
+from doc_ai_helper_backend.api.dependencies import get_document_service
+from doc_ai_helper_backend.core.exceptions import NotFoundException
+from doc_ai_helper_backend.models.search import (
+    SearchQuery,
+    SearchResponse,
+    SearchResultItem,
+)
+from doc_ai_helper_backend.services.document_service import DocumentService
 
 # Logger
 logger = logging.getLogger("doc_ai_helper")
@@ -26,6 +35,7 @@ async def search_repository(
     service: str = Path(..., description="Git service (github, gitlab, etc.)"),
     owner: str = Path(..., description="Repository owner"),
     repo: str = Path(..., description="Repository name"),
+    document_service: DocumentService = Depends(get_document_service),
 ):
     """
     Search for content in a repository.
@@ -35,6 +45,7 @@ async def search_repository(
         service: Git service type (github, gitlab, etc.)
         owner: Repository owner
         repo: Repository name
+        document_service: Document service instance
 
     Returns:
         SearchResponse: Search results
@@ -43,18 +54,43 @@ async def search_repository(
         NotFoundException: If repository is not found
         GitServiceException: If there is an error with the Git service
     """
-    # This is a placeholder for actual implementation
+    # Only allow GitHub for now
+    if service.lower() != "github":
+        raise NotFoundException(f"Unsupported Git service: {service}")
+
     logger.info(
         f"Searching in {service}/{owner}/{repo} for '{search_query.query}', "
         f"limit: {search_query.limit}, offset: {search_query.offset}"
     )
 
-    # Mock response for now
+    start_time = time.time()
+
+    # Search repository
+    search_results = await document_service.search_repository(
+        service, owner, repo, search_query.query, search_query.limit
+    )
+
+    # Convert search results to SearchResultItem objects
+    results: List[SearchResultItem] = []
+    for item in search_results.get("results", []):
+        result_item = SearchResultItem(
+            path=item.get("path", ""),
+            name=item.get("name", ""),
+            type="file",  # Assume all search results are files
+            html_url=item.get("html_url", ""),
+            score=item.get("score", 0.0),
+            highlight=item.get("highlight", ""),
+            repository=item.get("repository", {"name": repo, "owner": owner}),
+        )
+        results.append(result_item)
+
+    execution_time_ms = (time.time() - start_time) * 1000
+
     return SearchResponse(
-        total=0,
+        total=len(results),
         offset=search_query.offset,
         limit=search_query.limit,
         query=search_query.query,
-        results=[],
-        execution_time_ms=0.0,
+        results=results,
+        execution_time_ms=execution_time_ms,
     )
