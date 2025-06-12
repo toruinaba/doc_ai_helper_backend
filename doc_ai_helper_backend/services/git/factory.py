@@ -8,6 +8,7 @@ from doc_ai_helper_backend.core.config import settings
 from doc_ai_helper_backend.core.exceptions import GitServiceException
 from doc_ai_helper_backend.services.git.base import GitServiceBase
 from doc_ai_helper_backend.services.git.github_service import GitHubService
+from doc_ai_helper_backend.services.git.mock_service import MockGitService
 
 
 class GitServiceFactory:
@@ -16,6 +17,7 @@ class GitServiceFactory:
     # Registry of available Git services
     _services: Dict[str, Type[GitServiceBase]] = {
         "github": GitHubService,
+        "mock": MockGitService,
     }
 
     @classmethod

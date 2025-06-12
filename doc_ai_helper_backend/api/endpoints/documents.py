@@ -23,7 +23,7 @@ router = APIRouter(tags=["documents"])
 
 
 @router.get(
-    "/{service}/{owner}/{repo}/{path:path}",
+    "/contents/{service}/{owner}/{repo}/{path:path}",
     response_model=DocumentResponse,
     summary="Get document",
     description="Get document from a Git repository",
@@ -54,8 +54,8 @@ async def get_document(
         NotFoundException: If document is not found
         GitServiceException: If there is an error with the Git service
     """
-    # Only allow GitHub for now
-    if service.lower() != "github":
+    # Allow GitHub and Mock services only
+    if service.lower() not in ["github", "mock"]:
         raise NotFoundException(f"Unsupported Git service: {service}")
 
     return await document_service.get_document(service, owner, repo, path, ref)
@@ -93,8 +93,8 @@ async def get_repository_structure(
         NotFoundException: If repository is not found
         GitServiceException: If there is an error with the Git service
     """
-    # Only allow GitHub for now
-    if service.lower() != "github":
+    # Allow GitHub and Mock services only
+    if service.lower() not in ["github", "mock"]:
         raise NotFoundException(f"Unsupported Git service: {service}")
 
     return await document_service.get_repository_structure(

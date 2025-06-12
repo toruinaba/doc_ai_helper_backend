@@ -3,153 +3,91 @@ Test document-related endpoints.
 """
 
 import pytest
-from datetime import datetime
 
 from doc_ai_helper_backend.core.config import settings
-from doc_ai_helper_backend.core.exceptions import NotFoundException
-from doc_ai_helper_backend.models.document import DocumentType
-from tests.api.mock_services import mock_document_service
+from doc_ai_helper_backend.api.endpoints import documents
 
 
-@pytest.fixture
-def mock_document_data():
-    """Create mock document data."""
-    return {
-        "path": "docs/README.md",
-        "name": "README.md",
-        "type": DocumentType.MARKDOWN,
-        "metadata": {
-            "size": 1024,
-            "last_modified": datetime.now().isoformat(),
-            "content_type": "text/markdown",
-            "sha": "abc123",
-            "download_url": "https://example.com/download",
-            "html_url": "https://example.com/html",
-            "raw_url": "https://example.com/raw",
-        },
-        "content": {
-            "content": "# Test Document\n\nThis is a test document.",
-            "encoding": "utf-8",
-        },
-        "repository": "test-repo",
-        "owner": "test-owner",
-        "service": "github",
-        "ref": "main",
-    }
-
-
-def test_get_document(client, mock_document_data):
+def test_get_document(client):
     """Test get document endpoint."""
-    # Setup mock
-    mock_document_service.get_document.return_value = mock_document_data
-
-    # Test
+    # Test with mock service
     response = client.get(
-        f"{settings.api_prefix}/documents/github/test-owner/test-repo/docs/README.md"
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md"
     )
 
     # Verify
     assert response.status_code == 200
     data = response.json()
-    assert data["path"] == "docs/README.md"
+    assert data["path"] == "README.md"
     assert data["name"] == "README.md"
     assert data["type"] == "markdown"
+    assert data["service"] == "mock"
+    assert data["owner"] == "octocat"
+    assert data["repository"] == "Hello-World"
     assert "content" in data
     assert "metadata" in data
-
-    # Verify mock was called with correct parameters
-    mock_document_service.get_document.assert_called_once_with(
-        service="github",
-        owner="test-owner",
-        repo="test-repo",
-        path="docs/README.md",
-        ref="main",
-    )
+    assert data["content"]["content"].startswith("# Hello World")
 
 
 def test_get_document_not_found(client):
     """Test get document endpoint with not found error."""
-    # Setup mock to raise exception
-    mock_document_service.get_document.side_effect = NotFoundException(
-        "Document not found"
-    )
-
-    # Test
+    # Test with non-existent document
     response = client.get(
-        f"{settings.api_prefix}/documents/github/test-owner/test-repo/not-found.md"
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/nonexistent.md"
     )
 
     # Verify
     assert response.status_code == 404
     assert "message" in response.json()
-    assert response.json()["message"] == "Document not found"
+    assert "not found" in response.json()["message"].lower()
 
 
 def test_get_repository_structure(client):
     """Test get repository structure endpoint."""
-    # Setup mock
-    mock_structure = {
-        "service": "github",
-        "owner": "test-owner",
-        "repo": "test-repo",
-        "ref": "main",
-        "tree": [
-            {
-                "path": "README.md",
-                "name": "README.md",
-                "type": "file",
-                "size": 1024,
-                "sha": "abc123",
-                "download_url": "https://example.com/download",
-                "html_url": "https://example.com/html",
-                "git_url": "https://example.com/git",
-            },
-            {
-                "path": "docs",
-                "name": "docs",
-                "type": "directory",
-                "sha": "def456",
-                "html_url": "https://example.com/html/docs",
-                "git_url": "https://example.com/git/docs",
-            },
-        ],
-        "last_updated": datetime.now().isoformat(),
-    }
-    mock_document_service.get_repository_structure.return_value = mock_structure
-
-    # Test
+    # Test with mock service
     response = client.get(
-        f"{settings.api_prefix}/documents/structure/github/test-owner/test-repo"
+        f"{settings.api_prefix}/documents/structure/mock/octocat/Hello-World"
     )
 
     # Verify
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "github"
-    assert data["owner"] == "test-owner"
-    assert data["repo"] == "test-repo"
+    assert data["service"] == "mock"
+    assert data["owner"] == "octocat"
+    assert data["repo"] == "Hello-World"
     assert "tree" in data
-    assert len(data["tree"]) == 2
+    assert len(data["tree"]) >= 3  # At least README.md, docs folder, and docs/index.md
 
-    # Verify mock was called with correct parameters
-    mock_document_service.get_repository_structure.assert_called_once_with(
-        service="github", owner="test-owner", repo="test-repo", ref="main", path=""
-    )
+    # Find README.md in tree
+    readme = next((item for item in data["tree"] if item["path"] == "README.md"), None)
+    assert readme is not None
+    assert readme["name"] == "README.md"
+    assert readme["type"] == "file"
 
 
 def test_get_repository_structure_not_found(client):
     """Test get repository structure endpoint with not found error."""
-    # Setup mock to raise exception
-    mock_document_service.get_repository_structure.side_effect = NotFoundException(
-        "Repository not found"
-    )
-
-    # Test
+    # Test with non-existent repository
     response = client.get(
-        f"{settings.api_prefix}/documents/structure/github/test-owner/not-found"
+        f"{settings.api_prefix}/documents/structure/mock/nonexistent/repo"
     )
 
     # Verify
     assert response.status_code == 404
     assert "message" in response.json()
-    assert response.json()["message"] == "Repository not found"
+    assert "not found" in response.json()["message"].lower()
+
+
+def test_unsupported_git_service(client):
+    """Test unsupported Git service."""
+    # Test accessing endpoint with unsupported Git service
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/gitlab/octocat/Hello-World/README.md"
+    )
+
+    # Verify not found or error response
+    assert response.status_code == 404
+    assert (
+        "unsupported" in response.json()["message"].lower()
+        or "not found" in response.json()["message"].lower()
+    )
