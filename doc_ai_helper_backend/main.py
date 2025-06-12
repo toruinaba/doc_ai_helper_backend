@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from doc_ai_helper_backend.api.api import router as api_router
+from doc_ai_helper_backend.api.error_handlers import setup_error_handlers
 from doc_ai_helper_backend.core.config import settings
 from doc_ai_helper_backend.core.logging import setup_logging
 
@@ -31,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup error handlers
+setup_error_handlers(app)
 
 
 # Root endpoint
