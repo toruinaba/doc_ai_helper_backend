@@ -32,8 +32,12 @@ class RepositoryBase(BaseModel):
 class RepositoryCreate(RepositoryBase):
     """Repository create model."""
 
-    access_token: Optional[str] = Field(None, description="Access token for private repositories")
-    metadata: Optional[Dict[str, Any]] = Field(default={}, description="Repository metadata")
+    access_token: Optional[str] = Field(
+        None, description="Access token for private repositories"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default={}, description="Repository metadata"
+    )
 
 
 class RepositoryUpdate(BaseModel):
@@ -46,7 +50,9 @@ class RepositoryUpdate(BaseModel):
     branch: Optional[str] = Field(None, description="Default branch")
     description: Optional[str] = Field(None, description="Repository description")
     is_public: Optional[bool] = Field(None, description="Is repository public")
-    access_token: Optional[str] = Field(None, description="Access token for private repositories")
+    access_token: Optional[str] = Field(
+        None, description="Access token for private repositories"
+    )
     metadata: Optional[Dict[str, Any]] = Field(None, description="Repository metadata")
 
 
@@ -56,7 +62,9 @@ class RepositoryResponse(RepositoryBase):
     id: int = Field(..., description="Repository ID")
     created_at: datetime = Field(..., description="Created datetime")
     updated_at: datetime = Field(..., description="Updated datetime")
-    metadata: Optional[Dict[str, Any]] = Field(default={}, description="Repository metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default={}, description="Repository metadata"
+    )
 
     class Config:
         """Pydantic model config."""

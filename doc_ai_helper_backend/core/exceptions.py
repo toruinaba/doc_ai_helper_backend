@@ -59,9 +59,7 @@ class ForbiddenException(BaseAPIException):
 class BadRequestException(BaseAPIException):
     """Exception for bad request errors."""
 
-    def __init__(
-        self, message: str = "Bad request", detail: Optional[Any] = None
-    ):
+    def __init__(self, message: str = "Bad request", detail: Optional[Any] = None):
         super().__init__(status_code=400, message=message, detail=detail)
 
 
@@ -95,7 +93,5 @@ class DocumentParsingException(BaseAPIException):
 class ValidationException(BaseAPIException):
     """Exception for validation errors."""
 
-    def __init__(
-        self, message: str = "Validation error", detail: Optional[Any] = None
-    ):
+    def __init__(self, message: str = "Validation error", detail: Optional[Any] = None):
         super().__init__(status_code=422, message=message, detail=detail)

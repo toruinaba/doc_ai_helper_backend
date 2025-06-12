@@ -8,7 +8,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Path, Query
 
 from doc_ai_helper_backend.core.exceptions import NotFoundException
-from doc_ai_helper_backend.models.document import DocumentResponse, RepositoryStructureResponse
+from doc_ai_helper_backend.models.document import (
+    DocumentResponse,
+    RepositoryStructureResponse,
+)
 
 # Logger
 logger = logging.getLogger("doc_ai_helper")

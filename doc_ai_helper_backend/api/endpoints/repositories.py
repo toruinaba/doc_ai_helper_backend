@@ -29,7 +29,9 @@ router = APIRouter(tags=["repositories"])
 )
 async def list_repositories(
     skip: int = Query(default=0, description="Number of repositories to skip"),
-    limit: int = Query(default=100, description="Maximum number of repositories to return"),
+    limit: int = Query(
+        default=100, description="Maximum number of repositories to return"
+    ),
 ):
     """
     List all repositories.

@@ -75,7 +75,9 @@ def setup_error_handlers(app: FastAPI) -> None:
         if exc.detail:
             response["detail"] = exc.detail
 
-        return JSONResponse(status_code=exc.status_code, content=response, headers=exc.headers)
+        return JSONResponse(
+            status_code=exc.status_code, content=response, headers=exc.headers
+        )
 
     @app.exception_handler(ValidationError)
     async def validation_exception_handler(

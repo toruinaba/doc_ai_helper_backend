@@ -46,4 +46,6 @@ class SearchResponse(BaseModel):
     limit: int = Field(..., description="Maximum number of results")
     query: str = Field(..., description="Search query")
     results: List[SearchResultItem] = Field(..., description="Search results")
-    execution_time_ms: float = Field(..., description="Search execution time in milliseconds")
+    execution_time_ms: float = Field(
+        ..., description="Search execution time in milliseconds"
+    )
