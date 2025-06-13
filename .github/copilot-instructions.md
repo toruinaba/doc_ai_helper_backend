@@ -1,10 +1,96 @@
-# Copilot instruction
-## Doc_ai_helper(backend)
-### プロジェクト概要
+# Copilot Instructions for doc_ai_helper_backend
 
-このプロジェクトは、GitサービスでホストされたMarkdown/Quartoドキュメントを取得し、フロントエンドに提供するバックエンドAPIを実装します。名前は`doc_ai_helper_backend`です。
+このドキュメントはGitHub Copilotが`doc_ai_helper_backend`プロジェクトをより良く理解し、適切な提案を行うための指示書です。
 
-### 技術スタック
+## プロジェクト概要
+
+`doc_ai_helper_backend`は、GitサービスでホストされたMarkdownドキュメントを取得し、フロントエンドに提供するバックエンドAPIです。名前は`doc_ai_helper_backend`です。将来的にはQuartoドキュメントもサポートする予定です。
+
+### 主なユースケース
+
+1. **Markdownレンダリング**: フロントエンド側でレンダリングするためのMarkdownコンテンツの提供
+2. **LLMコンテキスト**: フロントエンドからLLMに問い合わせるための元ファイル（.md）を提供
+3. **HTMLドキュメント表示**: （将来機能）QuartoでビルドされたHTMLファイルをフロントエンドに提供
+
+### 実装アプローチ
+
+段階的な実装アプローチを採用しています：
+
+1. **Markdownサポート（フェーズ1）**: まずMarkdownファイルの取得・処理機能を完全に実装
+2. **拡張機能（フェーズ2）**: フロントマター解析、リンク変換などの機能を追加
+3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加
+
+このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
+
+## 現在の開発状況
+
+### 実装済み機能
+- 環境構築完了
+- エントリーポイント作成済み
+- 基本的なAPIルーティングの設定完了
+- ヘルスチェックAPIの実装完了
+- ドキュメント取得APIの基本機能実装完了
+- リポジトリ構造取得APIの基本機能実装完了
+- Mockサービスの実装完了（開発・デモ・テスト用）
+
+### 実装方針の明確化
+- Markdownドキュメント対応を最優先で実装
+- データベース層はモックで実装（APIの仕様が定まった段階でモデル定義を行う）
+- Quarto対応は将来の拡張として位置付け
+
+### 進行中の機能
+- Markdownドキュメント対応の拡張（フロントマター解析、リンク変換など）
+- APIの拡張（Quarto対応を見据えた機能）
+
+### 未着手の機能
+- データベース層の本格的な実装
+- Quartoドキュメント対応の追加
+- 本番環境準備
+
+### 開発ステップ
+1. **基本API定義の完了** [✅完了]
+   - RESTful APIのエンドポイント定義
+   - リクエスト/レスポンスのPydanticモデル定義
+   - エラーハンドリングの実装
+
+2. **サービス層の実装** [✅完了]
+   - 抽象Gitサービスの実装（`services/git/base.py`）
+   - GitHub実装（`services/git/github_service.py`）
+   - Mock実装（`services/git/mock_service.py`）
+   - ドキュメント処理サービス（`services/document_service.py`）
+   - キャッシュサービス（基本実装）
+
+3. **モックを用いたAPIの動作確認** [✅完了]
+   - 実際のデータベースなしでサービス層をモックしてAPIの動作を確認
+   - テスト駆動開発の手法を活用し、APIの期待する動作をテストで定義
+
+4. **Markdownドキュメント対応の拡張** [🔄実装中]
+   - Markdownファイルのフロントマター解析
+   - 相対リンクの絶対パス変換機能
+   - リンク情報の抽出と提供
+   - ドキュメントメタデータの拡充
+   
+5. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
+   - Quartoプロジェクト検出機能の追加
+   - ソースファイルと出力ファイルの関連付けエンドポイント
+   - リンク変換オプションの追加
+   - フロントマター解析とメタデータ提供機能の拡張
+   - リポジトリ設定モデルとAPIの追加
+
+6. **データベース層の実装** [🔄進行予定]
+   - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
+   - モデル定義（`db/models.py`）
+   - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
+   - Alembicによるマイグレーション設定
+   - リポジトリ設定・マッピング機能の追加
+
+7. **Quartoドキュメント対応の追加** [⏱️未着手]
+   - Quartoプロジェクト設定（_quarto.yml）の解析
+   - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
+   - リポジトリ構造分析とパスマッピング
+   - サイト構造情報の提供
+
+## 技術スタック
 
 - **フレームワーク**: FastAPI
 - **データベース**: SQLite（開発・本番共通）
@@ -16,332 +102,232 @@
 - **コンテナ化**: Docker
 - **フォーマッター**: black
 
-### ディレクトリ構成
+## ディレクトリ構造
+
+現在のプロジェクト構造は以下の通りです：
 
 ```
 doc_ai_helper_backend/
-├── app/
-│   ├── api/
+├── doc_ai_helper_backend/         # メインパッケージ
+│   ├── __init__.py
+│   ├── main.py                    # アプリケーションエントリーポイント
+│   ├── api/                       # API層
 │   │   ├── __init__.py
-│   │   ├── endpoints/
-│   │   │   ├── __init__.py
-│   │   │   ├── documents.py       # ドキュメント取得API
-│   │   │   ├── repositories.py    # リポジトリ管理API
-│   │   │   ├── search.py          # 検索API
-│   │   │   └── health.py          # ヘルスチェックAPI
+│   │   ├── api.py                 # APIルーティング設定
 │   │   ├── dependencies.py        # 依存関係注入
-│   │   └── error_handlers.py      # エラーハンドラー
-│   ├── core/
+│   │   ├── error_handlers.py      # エラーハンドラー
+│   │   └── endpoints/             # エンドポイント定義
+│   │       ├── __init__.py
+│   │       ├── documents.py       # ドキュメント取得API
+│   │       ├── health.py          # ヘルスチェックAPI
+│   │       ├── repositories.py    # リポジトリ管理API
+│   │       └── search.py          # 検索API
+│   ├── core/                      # コア機能
 │   │   ├── __init__.py
 │   │   ├── config.py              # 設定管理
-│   │   ├── security.py            # 認証・認可
-│   │   └── exceptions.py          # カスタム例外
-│   ├── db/
+│   │   ├── exceptions.py          # カスタム例外
+│   │   └── logging.py             # ロギング設定
+│   ├── db/                        # データベース層
 │   │   ├── __init__.py
-│   │   ├── database.py            # データベース接続
-│   │   ├── models.py              # SQLAlchemyモデル
 │   │   └── repositories/          # リポジトリパターン
-│   │       ├── __init__.py
-│   │       ├── base.py            # ベースリポジトリ
-│   │       └── repository_repo.py # リポジトリ情報のCRUD
-│   ├── models/
+│   │       └── __pycache__/
+│   ├── models/                    # データモデル
 │   │   ├── __init__.py
 │   │   ├── document.py            # ドキュメントモデル
 │   │   ├── repository.py          # リポジトリモデル
 │   │   └── search.py              # 検索モデル
-│   ├── services/
+│   ├── services/                  # サービス層
 │   │   ├── __init__.py
-│   │   ├── git/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py            # Git基本サービス
-│   │   │   ├── github_service.py  # GitHub実装
-│   │   │   ├── gitlab_service.py  # GitLab実装
-│   │   │   └── factory.py         # Gitサービスファクトリ
-│   │   ├── document_service.py    # ドキュメント処理
-│   │   ├── cache_service.py       # キャッシュ
-│   │   └── search_service.py      # 検索サービス
-│   └── utils/
+│   │   ├── document_service.py    # ドキュメント処理サービス
+│   │   └── git/                   # Gitサービス
+│   │       ├── __init__.py
+│   │       ├── base.py            # Git基本サービス
+│   │       ├── factory.py         # Gitサービスファクトリ
+│   │       ├── github_service.py  # GitHub実装
+│   │       └── mock_service.py    # モック実装
+│   └── utils/                     # ユーティリティ
 │       ├── __init__.py
-│       ├── logging.py             # ロギング
-│       └── helpers.py             # ヘルパー関数
-├── tests/
+│       └── errors.py              # エラーユーティリティ
+├── tests/                         # テスト
 │   ├── __init__.py
 │   ├── conftest.py                # テスト設定
-│   ├── test_api/                  # APIテスト
+│   ├── api/                       # APIテスト
 │   │   ├── __init__.py
-│   │   ├── test_documents.py
-│   │   └── test_repositories.py
-│   └── test_services/             # サービステスト
-│       ├── __init__.py
-│       ├── test_git_services.py
-│       └── test_document_service.py
-├── alembic/                       # マイグレーション
-│   ├── versions/
-│   ├── env.py
-│   └── alembic.ini
-├── scripts/
-│   ├── create_db.py               # DB初期化
-│   └── index_repositories.py      # 検索インデックス作成
+│   │   ├── test_documents.py      # ドキュメントAPIテスト
+│   │   └── test_health.py         # ヘルスチェックAPIテスト
+│   ├── integration/               # 統合テスト
+│   │   └── __init__.py
+│   └── unit/                      # ユニットテスト
+│       └── __init__.py
 ├── data/                          # データディレクトリ
-│   └── app.db                     # SQLiteデータベースファイル
-├── main.py                        # アプリケーションエントリポイント
-├── requirements.txt               # 依存関係
-├── Dockerfile                     # Docker設定
 ├── docker-compose.yml             # Docker Compose設定
-├── .env.example                   # 環境変数例
-├── pyproject.toml                 # Black設定
-└── README.md                      # プロジェクト説明
+├── Dockerfile                     # Docker設定
+├── README.md                      # プロジェクト説明
+├── requirements.lock              # 固定依存関係
+├── requirements.txt               # 依存関係
+└── setup.py                       # セットアップスクリプト
 ```
 
-### ドキュメント方針
+## 実装アプローチの詳細
 
-- **スタイル**: Googleスタイルのdocstringsを使用
-- **簡潔さ**: 端的で明確な記述を心がける
-- **必須要素**: 関数の説明、引数、戻り値、例外を必ず記述
+### アプリケーションエントリポイント
 
-**例**:
+プロジェクトのエントリポイントは `main.py` であり、FastAPIアプリケーションの初期化、CORSミドルウェアの設定、APIルーターのマウント、エラーハンドラーの設定を行っています。
+
 ```python
+# main.py
+app = FastAPI(
+    title="Document AI Helper API",
+    description="API for Document AI Helper",
+    version=settings.app_version,
+    debug=settings.debug,
+)
 
-def get_document(service: str, owner: str, repo: str, path: str, ref: str = "main") -> Dict[str, Any]:
-    """指定されたリポジトリからドキュメントを取得する。
+# Set up CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Modify in production to specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    Args:
-        service: Gitサービスタイプ（github, gitlab等）
-        owner: リポジトリオーナー
-        repo: リポジトリ名
-        path: ファイルパス
-        ref: ブランチまたはタグ名。デフォルトは"main"
+# Include API router
+app.include_router(api_router)
+```
 
-    Returns:
-        ドキュメント情報を含む辞書
+### APIルーティング
 
-    Raises:
-        FileNotFoundError: ドキュメントが見つからない場合
-        GitServiceError: Gitサービスとの通信に問題がある場合
-    """
+APIルーティングは `api.py` で定義され、各エンドポイントのルーターをメインルーターに統合しています。
+
+```python
+# api.py
+router = APIRouter(prefix=settings.api_prefix)
+
+# Include routers for different endpoints
+router.include_router(health_router, prefix="/health")
+router.include_router(documents_router, prefix="/documents")
+router.include_router(repositories_router, prefix="/repositories")
+router.include_router(search_router, prefix="/search")
+```
+
+### 依存関係注入
+
+依存関係の注入は `dependencies.py` で行われ、サービスインスタンスの生成と提供を行っています。これにより、テスト時にモックサービスを注入することが容易になります。
+
+### Gitサービス抽象化
+
+Gitサービスは抽象基底クラス `GitServiceBase` を実装しており、ファクトリパターンを使用して具体的な実装を生成します。
+
+```python
+# factory.py
+class GitServiceFactory:
+    """Factory for creating Git service instances."""
+
+    # Registry of available Git services
+    _services: Dict[str, Type[GitServiceBase]] = {
+        "github": GitHubService,
+        "mock": MockGitService,
+    }
+
+    @classmethod
+    def create(
+        cls, service_type: str, access_token: Optional[str] = None
+    ) -> GitServiceBase:
+        # 実装
+```
+
+### エンドポイント
+
+各エンドポイントは `/api/endpoints/` ディレクトリにモジュールとして実装されています。例えば、ドキュメント取得APIは以下のように実装されています：
+
+```python
+# documents.py
+@router.get(
+    "/contents/{service}/{owner}/{repo}/{path:path}",
+    response_model=DocumentResponse,
+    summary="Get document",
+    description="Get document from a Git repository",
+)
+async def get_document(
+    service: str = Path(..., description="Git service (github, gitlab, etc.)"),
+    owner: str = Path(..., description="Repository owner"),
+    repo: str = Path(..., description="Repository name"),
+    path: str = Path(..., description="Document path"),
+    ref: Optional[str] = Query(default="main", description="Branch or tag name"),
+    document_service: DocumentService = Depends(get_document_service),
+):
     # 実装
 ```
 
-### コード整形
-- **フォーマッター**: Black
-- **設定**: pyproject.tomlで設定
-- **行の長さ**: 88文字（Blackのデフォルト）
-- **適用方法**: コミット前に自動適用
+## ドキュメントモデル
 
-```toml 
-
-# pyproject.toml
-[tool.black]
-line-length = 88
-target-version = ['py39']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
+```python
+# ドキュメントレスポンスモデル
+class DocumentResponse(BaseModel):
+    path: str                   # ファイルパス
+    name: str                   # ファイル名
+    type: DocumentType          # ドキュメントタイプ
+    content: DocumentContent    # ドキュメントコンテンツ
+    metadata: DocumentMetadata  # ドキュメントメタデータ
+    repository: str             # リポジトリ名
+    owner: str                  # リポジトリオーナー
+    service: str                # Gitサービス
+    ref: str                    # ブランチまたはタグ
+    # 実装中/計画中の拡張フィールド
+    # links: List[LinkInfo]       # リンク情報（実装中）
+    # transformed_content: Optional[str]  # リンク変換済みコンテンツ（実装中）
+    # relations: Optional[DocumentRelations]  # 関連ドキュメント情報（将来実装予定）
 ```
 
-### 主要機能
-#### 1. ドキュメント取得API
-- 様々なGitサービス（GitHub, GitLab等）からのドキュメント取得
-- Markdown/Quarto/HTMLファイルの取得と提供
-- リポジトリ構造の取得
+### ドキュメント設定モデル（計画中）
 
-#### 2. リポジトリ管理API
+```python
+# パスマッピングモデル（将来的なQuartoサポートで使用）
+class PathMapping(BaseModel):
+    source_dir: str             # ソースディレクトリ（例: 'src'）
+    output_dir: str             # 出力ディレクトリ（例: '_site'）
+    source_ext: List[str]       # ソースファイル拡張子（例: ['qmd', 'md']）
+    output_ext: str = "html"    # 出力ファイル拡張子
 
-リポジトリ情報のCRUD操作
-リポジトリメタデータの管理
+# リポジトリ設定モデル
+class RepositorySettings(BaseModel):
+    document_type: DocumentType  # ドキュメントタイプ（markdown, quarto等）
+    # Markdownのみの場合は以下は不要
+    config_file: Optional[str] = None  # 設定ファイル（_quarto.yml等）
+    path_mappings: Optional[List[PathMapping]] = None  # パスマッピング設定（Quarto用）
+    ## コーディングガイドライン
 
-#### 3. 検索API
+1. **FastAPIベストプラクティス**
+   - エンドポイントには適切な`response_model`を設定する
+   - Path, Query, Bodyパラメータにはすべて説明を付与する
+   - 依存関係の注入を積極的に活用する
 
-リポジトリ内のファイル検索
-テキスト検索とメタデータ検索
+2. **タイプヒント**
+   - すべての関数とメソッドには適切なタイプヒントを付与する
+   - 複雑な型は`typing`モジュールを活用する
 
-#### 4. キャッシュ機能
+3. **エラーハンドリング**
+   - カスタム例外を適切に使用する
+   - APIレスポンスでは適切なHTTPステータスコードを返す
+   - 明確なエラーメッセージを提供する
 
-頻繁にアクセスされるドキュメントのキャッシュ
-リポジトリ構造のキャッシュ
+4. **テスト駆動開発**
+   - 新機能を追加する前にテストを書く
+   - モックを活用して外部依存関係を分離する
+   - 単体テストと統合テストの両方を作成する
 
-### アーキテクチャ設計
-#### レイヤードアーキテクチャ:
+5. **ドキュメンテーション**
+   - コードにはDocstringを付与する
+   - APIエンドポイントには適切な説明を付与する
+   - README.mdは最新の状態を維持する
 
-- API層（エンドポイント定義）
-- サービス層（ビジネスロジック）
-- リポジトリ層（データアクセス）
-- モデル層（データモデル）
+6. **コードスタイル**
+   - blackフォーマッターに従う
+   - 一貫性のある命名規則を使用する
+   - 適切な関数/メソッドの分割を行う
 
-#### Gitサービス抽象化:
-
-- 共通インターフェースを持つ抽象基底クラス
-- サービス固有の実装クラス
-- ファクトリパターンによるインスタンス生成
- 
-### コーディング規約
-- PEP 8に準拠したコーディングスタイル
-- 型ヒントの積極的な使用
-- Googleスタイルのdocstringsで関数とクラスを文書化
-- 例外処理は明示的に行い、適切なHTTPステータスコードを返す
-- 非同期処理（async/await）を適切に活用
-- Blackによる自動フォーマット
-
-### API設計
-#### ドキュメント取得API
-```
-GET /api/documents/{service}/{owner}/{repo}/{path:path}
-```
-- **service:** Gitサービスタイプ（github, gitlab等）
-- **owner**: リポジトリオーナー
-- **repo**: リポジトリ名
-- **path**: ファイルパス
-- **クエリパラメータ**:
-  - ref: ブランチまたはタグ（デフォルト: main）
-
-#### リポジトリ構造取得API
-```
-GET /api/structure/{service}/{owner}/{repo}
-```
-- **service**: Gitサービスタイプ
-- **owner**: リポジトリオーナー
-- **repo**: リポジトリ名
-- **クエリパラメータ**:
-  - ref: ブランチまたはタグ（デフォルト: main）
-
-#### リポジトリ管理API
-```
-GET /api/repositories
-POST /api/repositories
-GET /api/repositories/{id}
-PUT /api/repositories/{id}
-DELETE /api/repositories/{id}
-```
-
-#### 検索API
-```
-POST /api/search/{service}/{owner}/{repo}
-```
-
-- **service**: Gitサービスタイプ
-- **owner**: リポジトリオーナー
-- **repo**: リポジトリ名
-- **リクエストボディ**:
-- query: 検索クエリ
-- limit: 結果の最大数（デフォルト: 10）
-
-### データモデル
-#### Repository
-
-```python 
-
-class Repository(Base):
-    __tablename__ = "repositories"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    owner = Column(String, nullable=False)
-    service_type = Column(String, nullable=False)  # 'github', 'gitlab', etc.
-    url = Column(String, nullable=False)
-    branch = Column(String, default='main')
-    access_token = Column(String, nullable=True)
-    description = Column(String, nullable=True)
-    is_public = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    metadata = Column(JSON, default={})
-```
-
-### SQLite設定
-- データベースファイルは`data/app.db`に配置
-- 開発環境と本番環境で同じSQLiteを使用
-- データベース接続文字列: `sqlite:///./data/app.db`
-- SQLiteの同時接続制限に注意（`check_same_thread=False`オプションを使用）
-- 定期的なバックアップを実装
-
-```python 
-
-# app/db/database.py
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
-
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-```
-
-## 開発手順
-1. プロジェクト構造の作成
-2. 基本的なFastAPIアプリケーションの設定
-3. データベースモデルとマイグレーションの実装
-4. Gitサービス抽象化レイヤーの実装
-5. ドキュメント取得APIの実装
-6. リポジトリ管理APIの実装
-7. キャッシュ機能の実装
-8. 検索APIの実装
-9. テストの作成
-10. Dockerファイルの作成
-
-## 実装の注意点
-- エラーハンドリングを適切に行い、わかりやすいエラーメッセージを返す
-- レート制限などのGitサービス固有の制約に対応する
-- 大きなファイルの処理を効率的に行う
-- キャッシュ戦略を適切に実装し、パフォーマンスを最適化する
-- セキュリティを考慮し、アクセストークンなどの機密情報を適切に管理する
-- CORSを適切に設定し、フロントエンドからのアクセスを許可する
-- SQLiteの制約（同時書き込み等）に注意し、適切に対応する
-
-## テスト戦略
-- ユニットテスト: サービスとリポジトリクラスの個別テスト
-- 統合テスト: APIエンドポイントの動作確認
-- モック: 外部サービス（GitHubなど）の呼び出しをモック化
-
-## デプロイ
-- Docker Composeを使用した開発環境の構築
-- 本番環境用のDockerfile作成
-- 環境変数による設定の外部化
-- SQLiteデータベースファイルのボリュームマウント
-
-```yaml 
-
-# docker-compose.yml
-version: '3'
-
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data  # SQLiteデータベースのマウント
-    environment:
-      - DATABASE_URL=sqlite:///./data/app.db
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-```
-
-## 拡張性
-- 新しいGitサービスを追加できるプラグイン的な設計
-- 将来的な機能拡張（認証、高度な検索など）を考慮した設計
-
-## 備考
-- 日本語で回答すること
+7. **開発優先順位**
+   - Markdownドキュメント対応を最優先で実装
+   - フロントマター解析、リンク変換など基本的なMarkdown機能を完成させる
+   - Quarto対応は将来の拡張として位置付ける
