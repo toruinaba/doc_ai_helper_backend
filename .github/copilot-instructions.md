@@ -16,9 +16,19 @@
 
 段階的な実装アプローチを採用しています：
 
-1. **Markdownサポート（フェーズ1）**: まずMarkdownファイルの取得・処理機能を完全に実装
-2. **拡張機能（フェーズ2）**: フロントマター解析、リンク変換などの機能を追加
-3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加
+1. **Markdownサポート（フェーズ1）**: まずMarkdownファイルの取得・処理機能を完全に実装 [✅完了]
+   - 基本的なMarkdownファイル取得とコンテンツ提供
+   - フロントマター解析とメタデータ抽出
+   - リンク情報の抽出と変換
+   - 拡張ドキュメントメタデータの提供
+
+2. **拡張機能（フェーズ2）**: その他の機能拡張 [🔄進行中]
+   - 検索機能の実装
+   - リポジトリ管理機能の実装
+   - キャッシュ機能の強化
+   - パフォーマンスとセキュリティの最適化
+
+3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -32,14 +42,16 @@
 - ドキュメント取得APIの基本機能実装完了
 - リポジトリ構造取得APIの基本機能実装完了
 - Mockサービスの実装完了（開発・デモ・テスト用）
+- Markdownドキュメント処理機能の完全実装（フロントマター解析、リンク変換など）
 
 ### 実装方針の明確化
-- Markdownドキュメント対応を最優先で実装
+- Markdownドキュメント対応を最優先で実装（✅完了）
 - データベース層はモックで実装（APIの仕様が定まった段階でモデル定義を行う）
 - Quarto対応は将来の拡張として位置付け
 
 ### 進行中の機能
-- Markdownドキュメント対応の拡張（フロントマター解析、リンク変換など）
+- 検索機能の実装
+- リポジトリ管理機能の実装
 - APIの拡張（Quarto対応を見据えた機能）
 
 ### 未着手の機能
@@ -64,7 +76,7 @@
    - 実際のデータベースなしでサービス層をモックしてAPIの動作を確認
    - テスト駆動開発の手法を活用し、APIの期待する動作をテストで定義
 
-4. **Markdownドキュメント対応の拡張** [🔄実装中]
+4. **Markdownドキュメント対応の拡張** [✅完了]
    - Markdownファイルのフロントマター解析
    - 相対リンクの絶対パス変換機能
    - リンク情報の抽出と提供
@@ -134,11 +146,20 @@ doc_ai_helper_backend/
 │   ├── models/                    # データモデル
 │   │   ├── __init__.py
 │   │   ├── document.py            # ドキュメントモデル
+│   │   ├── frontmatter.py         # フロントマターモデル
+│   │   ├── link_info.py           # リンク情報モデル
 │   │   ├── repository.py          # リポジトリモデル
 │   │   └── search.py              # 検索モデル
 │   ├── services/                  # サービス層
 │   │   ├── __init__.py
 │   │   ├── document_service.py    # ドキュメント処理サービス
+│   │   ├── document_processors/   # ドキュメントプロセッサー
+│   │   │   ├── __init__.py
+│   │   │   ├── base_processor.py   # 基底プロセッサー
+│   │   │   ├── factory.py          # プロセッサーファクトリ
+│   │   │   ├── frontmatter_parser.py # フロントマター解析
+│   │   │   ├── link_transformer.py   # リンク変換
+│   │   │   └── markdown_processor.py # Markdown処理
 │   │   └── git/                   # Gitサービス
 │   │       ├── __init__.py
 │   │       ├── base.py            # Git基本サービス
@@ -255,6 +276,12 @@ async def get_document(
     repo: str = Path(..., description="Repository name"),
     path: str = Path(..., description="Document path"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
+    transform_links: bool = Query(
+        default=True, description="Transform relative links to absolute"
+    ),
+    base_url: Optional[str] = Query(
+        default=None, description="Base URL for link transformation"
+    ),
     document_service: DocumentService = Depends(get_document_service),
 ):
     # 実装
@@ -274,10 +301,37 @@ class DocumentResponse(BaseModel):
     owner: str                  # リポジトリオーナー
     service: str                # Gitサービス
     ref: str                    # ブランチまたはタグ
-    # 実装中/計画中の拡張フィールド
-    # links: List[LinkInfo]       # リンク情報（実装中）
-    # transformed_content: Optional[str]  # リンク変換済みコンテンツ（実装中）
+    links: List[LinkInfo]       # リンク情報
+    transformed_content: Optional[str]  # リンク変換済みコンテンツ
+    # 計画中の拡張フィールド
     # relations: Optional[DocumentRelations]  # 関連ドキュメント情報（将来実装予定）
+```
+
+### リンク情報モデル
+
+```python
+# リンク情報モデル
+class LinkInfo(BaseModel):
+    text: str                  # リンクテキスト
+    url: str                   # リンクURL
+    is_image: bool             # 画像リンクかどうか
+    position: Tuple[int, int]  # リンクの位置（開始,終了）
+    is_external: bool          # 外部リンクかどうか
+```
+
+### 拡張ドキュメントメタデータモデル
+
+```python
+# 拡張ドキュメントメタデータモデル
+class ExtendedDocumentMetadata(BaseModel):
+    filename: str              # ファイル名
+    extension: str             # ファイル拡張子
+    frontmatter: Dict[str, Any] # フロントマターデータ
+    title: Optional[str]       # タイトル
+    description: Optional[str] # 説明
+    author: Optional[str]      # 著者
+    date: Optional[str]        # 日付
+    tags: List[str]            # タグ
 ```
 
 ### ドキュメント設定モデル（計画中）
@@ -328,6 +382,113 @@ class RepositorySettings(BaseModel):
    - 適切な関数/メソッドの分割を行う
 
 7. **開発優先順位**
-   - Markdownドキュメント対応を最優先で実装
-   - フロントマター解析、リンク変換など基本的なMarkdown機能を完成させる
+   - Markdownドキュメント対応を最優先で実装 [✅完了]
+   - 検索機能の実装を進める
+   - リポジトリ管理機能の実装を進める
+   - キャッシュ機能を強化する
    - Quarto対応は将来の拡張として位置付ける
+```
+
+## ドキュメント処理アーキテクチャ
+
+ドキュメント処理は以下のモジュールで構成されています：
+
+### 基底プロセッサー (BaseProcessor)
+
+すべてのドキュメントプロセッサーの基底クラスとして機能し、共通インターフェースを定義します。
+
+```python
+class DocumentProcessorBase(ABC):
+    @abstractmethod
+    def process_content(self, content: str, path: str) -> "DocumentContent":
+        """ドキュメントコンテンツを処理する"""
+        pass
+        
+    @abstractmethod
+    def extract_metadata(self, content: str, path: str) -> "DocumentMetadata":
+        """ドキュメントからメタデータを抽出する"""
+        pass
+        
+    @abstractmethod
+    def extract_links(self, content: str, base_path: str) -> List["LinkInfo"]:
+        """ドキュメントからリンク情報を抽出する"""
+        pass
+        
+    @abstractmethod
+    def transform_links(self, content: str, links: List["LinkInfo"], base_url: str) -> str:
+        """ドキュメント内のリンクを変換する"""
+        pass
+```
+
+### Markdownプロセッサー (MarkdownProcessor)
+
+Markdownドキュメントに特化した処理を行うプロセッサーです。
+
+```python
+class MarkdownProcessor(DocumentProcessorBase):
+    """Markdownドキュメント処理クラス"""
+    
+    # 実装メソッド
+    def process_content(self, content: str, path: str) -> DocumentContent:
+        # Markdownの処理ロジック
+        
+    def extract_metadata(self, content: str, path: str) -> DocumentMetadata:
+        # フロントマターの解析とメタデータ抽出
+        
+    def extract_links(self, content: str, base_path: str) -> List[LinkInfo]:
+        # Markdownリンクの検出と情報抽出
+        
+    def transform_links(self, content: str, links: List[LinkInfo], base_url: str) -> str:
+        # 相対リンクの絶対パス変換
+```
+
+### フロントマターパーサー (FrontmatterParser)
+
+Markdownファイルからフロントマターを解析するユーティリティです。
+
+```python
+def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
+    """
+    Markdownコンテンツからフロントマターを解析する。
+    
+    Returns:
+        (フロントマター辞書, フロントマー除去済みコンテンツ)のタプル
+    """
+    # python-frontmatterを使用した実装
+```
+
+### リンク変換 (LinkTransformer)
+
+ドキュメント内のリンクを検出し、変換するユーティリティです。
+
+```python
+class LinkTransformer:
+    """Markdownドキュメント内のリンクを変換するユーティリティクラス。"""
+    
+    @staticmethod
+    def transform_relative_links(content: str, base_url: str, base_path: str) -> str:
+        """相対リンクを絶対パスに変換する"""
+        
+    @staticmethod
+    def extract_links(content: str, is_markdown: bool = True) -> List[LinkInfo]:
+        """ドキュメントからリンク情報を抽出する"""
+```
+
+### プロセッサーファクトリー (ProcessorFactory)
+
+ドキュメントタイプに応じた適切なプロセッサーを生成するファクトリークラスです。
+
+```python
+class DocumentProcessorFactory:
+    """ドキュメントタイプに応じたプロセッサーを生成するファクトリークラス。"""
+    
+    # 利用可能なプロセッサー
+    _processors: Dict[DocumentType, Type[DocumentProcessorBase]] = {
+        DocumentType.MARKDOWN: MarkdownProcessor,
+        # 将来的にQuartoやHTMLを追加
+    }
+    
+    @classmethod
+    def create(cls, document_type: DocumentType) -> DocumentProcessorBase:
+        """ドキュメントタイプに応じたプロセッサーを生成する"""
+```
