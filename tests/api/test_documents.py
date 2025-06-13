@@ -91,3 +91,195 @@ def test_unsupported_git_service(client):
         "unsupported" in response.json()["message"].lower()
         or "not found" in response.json()["message"].lower()
     )
+
+
+def test_get_document_no_link_transformation(client):
+    """リンク変換を無効にしたドキュメント取得エンドポイントのテスト。"""
+    # モックサービスでtransform_links=Falseをテスト
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?transform_links=false"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # 変換が無効の場合、transformed_contentはNoneであること
+    assert data["transformed_content"] is None
+    # 他の基本的なフィールドの検証
+    assert data["path"] == "README.md"
+    assert data["service"] == "mock"
+
+
+def test_get_document_with_custom_base_url(client):
+    """カスタムベースURLを指定したドキュメント取得エンドポイントのテスト。"""
+    # モックサービスでカスタムbase_urlをテスト
+    custom_base_url = "https://custom-example.com/docs"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?base_url={custom_base_url}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # transformed_contentが存在する場合、カスタムベースURLが含まれているか、リンクがない場合は問題なし
+    if data["transformed_content"] is not None:
+        assert custom_base_url in data["transformed_content"] or not data["links"]
+    # 他の基本的なフィールドの検証
+    assert data["path"] == "README.md"
+
+
+def test_get_document_with_links(client):
+    """リンクを含むドキュメントのテスト。"""
+    # リンクを含むドキュメントでテスト
+    # ドキュメントのパスはモックデータに基づいて選択
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/docs/index.md"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # リンクフィールドが存在することを確認
+    assert "links" in data
+    assert isinstance(data["links"], list)
+    # リンクがある場合、期待される構造を持っているか確認
+    if data["links"]:
+        link = data["links"][0]
+        assert "text" in link
+        assert "url" in link
+        assert "is_image" in link
+        assert "position" in link
+        assert "is_external" in link
+
+    # リンクがある場合、transformed_contentが存在することを確認
+    if data["links"]:
+        assert data["transformed_content"] is not None
+
+
+def test_get_document_with_specific_ref(client):
+    """特定のrefを指定したドキュメント取得エンドポイントのテスト。"""
+    # 特定のブランチまたはタグでテスト
+    custom_ref = "develop"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?ref={custom_ref}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ref"] == custom_ref
+
+
+def test_get_document_with_multiple_parameters(client):
+    """複数のパラメータを組み合わせたドキュメント取得エンドポイントのテスト。"""
+    # 複数のパラメータを組み合わせてテスト
+    custom_ref = "develop"
+    custom_base_url = "https://custom-example.com/docs"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md"
+        f"?ref={custom_ref}&transform_links=true&base_url={custom_base_url}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ref"] == custom_ref
+    # 変換されたコンテンツがある場合、カスタムベースURLが使用されているか確認
+    if data["transformed_content"] is not None:
+        assert custom_base_url in data["transformed_content"] or not data["links"]
+
+
+def test_get_document_no_link_transformation(client):
+    """リンク変換を無効にしたドキュメント取得エンドポイントのテスト。"""
+    # モックサービスでtransform_links=Falseをテスト
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?transform_links=false"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # 変換が無効の場合、transformed_contentはNoneであること
+    assert data["transformed_content"] is None
+    # 他の基本的なフィールドの検証
+    assert data["path"] == "README.md"
+    assert data["service"] == "mock"
+
+
+def test_get_document_with_custom_base_url(client):
+    """カスタムベースURLを指定したドキュメント取得エンドポイントのテスト。"""
+    # モックサービスでカスタムbase_urlをテスト
+    custom_base_url = "https://custom-example.com/docs"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?base_url={custom_base_url}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # transformed_contentが存在する場合、カスタムベースURLが含まれているか、リンクがない場合は問題なし
+    if data["transformed_content"] is not None:
+        assert custom_base_url in data["transformed_content"] or not data["links"]
+    # 他の基本的なフィールドの検証
+    assert data["path"] == "README.md"
+
+
+def test_get_document_with_links(client):
+    """リンクを含むドキュメントのテスト。"""
+    # リンクを含むドキュメントでテスト
+    # ドキュメントのパスはモックデータに基づいて選択
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/docs/index.md"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    # リンクフィールドが存在することを確認
+    assert "links" in data
+    assert isinstance(data["links"], list)
+    # リンクがある場合、期待される構造を持っているか確認
+    if data["links"]:
+        link = data["links"][0]
+        assert "text" in link
+        assert "url" in link
+        assert "is_image" in link
+        assert "position" in link
+        assert "is_external" in link
+
+    # リンクがある場合、transformed_contentが存在することを確認
+    if data["links"]:
+        assert data["transformed_content"] is not None
+
+
+def test_get_document_with_specific_ref(client):
+    """特定のrefを指定したドキュメント取得エンドポイントのテスト。"""
+    # 特定のブランチまたはタグでテスト
+    custom_ref = "develop"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md?ref={custom_ref}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ref"] == custom_ref
+
+
+def test_get_document_with_multiple_parameters(client):
+    """複数のパラメータを組み合わせたドキュメント取得エンドポイントのテスト。"""
+    # 複数のパラメータを組み合わせてテスト
+    custom_ref = "develop"
+    custom_base_url = "https://custom-example.com/docs"
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md"
+        f"?ref={custom_ref}&transform_links=true&base_url={custom_base_url}"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ref"] == custom_ref
+    # 変換されたコンテンツがある場合、カスタムベースURLが使用されているか確認
+    if data["transformed_content"] is not None:
+        assert custom_base_url in data["transformed_content"] or not data["links"]

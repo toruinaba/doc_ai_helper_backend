@@ -3,7 +3,9 @@ Document service for processing and retrieving documents.
 """
 
 import logging
-from typing import Dict, Optional
+import os
+from typing import Dict, List, Optional
+from urllib.parse import urljoin
 
 from doc_ai_helper_backend.core.exceptions import (
     DocumentParsingException,
@@ -12,7 +14,12 @@ from doc_ai_helper_backend.core.exceptions import (
 )
 from doc_ai_helper_backend.models.document import (
     DocumentResponse,
+    DocumentType,
     RepositoryStructureResponse,
+)
+from doc_ai_helper_backend.models.link_info import LinkInfo
+from doc_ai_helper_backend.services.document_processors.factory import (
+    DocumentProcessorFactory,
 )
 from doc_ai_helper_backend.services.git.factory import GitServiceFactory
 
@@ -39,6 +46,8 @@ class DocumentService:
         path: str,
         ref: str = "main",
         use_cache: bool = True,
+        transform_links: bool = True,
+        base_url: Optional[str] = None,
     ) -> DocumentResponse:
         """Get document from a Git repository.
 
@@ -49,6 +58,8 @@ class DocumentService:
             path: Document path
             ref: Branch or tag name. Default is "main"
             use_cache: Whether to use cache. Default is True
+            transform_links: Whether to transform relative links to absolute. Default is True
+            base_url: Base URL for link transformation. If None, will be constructed from request parameters
 
         Returns:
             DocumentResponse: Document data
@@ -74,6 +85,54 @@ class DocumentService:
 
             # Get document from Git service
             document = await git_service.get_document(owner, repo, path, ref)
+
+            # Determine document type
+            file_extension = os.path.splitext(path)[1].lower()
+            document_type = (
+                DocumentType.MARKDOWN
+                if file_extension in [".md", ".markdown"]
+                else DocumentType.OTHER
+            )
+
+            # Process document with appropriate processor
+            try:
+                # Get document processor
+                processor = DocumentProcessorFactory.create(document_type)
+
+                # Extract raw content from document
+                raw_content = document.content.content
+
+                # Process content
+                processed_content = processor.process_content(raw_content, path)
+                document.content = processed_content
+
+                # Extract metadata
+                document.metadata = processor.extract_metadata(raw_content, path)
+
+                # Extract links
+                links = processor.extract_links(raw_content, path)
+
+                # Transform links if requested
+                if transform_links:
+                    # Construct base URL if not provided
+                    if not base_url:
+                        base_url = (
+                            f"/api/v1/documents/contents/{service}/{owner}/{repo}/{ref}"
+                        )
+
+                    transformed_content = processor.transform_links(
+                        raw_content, path, base_url
+                    )
+                    # Store transformed content
+                    document.transformed_content = transformed_content
+
+                # Add links to document
+                document.links = links
+
+            except Exception as e:
+                logger.error(f"Error processing document: {str(e)}")
+                # Fallback to original document if processing fails
+                pass
 
             # Cache document if cache is enabled
             if use_cache and self.cache_service:

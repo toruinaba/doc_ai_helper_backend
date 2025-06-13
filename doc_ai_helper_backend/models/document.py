@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from doc_ai_helper_backend.models.link_info import LinkInfo
+
 
 class DocumentType(str, Enum):
     """Document type enum."""
@@ -55,6 +57,11 @@ class DocumentResponse(DocumentBase):
     owner: str = Field(..., description="Repository owner")
     service: str = Field(..., description="Git service")
     ref: str = Field(default="main", description="Branch or tag name")
+    # 拡張フィールド
+    links: Optional[List[LinkInfo]] = Field(default=None, description="Document links")
+    transformed_content: Optional[str] = Field(
+        default=None, description="Content with transformed links"
+    )
 
 
 class FileTreeItem(BaseModel):
