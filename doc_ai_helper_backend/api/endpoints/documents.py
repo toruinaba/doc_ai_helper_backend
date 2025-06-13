@@ -34,6 +34,12 @@ async def get_document(
     repo: str = Path(..., description="Repository name"),
     path: str = Path(..., description="Document path"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
+    transform_links: bool = Query(
+        default=True, description="Transform relative links to absolute"
+    ),
+    base_url: Optional[str] = Query(
+        default=None, description="Base URL for link transformation"
+    ),
     document_service: DocumentService = Depends(get_document_service),
 ):
     """
@@ -45,6 +51,8 @@ async def get_document(
         repo: Repository name
         path: Document path
         ref: Branch or tag name. Default is "main"
+        transform_links: Whether to transform relative links to absolute. Default is True
+        base_url: Base URL for link transformation. If None, will be constructed from request parameters
         document_service: Document service instance
 
     Returns:
@@ -58,7 +66,15 @@ async def get_document(
     if service.lower() not in ["github", "mock"]:
         raise NotFoundException(f"Unsupported Git service: {service}")
 
-    return await document_service.get_document(service, owner, repo, path, ref)
+    return await document_service.get_document(
+        service,
+        owner,
+        repo,
+        path,
+        ref,
+        transform_links=transform_links,
+        base_url=base_url,
+    )
 
 
 @router.get(
