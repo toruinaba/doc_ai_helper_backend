@@ -1,0 +1,793 @@
+"""
+Mock data for Git service.
+
+This module provides mock data for the MockGitService.
+"""
+
+from datetime import datetime
+from typing import Dict, Any, List
+
+from doc_ai_helper_backend.models.document import FileTreeItem
+
+# Sample Markdown content with various features to test
+MARKDOWN_WITH_FRONTMATTER = """---
+title: Sample Document with Frontmatter
+description: This document demonstrates frontmatter parsing
+author: Test Author
+date: 2023-01-15
+tags: [documentation, sample, test]
+---
+
+# Sample Document
+
+This is a sample document with frontmatter.
+"""
+
+MARKDOWN_WITH_LINKS = """# Document with Links
+
+This document contains various types of links:
+
+- [Internal link to another document](getting-started.md)
+- [Link to section in same document](#section-1)
+- [External link](https://example.com)
+- [Link with title](about.md "About page")
+
+## Section 1
+
+Content with an image: ![Sample image](images/sample.png)
+
+## Section 2
+
+Link to [API Reference](../api/reference.md) outside current directory.
+"""
+
+MARKDOWN_WITH_CODE = """# Code Examples
+
+Here are some code examples:
+
+```python
+def hello_world():
+    print("Hello, world!")
+```
+
+And inline code: `const x = 1;`.
+
+```javascript
+function add(a, b) {
+    return a + b;
+}
+```
+"""
+
+MARKDOWN_COMPLEX = """---
+title: Complex Markdown Example
+description: Demonstrates many Markdown features
+author: Test Author
+date: 2023-02-20
+tags: [markdown, complex, features]
+---
+
+# Complex Markdown Document
+
+## Table of Contents
+- [Introduction](#introduction)
+- [Features](#features)
+- [API Reference](../api/reference.md)
+- [External Resources](#external-resources)
+
+## Introduction
+
+This document shows various Markdown features.
+
+## Features
+
+1. **Bold text** and *italic text*
+2. Tables:
+
+| Feature | Status |
+|---------|--------|
+| Links   | ✅     |
+| Images  | ✅     |
+| Tables  | ✅     |
+
+3. Blockquotes:
+
+> This is a blockquote.
+> It can span multiple lines.
+
+4. Nested lists:
+   - Item 1
+     - Sub-item 1.1
+     - Sub-item 1.2
+   - Item 2
+
+## External Resources
+
+- [GitHub](https://github.com)
+- [Documentation Home](../index.md)
+- [Getting Started](getting-started.md)
+
+![Project Logo](../images/logo.png)
+"""
+
+# Documentation structure example
+DOCUMENTATION_DOCS = {
+    # Main index file
+    "example/docs-project/index.md@main": {
+        "content": """---
+title: Documentation Project
+description: Sample documentation project with multiple pages
+---
+
+# Documentation Project
+
+Welcome to the documentation project.
+
+## Pages
+
+- [Getting Started](getting-started.md)
+- [User Guide](user-guide/index.md)
+- [API Reference](api/reference.md)
+- [Examples](examples/index.md)
+
+![Project Logo](images/logo.png)
+""",
+        "metadata": {
+            "size": 245,
+            "last_modified": datetime(2023, 2, 1, 10, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "abc123def456",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/index.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/index.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/index.md",
+            "encoding": "utf-8",
+        },
+    },
+    # Getting started
+    "example/docs-project/getting-started.md@main": {
+        "content": """---
+title: Getting Started
+description: How to get started with the project
+---
+
+# Getting Started
+
+This guide will help you get started with the project.
+
+## Prerequisites
+
+- Python 3.8+
+- Git
+
+## Installation
+
+```bash
+pip install example-project
+```
+
+## Next Steps
+
+- Read the [User Guide](user-guide/index.md)
+- Check out [Examples](examples/index.md)
+- Return to [Home](index.md)
+""",
+        "metadata": {
+            "size": 320,
+            "last_modified": datetime(2023, 2, 1, 11, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "def456ghi789",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/getting-started.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/getting-started.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/getting-started.md",
+            "encoding": "utf-8",
+        },
+    },
+    # User guide index
+    "example/docs-project/user-guide/index.md@main": {
+        "content": """---
+title: User Guide
+description: Comprehensive user guide
+---
+
+# User Guide
+
+This is the user guide for the project.
+
+## Topics
+
+- [Basic Usage](basic-usage.md)
+- [Advanced Features](advanced-features.md)
+- [Configuration](configuration.md)
+
+Return to [Home](../index.md) or [Getting Started](../getting-started.md)
+""",
+        "metadata": {
+            "size": 250,
+            "last_modified": datetime(2023, 2, 2, 10, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "ghi789jkl012",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/index.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/user-guide/index.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/index.md",
+            "encoding": "utf-8",
+        },
+    },
+    # User guide - Basic usage
+    "example/docs-project/user-guide/basic-usage.md@main": {
+        "content": """---
+title: Basic Usage
+description: How to use basic features
+---
+
+# Basic Usage
+
+Learn about the basic usage of the project.
+
+## Simple Example
+
+```python
+from example_project import Example
+
+ex = Example()
+ex.run()
+```
+
+## Common Tasks
+
+- Task 1: `ex.task1()`
+- Task 2: `ex.task2()`
+
+See [Advanced Features](advanced-features.md) for more complex usage.
+
+Return to [User Guide](index.md) or [Home](../index.md)
+""",
+        "metadata": {
+            "size": 280,
+            "last_modified": datetime(2023, 2, 2, 11, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "jkl012mno345",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/basic-usage.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/user-guide/basic-usage.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/basic-usage.md",
+            "encoding": "utf-8",
+        },
+    },
+    # User guide - Advanced features
+    "example/docs-project/user-guide/advanced-features.md@main": {
+        "content": """---
+title: Advanced Features
+description: Advanced usage and features
+---
+
+# Advanced Features
+
+Explore advanced features of the project.
+
+## Feature 1: Advanced Processing
+
+```python
+from example_project import Example, AdvancedProcessor
+
+ex = Example(processor=AdvancedProcessor())
+results = ex.process_advanced_data()
+```
+
+## Feature 2: Custom Extensions
+
+The project supports custom extensions:
+
+![Extension Architecture](../images/extension-arch.png)
+
+See [Configuration](configuration.md) for setup options.
+
+Return to [User Guide](index.md) or [Basic Usage](basic-usage.md)
+""",
+        "metadata": {
+            "size": 350,
+            "last_modified": datetime(2023, 2, 2, 12, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "mno345pqr678",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/advanced-features.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/user-guide/advanced-features.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/advanced-features.md",
+            "encoding": "utf-8",
+        },
+    },
+    # API Reference
+    "example/docs-project/api/reference.md@main": {
+        "content": """---
+title: API Reference
+description: Complete API reference documentation
+---
+
+# API Reference
+
+This document provides the complete API reference.
+
+## Core Classes
+
+### `Example`
+
+```python
+class Example:
+    def __init__(self, config=None):
+        '''Initialize with optional config.'''
+        
+    def run(self):
+        '''Run the example.'''
+        
+    def process_data(self, data):
+        '''Process input data.'''
+```
+
+### `AdvancedProcessor`
+
+```python
+class AdvancedProcessor:
+    def process(self, data):
+        '''Process data with advanced algorithm.'''
+```
+
+## Utility Functions
+
+- `util_function1()`: Description of function 1
+- `util_function2()`: Description of function 2
+
+Return to [Home](../index.md) or [User Guide](../user-guide/index.md)
+""",
+        "metadata": {
+            "size": 450,
+            "last_modified": datetime(2023, 2, 3, 10, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "pqr678stu901",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/api/reference.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/api/reference.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/api/reference.md",
+            "encoding": "utf-8",
+        },
+    },
+    # Examples index
+    "example/docs-project/examples/index.md@main": {
+        "content": """---
+title: Examples
+description: Example code and usage scenarios
+---
+
+# Examples
+
+Browse through example code and usage scenarios.
+
+## Basic Examples
+
+- [Example 1](example1.md): Basic usage example
+- [Example 2](example2.md): Intermediate usage example
+
+## Advanced Examples
+
+- [Advanced Example](advanced.md): Complex use case
+
+Return to [Home](../index.md)
+""",
+        "metadata": {
+            "size": 220,
+            "last_modified": datetime(2023, 2, 4, 10, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "stu901vwx234",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/index.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/examples/index.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/index.md",
+            "encoding": "utf-8",
+        },
+    },
+    # Example 1
+    "example/docs-project/examples/example1.md@main": {
+        "content": """---
+title: Example 1
+description: Basic usage example
+---
+
+# Example 1: Basic Usage
+
+This example demonstrates basic usage of the project.
+
+```python
+from example_project import Example
+
+# Initialize
+ex = Example()
+
+# Process data
+data = [1, 2, 3, 4, 5]
+result = ex.process_data(data)
+print(result)
+```
+
+## Output
+
+```
+Processed data: [2, 4, 6, 8, 10]
+```
+
+See [Example 2](example2.md) for more complex examples.
+
+Return to [Examples](index.md) or [Home](../index.md)
+""",
+        "metadata": {
+            "size": 310,
+            "last_modified": datetime(2023, 2, 4, 11, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "vwx234yz567",
+            "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/example1.md",
+            "html_url": "https://github.com/example/docs-project/blob/main/examples/example1.md",
+            "raw_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/example1.md",
+            "encoding": "utf-8",
+        },
+    },
+}
+
+# Repository structure for documentation project
+DOCUMENTATION_STRUCTURE = {
+    "example/docs-project@main": {
+        "tree": [
+            {
+                "path": "index.md",
+                "name": "index.md",
+                "type": "file",
+                "size": 245,
+                "sha": "abc123def456",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/index.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/index.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/abc123def456",
+            },
+            {
+                "path": "getting-started.md",
+                "name": "getting-started.md",
+                "type": "file",
+                "size": 320,
+                "sha": "def456ghi789",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/getting-started.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/getting-started.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/def456ghi789",
+            },
+            {
+                "path": "user-guide",
+                "name": "user-guide",
+                "type": "directory",
+                "size": None,
+                "sha": "folder123",
+                "download_url": None,
+                "html_url": "https://github.com/example/docs-project/tree/main/user-guide",
+                "git_url": None,
+            },
+            {
+                "path": "user-guide/index.md",
+                "name": "index.md",
+                "type": "file",
+                "size": 250,
+                "sha": "ghi789jkl012",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/index.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/user-guide/index.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/ghi789jkl012",
+            },
+            {
+                "path": "user-guide/basic-usage.md",
+                "name": "basic-usage.md",
+                "type": "file",
+                "size": 280,
+                "sha": "jkl012mno345",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/basic-usage.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/user-guide/basic-usage.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/jkl012mno345",
+            },
+            {
+                "path": "user-guide/advanced-features.md",
+                "name": "advanced-features.md",
+                "type": "file",
+                "size": 350,
+                "sha": "mno345pqr678",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/user-guide/advanced-features.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/user-guide/advanced-features.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/mno345pqr678",
+            },
+            {
+                "path": "api",
+                "name": "api",
+                "type": "directory",
+                "size": None,
+                "sha": "folder456",
+                "download_url": None,
+                "html_url": "https://github.com/example/docs-project/tree/main/api",
+                "git_url": None,
+            },
+            {
+                "path": "api/reference.md",
+                "name": "reference.md",
+                "type": "file",
+                "size": 450,
+                "sha": "pqr678stu901",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/api/reference.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/api/reference.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/pqr678stu901",
+            },
+            {
+                "path": "examples",
+                "name": "examples",
+                "type": "directory",
+                "size": None,
+                "sha": "folder789",
+                "download_url": None,
+                "html_url": "https://github.com/example/docs-project/tree/main/examples",
+                "git_url": None,
+            },
+            {
+                "path": "examples/index.md",
+                "name": "index.md",
+                "type": "file",
+                "size": 220,
+                "sha": "stu901vwx234",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/index.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/examples/index.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/stu901vwx234",
+            },
+            {
+                "path": "examples/example1.md",
+                "name": "example1.md",
+                "type": "file",
+                "size": 310,
+                "sha": "vwx234yz567",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/example1.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/examples/example1.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/vwx234yz567",
+            },
+            {
+                "path": "examples/example2.md",
+                "name": "example2.md",
+                "type": "file",
+                "size": 290,
+                "sha": "yz567abc890",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/example2.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/examples/example2.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/yz567abc890",
+            },
+            {
+                "path": "examples/advanced.md",
+                "name": "advanced.md",
+                "type": "file",
+                "size": 380,
+                "sha": "abc890def123",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/examples/advanced.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/examples/advanced.md",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/abc890def123",
+            },
+            {
+                "path": "images",
+                "name": "images",
+                "type": "directory",
+                "size": None,
+                "sha": "folderImg",
+                "download_url": None,
+                "html_url": "https://github.com/example/docs-project/tree/main/images",
+                "git_url": None,
+            },
+            {
+                "path": "images/logo.png",
+                "name": "logo.png",
+                "type": "file",
+                "size": 5120,
+                "sha": "img123",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/images/logo.png",
+                "html_url": "https://github.com/example/docs-project/blob/main/images/logo.png",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/img123",
+            },
+            {
+                "path": "images/extension-arch.png",
+                "name": "extension-arch.png",
+                "type": "file",
+                "size": 7680,
+                "sha": "img456",
+                "download_url": "https://raw.githubusercontent.com/example/docs-project/main/images/extension-arch.png",
+                "html_url": "https://github.com/example/docs-project/blob/main/images/extension-arch.png",
+                "git_url": "https://api.github.com/repos/example/docs-project/git/blobs/img456",
+            },
+        ],
+        "last_updated": datetime(2023, 2, 10, 15, 0, 0),
+    }
+}
+
+# Search results for documentation project
+DOCUMENTATION_SEARCH_RESULTS = {
+    "example/docs-project:api": {
+        "results": [
+            {
+                "path": "api/reference.md",
+                "name": "reference.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/api/reference.md",
+                "score": 0.95,
+                "highlight": "# <em>API</em> Reference\n\nThis document provides the complete <em>API</em> reference.",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+            {
+                "path": "index.md",
+                "name": "index.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/index.md",
+                "score": 0.75,
+                "highlight": "- [<em>API</em> Reference](api/reference.md)",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+            {
+                "path": "user-guide/index.md",
+                "name": "index.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/user-guide/index.md",
+                "score": 0.6,
+                "highlight": "Check the [<em>API</em> Reference](../api/reference.md) for more details.",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+        ]
+    },
+    "example/docs-project:advanced": {
+        "results": [
+            {
+                "path": "user-guide/advanced-features.md",
+                "name": "advanced-features.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/user-guide/advanced-features.md",
+                "score": 0.9,
+                "highlight": "# <em>Advanced</em> Features\n\nExplore <em>advanced</em> features of the project.",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+            {
+                "path": "examples/advanced.md",
+                "name": "advanced.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/examples/advanced.md",
+                "score": 0.85,
+                "highlight": "# <em>Advanced</em> Example\n\nThis example demonstrates <em>advanced</em> usage.",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+            {
+                "path": "api/reference.md",
+                "name": "reference.md",
+                "html_url": "https://github.com/example/docs-project/blob/main/api/reference.md",
+                "score": 0.7,
+                "highlight": "### `<em>Advanced</em>Processor`\n\n```python\nclass <em>Advanced</em>Processor:",
+                "repository": {
+                    "name": "docs-project",
+                    "owner": "example",
+                },
+            },
+        ]
+    },
+}
+
+# Original default mock data
+DEFAULT_DOCUMENTS = {
+    "octocat/Hello-World/README.md@main": {
+        "content": "# Hello World\n\nThis is a sample repository.",
+        "metadata": {
+            "size": 42,
+            "last_modified": datetime(2023, 1, 1, 12, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "abcdef1234567890",
+            "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
+            "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
+            "raw_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
+            "encoding": "utf-8",
+        },
+    },
+    "octocat/Hello-World/docs/index.md@main": {
+        "content": "# Documentation\n\nThis is the main documentation page.",
+        "metadata": {
+            "size": 47,
+            "last_modified": datetime(2023, 1, 2, 12, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "1234567890abcdef",
+            "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
+            "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
+            "raw_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
+            "encoding": "utf-8",
+        },
+    },
+}
+
+DEFAULT_STRUCTURES = {
+    "octocat/Hello-World@main": {
+        "tree": [
+            {
+                "path": "README.md",
+                "name": "README.md",
+                "type": "file",
+                "size": 42,
+                "sha": "abcdef1234567890",
+                "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
+                "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
+                "git_url": "https://api.github.com/repos/octocat/Hello-World/git/blobs/abcdef1234567890",
+            },
+            {
+                "path": "docs",
+                "name": "docs",
+                "type": "directory",
+                "size": None,
+                "sha": "0987654321fedcba",
+                "download_url": None,
+                "html_url": "https://github.com/octocat/Hello-World/tree/main/docs",
+                "git_url": None,
+            },
+            {
+                "path": "docs/index.md",
+                "name": "index.md",
+                "type": "file",
+                "size": 47,
+                "sha": "1234567890abcdef",
+                "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
+                "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
+                "git_url": "https://api.github.com/repos/octocat/Hello-World/git/blobs/1234567890abcdef",
+            },
+        ],
+        "last_updated": datetime(2023, 1, 3, 12, 0, 0),
+    }
+}
+
+DEFAULT_SEARCH_RESULTS = {
+    "octocat/Hello-World:documentation": {
+        "results": [
+            {
+                "path": "docs/index.md",
+                "name": "index.md",
+                "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
+                "score": 0.9,
+                "highlight": "This is the main <em>documentation</em> page.",
+                "repository": {
+                    "name": "Hello-World",
+                    "owner": "octocat",
+                },
+            },
+            {
+                "path": "README.md",
+                "name": "README.md",
+                "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
+                "score": 0.5,
+                "highlight": "This is a sample repository with <em>documentation</em>.",
+                "repository": {
+                    "name": "Hello-World",
+                    "owner": "octocat",
+                },
+            },
+        ]
+    }
+}
+
+DEFAULT_EXISTING_REPOS = ["octocat/Hello-World"]
+
+# Combined mock data for export
+EXTENDED_DOCUMENTS = {
+    **DEFAULT_DOCUMENTS,
+    **DOCUMENTATION_DOCS,
+}
+
+EXTENDED_STRUCTURES = {
+    **DEFAULT_STRUCTURES,
+    **DOCUMENTATION_STRUCTURE,
+}
+
+EXTENDED_SEARCH_RESULTS = {
+    **DEFAULT_SEARCH_RESULTS,
+    **DOCUMENTATION_SEARCH_RESULTS,
+}
+
+EXTENDED_EXISTING_REPOS = [
+    *DEFAULT_EXISTING_REPOS,
+    "example/docs-project",
+]
