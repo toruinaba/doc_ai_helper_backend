@@ -107,7 +107,9 @@ class DocumentService:
                 document.content = processed_content
 
                 # Extract metadata
-                document.metadata = processor.extract_metadata(raw_content, path)
+                processed_metadata = processor.extract_metadata(raw_content, path)
+                if processed_metadata:
+                    document.metadata.extra = processed_metadata
 
                 # Extract links
                 links = processor.extract_links(raw_content, path)

@@ -13,6 +13,12 @@ from doc_ai_helper_backend.core.exceptions import (
     GitServiceException,
     NotFoundException,
 )
+from doc_ai_helper_backend.services.git.mock_data import (
+    EXTENDED_DOCUMENTS,
+    EXTENDED_STRUCTURES,
+    EXTENDED_SEARCH_RESULTS,
+    EXTENDED_EXISTING_REPOS,
+)
 from doc_ai_helper_backend.models.document import (
     DocumentResponse,
     FileTreeItem,
@@ -45,10 +51,10 @@ class MockGitService(GitServiceBase):
             search_results: Pre-defined search results to return, keyed by {owner}/{repo}:{query}
             existing_repos: List of existing repositories in format "{owner}/{repo}"
         """
-        self.documents = documents or DEFAULT_DOCUMENTS
-        self.structures = structures or DEFAULT_STRUCTURES
-        self.search_results = search_results or DEFAULT_SEARCH_RESULTS
-        self.existing_repos = existing_repos or DEFAULT_EXISTING_REPOS
+        self.documents = documents or EXTENDED_DOCUMENTS
+        self.structures = structures or EXTENDED_STRUCTURES
+        self.search_results = search_results or EXTENDED_SEARCH_RESULTS
+        self.existing_repos = existing_repos or EXTENDED_EXISTING_REPOS
         super().__init__(access_token=access_token)
 
     def _get_service_name(self) -> str:
@@ -117,7 +123,6 @@ class MockGitService(GitServiceBase):
                 "encoding": "utf-8",
             },
         )
-
         # Build and return document response
         return self.build_document_response(
             owner=owner,
@@ -309,101 +314,4 @@ class MockGitService(GitServiceBase):
         return repo_path in self.existing_repos
 
 
-# Default mock data
-DEFAULT_DOCUMENTS = {
-    "octocat/Hello-World/README.md@main": {
-        "content": "# Hello World\n\nThis is a sample repository.",
-        "metadata": {
-            "size": 42,
-            "last_modified": datetime(2023, 1, 1, 12, 0, 0),
-            "content_type": "text/markdown",
-            "sha": "abcdef1234567890",
-            "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
-            "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
-            "raw_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
-            "encoding": "utf-8",
-        },
-    },
-    "octocat/Hello-World/docs/index.md@main": {
-        "content": "# Documentation\n\nThis is the main documentation page.",
-        "metadata": {
-            "size": 47,
-            "last_modified": datetime(2023, 1, 2, 12, 0, 0),
-            "content_type": "text/markdown",
-            "sha": "1234567890abcdef",
-            "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
-            "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
-            "raw_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
-            "encoding": "utf-8",
-        },
-    },
-}
-
-DEFAULT_STRUCTURES = {
-    "octocat/Hello-World@main": {
-        "tree": [
-            {
-                "path": "README.md",
-                "name": "README.md",
-                "type": "file",
-                "size": 42,
-                "sha": "abcdef1234567890",
-                "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/README.md",
-                "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
-                "git_url": "https://api.github.com/repos/octocat/Hello-World/git/blobs/abcdef1234567890",
-            },
-            {
-                "path": "docs",
-                "name": "docs",
-                "type": "directory",
-                "size": None,
-                "sha": "0987654321fedcba",
-                "download_url": None,
-                "html_url": "https://github.com/octocat/Hello-World/tree/main/docs",
-                "git_url": None,
-            },
-            {
-                "path": "docs/index.md",
-                "name": "index.md",
-                "type": "file",
-                "size": 47,
-                "sha": "1234567890abcdef",
-                "download_url": "https://raw.githubusercontent.com/octocat/Hello-World/main/docs/index.md",
-                "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
-                "git_url": "https://api.github.com/repos/octocat/Hello-World/git/blobs/1234567890abcdef",
-            },
-        ],
-        "last_updated": datetime(2023, 1, 3, 12, 0, 0),
-    }
-}
-
-DEFAULT_SEARCH_RESULTS = {
-    "octocat/Hello-World:documentation": {
-        "results": [
-            {
-                "path": "docs/index.md",
-                "name": "index.md",
-                "html_url": "https://github.com/octocat/Hello-World/blob/main/docs/index.md",
-                "score": 0.9,
-                "highlight": "This is the main <em>documentation</em> page.",
-                "repository": {
-                    "name": "Hello-World",
-                    "owner": "octocat",
-                },
-            },
-            {
-                "path": "README.md",
-                "name": "README.md",
-                "html_url": "https://github.com/octocat/Hello-World/blob/main/README.md",
-                "score": 0.5,
-                "highlight": "This is a sample repository with <em>documentation</em>.",
-                "repository": {
-                    "name": "Hello-World",
-                    "owner": "octocat",
-                },
-            },
-        ]
-    }
-}
-
-DEFAULT_EXISTING_REPOS = ["octocat/Hello-World"]
+# Old default mock data moved to mock_data.py

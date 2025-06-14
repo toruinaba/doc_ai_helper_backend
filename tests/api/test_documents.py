@@ -283,3 +283,42 @@ def test_get_document_with_multiple_parameters(client):
     # 変換されたコンテンツがある場合、カスタムベースURLが使用されているか確認
     if data["transformed_content"] is not None:
         assert custom_base_url in data["transformed_content"] or not data["links"]
+
+
+def test_get_document_with_frontmatter(client):
+    """フロントマターを含むドキュメントのテスト。"""
+    # フロントマターを含むドキュメントでテスト
+    # ドキュメントのパスはモックデータに基づいて選択
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/example/docs-project/index.md"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+
+    # メタデータ内にフロントマターが存在することを確認
+    assert "metadata" in data
+    assert "frontmatter" in data["metadata"]["extra"]
+
+    # 特定のフロントマターフィールドの存在と値を検証
+    frontmatter = data["metadata"]["extra"]["frontmatter"]
+    if "title" in frontmatter:
+        assert data["metadata"]["extra"]["title"] == frontmatter["title"]
+    assert isinstance(frontmatter, dict)
+
+
+def test_get_document_without_frontmatter(client):
+    """フロントマターを含まないドキュメントのテスト。"""
+    # フロントマターを含まないドキュメントでテスト
+    response = client.get(
+        f"{settings.api_prefix}/documents/contents/mock/octocat/Hello-World/README.md"
+    )
+
+    # 検証
+    assert response.status_code == 200
+    data = response.json()
+
+    # フロントマターがない場合、空の辞書または基本的な値のみを持つことを確認
+    assert "metadata" in data
+    assert data["metadata"]["extra"]["frontmatter"] == {}
