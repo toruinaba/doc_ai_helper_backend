@@ -29,6 +29,19 @@ class Settings(BaseSettings):
     # Git service settings
     github_token: Optional[str] = Field(None, env="GITHUB_TOKEN")
 
+    # LLM service settings
+    openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
+    anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
+    gemini_api_key: Optional[str] = Field(None, env="GEMINI_API_KEY")
+    default_llm_provider: str = Field("openai", env="DEFAULT_LLM_PROVIDER")
+    default_openai_model: str = Field("gpt-4", env="DEFAULT_OPENAI_MODEL")
+    default_anthropic_model: str = Field(
+        "claude-3-sonnet-20240229", env="DEFAULT_ANTHROPIC_MODEL"
+    )
+    default_gemini_model: str = Field("gemini-pro", env="DEFAULT_GEMINI_MODEL")
+    llm_cache_ttl: int = Field(3600, env="LLM_CACHE_TTL")  # Cache TTL in seconds
+    llm_rate_limit: int = Field(60, env="LLM_RATE_LIMIT")  # Requests per minute
+
     # Cache settings
     cache_enabled: bool = Field(True, env="CACHE_ENABLED")
     cache_ttl: int = Field(3600, env="CACHE_TTL")  # Default: 1 hour
