@@ -5,12 +5,15 @@ This module provides the API endpoints for LLM functionality.
 """
 
 from typing import Dict, Any, List, Optional
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from sse_starlette.sse import EventSourceResponse
 
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
     LLMResponse,
     PromptTemplate,
+    LLMStreamChunk,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.core.exceptions import (
@@ -151,3 +154,58 @@ async def format_prompt(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise LLMServiceException(message="Error formatting template", detail=str(e))
+
+
+@router.post(
+    "/stream",
+    summary="Stream LLM response",
+    description="Stream response from LLM in real-time using Server-Sent Events (SSE)",
+)
+async def stream_llm_response(
+    request: LLMQueryRequest,
+    llm_service: LLMServiceBase = Depends(get_llm_service),
+):
+    """
+    Stream a response from an LLM.
+
+    Args:
+        request: The query request containing prompt and options
+        llm_service: The LLM service to use (injected)
+
+    Returns:
+        EventSourceResponse: Server-Sent Events response
+    """
+    # Check if streaming is supported
+    capabilities = await llm_service.get_capabilities()
+    if not capabilities.supports_streaming:
+        raise HTTPException(
+            status_code=400,
+            detail="The selected LLM provider does not support streaming",
+        )
+
+    async def event_generator():
+        try:
+            # Prepare options
+            options = request.options or {}
+            if request.model:
+                options["model"] = request.model
+
+            # Process context documents if provided
+            if request.context_documents:
+                options["context_documents"] = (
+                    request.context_documents
+                )  # Stream query to LLM
+            async for text_chunk in llm_service.stream_query(request.prompt, options):
+                # Send each chunk as an SSE event
+                yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+
+            # Signal completion
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+        except Exception as e:
+            # Send error as an event
+            error_msg = str(e)
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+
+    # Return an SSE response
+    return EventSourceResponse(event_generator())

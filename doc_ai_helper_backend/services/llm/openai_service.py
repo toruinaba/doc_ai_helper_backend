@@ -7,7 +7,7 @@ It can be used with OpenAI directly or with a LiteLLM proxy server.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, AsyncGenerator
 
 import tiktoken
 from openai import OpenAI, AsyncOpenAI
@@ -291,3 +291,39 @@ class OpenAIService(LLMServiceBase):
             usage=usage,
             raw_response=openai_response.model_dump(),
         )
+
+    async def stream_query(
+        self, prompt: str, options: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a query to the LLM.
+
+        Args:
+            prompt: The prompt to send to the LLM
+            options: Additional options for the query (model, temperature, etc.)        Returns:
+            AsyncGenerator[str, None]: An async generator that yields chunks of the response
+        """
+        options = options or {}
+        query_options = self._prepare_options(prompt, options)
+        model = query_options.get("model", self.default_model)
+
+        try:
+            # ストリーミングパラメータを設定
+            query_options["stream"] = True
+
+            # OpenAI APIにリクエスト
+            messages = query_options.pop("messages")
+
+            # ストリーミングレスポンスを取得
+            stream = await self.async_client.chat.completions.create(
+                model=model, messages=messages, stream=True, **query_options
+            )
+
+            # チャンクを順次生成
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+
+        except Exception as e:
+            logger.error(f"Error in streaming query: {str(e)}")
+            raise LLMServiceException(f"Streaming error: {str(e)}")

@@ -8,7 +8,7 @@ import json
 import time
 import os
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncGenerator
 
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
@@ -107,7 +107,7 @@ class MockLLMService(LLMServiceBase):
                 "mock-model-large": 8192,
                 "mock-model-small": 2048,
             },
-            supports_streaming=False,
+            supports_streaming=True,
             supports_function_calling=True,
             supports_vision=False,
         )
@@ -186,3 +186,55 @@ class MockLLMService(LLMServiceBase):
                 "In a real LLM service, I would analyze this and provide a thoughtful response. "
                 "This is just a mock response for development and testing purposes."
             )
+
+    async def stream_query(
+        self, prompt: str, options: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a query to the mock LLM.
+
+        Args:
+            prompt: The prompt to send
+            options: Additional options for the query
+
+        Returns:
+            AsyncGenerator[str, None]: An async generator that yields chunks of the response
+        """
+        if options is None:
+            options = {}
+
+        # Get the full response
+        full_response = self._generate_response(prompt)
+
+        # Split into chunks of approximately 10-20 characters
+        chunks = []
+        chunk_size = 15  # Average chunk size
+
+        # Create chunks with natural word boundaries where possible
+        start = 0
+        while start < len(full_response):
+            # Determine a variable chunk size around the average
+            current_chunk_size = (
+                chunk_size + (hash(full_response[start : start + 5]) % 10) - 5
+            )
+
+            # Make sure we don't go beyond the string length
+            end = min(start + current_chunk_size, len(full_response))
+
+            # Try to end at a space for more natural chunks
+            if end < len(full_response) and not full_response[end].isspace():
+                # Look for the nearest space backward
+                space_pos = full_response.rfind(" ", start, end)
+                if space_pos > start:
+                    end = space_pos + 1
+
+            chunks.append(full_response[start:end])
+            start = end
+
+        # Simulate streaming by yielding chunks with delays
+        for chunk in chunks:
+            # Simulate processing delay (shorter than full query to make streaming feel real)
+            delay = min(0.3, self.response_delay / len(chunks))
+            await asyncio.sleep(delay)
+
+            yield chunk

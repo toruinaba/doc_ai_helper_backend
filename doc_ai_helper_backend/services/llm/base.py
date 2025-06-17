@@ -5,7 +5,7 @@ This module provides the base abstract class for LLM services.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncGenerator
 
 from doc_ai_helper_backend.models.llm import LLMResponse, ProviderCapabilities
 
@@ -38,9 +38,7 @@ class LLMServiceBase(ABC):
     @abstractmethod
     async def get_capabilities(self) -> ProviderCapabilities:
         """
-        Get the capabilities of the LLM provider.
-
-        Returns:
+        Get the capabilities of the LLM provider.        Returns:
             ProviderCapabilities: The capabilities of the provider
         """
         pass
@@ -75,9 +73,23 @@ class LLMServiceBase(ABC):
         Estimate the number of tokens in a text.
 
         Args:
-            text: The text to estimate tokens for
+            text: The text to estimate tokens for        Returns:
+            int: Estimated token count
+        """
+        pass
+
+    @abstractmethod
+    async def stream_query(
+        self, prompt: str, options: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a query to the LLM.
+
+        Args:
+            prompt: The prompt to send to the LLM
+            options: Additional options for the query (model, temperature, etc.)
 
         Returns:
-            int: Estimated token count
+            AsyncGenerator[str, None]: An async generator that yields chunks of the response
         """
         pass

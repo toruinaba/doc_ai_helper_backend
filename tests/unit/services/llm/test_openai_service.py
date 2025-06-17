@@ -285,3 +285,42 @@ class TestOpenAIService:
         assert llm_response.usage.completion_tokens == 10
         assert llm_response.usage.total_tokens == 15
         assert llm_response.raw_response == {"test": "data"}
+
+    @pytest.mark.asyncio
+    async def test_stream_query(self, openai_service, monkeypatch):
+        """ストリーミングクエリのテスト"""
+        # ストリーミングレスポンスのモック
+        mock_chunk1 = MagicMock()
+        mock_chunk1.choices = [MagicMock()]
+        mock_chunk1.choices[0].delta.content = "Hello"
+
+        mock_chunk2 = MagicMock()
+        mock_chunk2.choices = [MagicMock()]
+        mock_chunk2.choices[0].delta.content = " world"
+
+        mock_chunk3 = MagicMock()
+        mock_chunk3.choices = [MagicMock()]
+        mock_chunk3.choices[0].delta.content = "!"
+
+        # ストリーミングレスポンスを返すAsyncGeneratorのモック
+        async def mock_stream():
+            yield mock_chunk1
+            yield mock_chunk2
+            yield mock_chunk3
+
+        # AsyncOpenAIクライアントのchat.completions.createメソッドをモック
+        openai_service.async_client.chat.completions.create = AsyncMock(
+            return_value=mock_stream()
+        )
+
+        # テスト実行
+        chunks = []
+        async for chunk in openai_service.stream_query("Test streaming"):
+            chunks.append(chunk)
+
+        # 検証
+        assert chunks == ["Hello", " world", "!"]
+        assert openai_service.async_client.chat.completions.create.call_count == 1
+        # ストリーミングパラメータが設定されているか確認
+        call_kwargs = openai_service.async_client.chat.completions.create.call_args[1]
+        assert call_kwargs.get("stream") is True

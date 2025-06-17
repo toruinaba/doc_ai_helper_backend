@@ -102,3 +102,31 @@ class PromptTemplate(BaseModel):
     variables: List[TemplateVariable] = Field(
         default_factory=list, description="Variables used in the template"
     )
+
+
+class LLMStreamChunk(BaseModel):
+    """
+    Streaming chunk response from LLM.
+    """
+
+    text: str = Field(..., description="The chunk of text from the LLM")
+    done: bool = Field(default=False, description="Whether this is the last chunk")
+    error: Optional[str] = Field(
+        default=None, description="Error message, if any occurred during streaming"
+    )
+
+
+class LLMStreamResponse(BaseModel):
+    """
+    Response model for streaming LLM query.
+    """
+
+    model: str = Field(..., description="The model used for generation")
+    provider: str = Field(..., description="The provider of the LLM")
+    chunks: List[str] = Field(
+        default_factory=list, description="Chunks of response received so far"
+    )
+    done: bool = Field(default=False, description="Whether the stream is complete")
+    error: Optional[str] = Field(
+        default=None, description="Error message if something went wrong"
+    )
