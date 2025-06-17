@@ -31,7 +31,7 @@ def get_llm_service() -> LLMServiceBase:
 
     # In development/testing mode, use mock service
     if settings.environment.lower() in ["development", "testing"]:
-        provider = "mock"    # Configure provider-specific settings
+        provider = "mock"  # Configure provider-specific settings
     config = {}
     if provider == "openai":
         config["api_key"] = settings.openai_api_key

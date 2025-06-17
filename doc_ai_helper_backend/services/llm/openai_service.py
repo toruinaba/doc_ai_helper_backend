@@ -214,8 +214,13 @@ class OpenAIService(LLMServiceBase):
             "model": self.default_model,
             "temperature": 0.7,
             "max_tokens": 1000,
-            "messages": [{"role": "user", "content": prompt}],
         }
+
+        # Handle messages - use provided messages if available, otherwise create from prompt
+        if "messages" in options:
+            prepared_options["messages"] = options["messages"]
+        else:
+            prepared_options["messages"] = [{"role": "user", "content": prompt}]
 
         # If a model was specified, use it
         if "model" in options:
