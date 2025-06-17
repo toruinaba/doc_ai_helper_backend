@@ -223,3 +223,61 @@ class TestOpenAIServiceIntegration:
 
         # 使用したモデルが設定したモデルと一致することを確認
         assert response.model == model
+
+    @pytest.mark.asyncio
+    async def test_streaming_query(self, openai_service: LLMServiceBase):
+        """ストリーミングクエリが正しく動作することを確認"""
+        # ストリーミング機能をサポートしているか確認
+        capabilities = await openai_service.get_capabilities()
+        if not capabilities.supports_streaming:
+            pytest.skip("Streaming not supported by this service")
+
+        # ストリーミングのテスト用プロンプト
+        prompt = "1から5までの数字を順番に教えてください。"
+
+        # ストリーミング結果を収集
+        chunks = []
+        async for chunk in openai_service.stream_query(prompt):
+            chunks.append(chunk)
+
+        # 結果の検証
+        assert len(chunks) > 0
+        complete_response = "".join(chunks)
+        assert len(complete_response) > 0
+        
+        # 数字が含まれていることを確認
+        # Note: 実際のレスポンスは様々ですが、プロンプトに関連した内容が含まれているはず
+        has_numbers = any(str(i) in complete_response for i in range(1, 6))
+        assert has_numbers
+
+    @pytest.mark.asyncio
+    async def test_streaming_with_options(self, openai_service: LLMServiceBase):
+        """オプション付きのストリーミングクエリが正しく動作することを確認"""
+        # ストリーミング機能をサポートしているか確認
+        capabilities = await openai_service.get_capabilities()
+        if not capabilities.supports_streaming:
+            pytest.skip("Streaming not supported by this service")
+
+        # ストリーミングのテスト用プロンプト
+        prompt = "日本語で挨拶を5つ教えてください。"
+        
+        # オプションを設定
+        options = {
+            "temperature": 0.7,
+            "max_tokens": 150,
+        }
+
+        # ストリーミング結果を収集
+        chunks = []
+        async for chunk in openai_service.stream_query(prompt, options):
+            chunks.append(chunk)
+            
+        # 結果の検証
+        assert len(chunks) > 0
+        complete_response = "".join(chunks)
+        assert len(complete_response) > 0
+        
+        # 日本語の挨拶が含まれていることを確認
+        expected_words = ["こんにちは", "おはよう", "こんばんは", "さようなら", "ありがとう"]
+        has_greetings = any(word in complete_response for word in expected_words)
+        assert has_greetings
