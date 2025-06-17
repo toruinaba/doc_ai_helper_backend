@@ -27,14 +27,15 @@ class Settings(BaseSettings):
     database_url: str = Field("sqlite:///./data/app.db", env="DATABASE_URL")
 
     # Git service settings
-    github_token: Optional[str] = Field(None, env="GITHUB_TOKEN")
-
-    # LLM service settings
+    github_token: Optional[str] = Field(
+        None, env="GITHUB_TOKEN"
+    )  # LLM service settings
     openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
+    openai_base_url: Optional[str] = Field(None, env="OPENAI_BASE_URL")
     anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
     gemini_api_key: Optional[str] = Field(None, env="GEMINI_API_KEY")
     default_llm_provider: str = Field("openai", env="DEFAULT_LLM_PROVIDER")
-    default_openai_model: str = Field("gpt-4", env="DEFAULT_OPENAI_MODEL")
+    default_openai_model: str = Field("gpt-3.5-turbo", env="DEFAULT_OPENAI_MODEL")
     default_anthropic_model: str = Field(
         "claude-3-sonnet-20240229", env="DEFAULT_ANTHROPIC_MODEL"
     )
