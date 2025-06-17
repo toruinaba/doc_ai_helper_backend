@@ -10,10 +10,7 @@ from unittest.mock import patch, AsyncMock, MagicMock
 
 from doc_ai_helper_backend.main import app
 from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
-from doc_ai_helper_backend.models.llm import (
-    LLMResponse, 
-    LLMUsage
-)
+from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
 from doc_ai_helper_backend.core.config import settings
 from doc_ai_helper_backend.api.dependencies import get_llm_service
 
@@ -47,15 +44,15 @@ def setup_mock_service():
     """Setup and return the mock service with reset methods."""
     # Reset the mock service before each test
     global mock_service
-    
+
     # Save original methods
     original_query = mock_service.query
     original_get_capabilities = mock_service.get_capabilities
     original_get_available_templates = mock_service.get_available_templates
     original_format_prompt = mock_service.format_prompt
-    
+
     yield mock_service
-    
+
     # Restore original methods after test
     mock_service.query = original_query
     mock_service.get_capabilities = original_get_capabilities
@@ -71,20 +68,20 @@ def test_query_llm_endpoint(client, setup_mock_service):
         model="mock-model",
         provider="mock",
         usage=LLMUsage(prompt_tokens=10, completion_tokens=20, total_tokens=30),
-        raw_response={"id": "mock-123"}
+        raw_response={"id": "mock-123"},
     )
-    
+
     setup_mock_service.query = AsyncMock(return_value=mock_response)
-    
+
     # Make the request
     request_data = {
         "prompt": "Test prompt",
         "model": "mock-model",
-        "options": {"temperature": 0.7}
+        "options": {"temperature": 0.7},
     }
-    
+
     response = client.post("/api/v1/llm/query", json=request_data)
-    
+
     # Verify response
     assert response.status_code == 200
     data = response.json()
@@ -105,14 +102,14 @@ def test_get_capabilities_endpoint(client, setup_mock_service):
         "max_tokens": {"mock-model": 4096, "mock-model-large": 8192},
         "supports_streaming": False,
         "supports_function_calling": True,
-        "supports_vision": False
+        "supports_vision": False,
     }
-    
+
     setup_mock_service.get_capabilities = AsyncMock(return_value=mock_capabilities)
-    
+
     # Make the request
     response = client.get("/api/v1/llm/capabilities")
-    
+
     # Verify response
     assert response.status_code == 200
     data = response.json()
@@ -128,12 +125,12 @@ def test_list_templates_endpoint(client, setup_mock_service):
     """Test the /templates endpoint with a mock LLM service."""
     # Setup the mock service templates method
     mock_templates = ["document_qa", "document_summary"]
-    
+
     setup_mock_service.get_available_templates = AsyncMock(return_value=mock_templates)
-    
+
     # Make the request
     response = client.get("/api/v1/llm/templates")
-    
+
     # Verify response
     assert response.status_code == 200
     data = response.json()
@@ -146,18 +143,17 @@ def test_format_prompt_endpoint(client, setup_mock_service):
     """Test the /format-prompt endpoint with a mock LLM service."""
     # Setup the mock service format_prompt method
     formatted_prompt = "Formatted prompt with variables"
-    
+
     setup_mock_service.format_prompt = AsyncMock(return_value=formatted_prompt)
-    
+
     # Make the request
     template_id = "document_qa"
     variables = {"document": "Sample document", "question": "Sample question"}
-    
+
     response = client.post(
-        f"/api/v1/llm/format-prompt?template_id={template_id}", 
-        json=variables
+        f"/api/v1/llm/format-prompt?template_id={template_id}", json=variables
     )
-    
+
     # Verify response
     assert response.status_code == 200
     assert response.text.strip('"') == formatted_prompt
@@ -168,15 +164,12 @@ def test_query_llm_endpoint_error(client, setup_mock_service):
     # Setup the mock service to raise an exception
     error_message = "Test error message"
     setup_mock_service.query = AsyncMock(side_effect=Exception(error_message))
-    
+
     # Make the request
-    request_data = {
-        "prompt": "Test prompt that causes an error",
-        "model": "mock-model"
-    }
-    
+    request_data = {"prompt": "Test prompt that causes an error", "model": "mock-model"}
+
     response = client.post("/api/v1/llm/query", json=request_data)
-    
+
     # Verify response
     assert response.status_code == 500
     data = response.json()
