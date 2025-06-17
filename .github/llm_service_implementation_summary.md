@@ -92,14 +92,20 @@ LLMサービスの主要なデータモデルには以下が含まれます：
 - キャッシュサービス（`LLMCacheService`）の実装
 - テンプレート管理システム（`PromptTemplateManager`）の実装
 - モックサービス（`MockLLMService`）の実装
-- OpenAIサービス（`OpenAIService`）の実装
+- OpenAIサービス（`OpenAIService`）の実装と単体テスト完了
+  - 基本機能（初期化、クエリ、カスタムオプション）
+  - メッセージフォーマット処理
+  - キャッシュ機能
+  - カスタムベースURL設定
+  - エラーハンドリング
+  - トークン推定機能
 - MCPアダプター（`MCPAdapter`）の基本実装
 - 依存関係注入システムの構築
 
 ### 開発中の機能
-- MCPアダプターの拡張機能（コンテキスト最適化）
-- ストリーミングレスポンスのサポート
-- 追加のLLMプロバイダー実装（Anthropic、Gemini）
+- ストリーミングレスポンスのサポート（最優先）
+- 追加のLLMプロバイダー実装（Ollama）
+- MCPアダプターの拡張機能（後続フェーズ）
 
 ### 実装詳細
 
@@ -108,10 +114,10 @@ OpenAIサービスは以下の機能を備えています：
 - 標準的なOpenAI APIだけでなく、LiteLLMプロキシサーバーなどとの連携をサポート
 - カスタムベースURLの設定により柔軟な接続先変更が可能
 - 非同期クライアント（AsyncOpenAI）を使用したパフォーマンス最適化
-- キャッシュによるAPI呼び出しコストの削減
-- トークン使用量の追跡と報告
+- キャッシュによるAPI呼び出しコストの削減（完全実装済み）
+- トークン使用量の正確な追跡と報告
 - 様々なモデル設定のサポート（温度、最大トークン数など）
-- ユーザーメッセージとシステムインストラクションを含む複雑なメッセージ構造のサポート
+- ユーザーメッセージとシステムインストラクションを含む複雑なメッセージ構造の完全サポート
 - エラーのキャプチャと意味のある例外への変換
 
 #### 設定とセキュリティ
@@ -122,12 +128,45 @@ OpenAIサービスは以下の機能を備えています：
 ## 今後の機能拡張
 
 1. **追加プロバイダー実装**
-   - Anthropic、Geminiサービスの実装
+   - Ollamaサービスの実装
    - プロバイダー固有のエラーに対する適切なエラーハンドリングの追加
+   - ローカルモデルとの効率的な連携
 
 2. **ストリーミングサポート**
    - 互換性のあるプロバイダーのストリーミングレスポンスサポートの追加
    - SSE（Server-Sent Events）エンドポイントの実装
+   - ストリーミングキャッシュ対応
+
+### ストリーミング実装計画
+ストリーミングレスポンスサポートは、最優先で実装する機能として位置づけられています。以下の手順で実装を進めます：
+
+1. **基本インターフェースの拡張**
+   - `LLMServiceBase`クラスに`stream_query`メソッドを追加
+   - AsyncGeneratorを返す非同期メソッドの実装
+   - 新しいレスポンスモデル`LLMStreamChunk`の定義
+
+2. **OpenAIサービス実装**
+   - OpenAI APIのストリーミングモード対応
+   - チャンク処理とジェネレーター実装
+   - エラーハンドリングの強化
+
+3. **FastAPIエンドポイント**
+   - `/stream`エンドポイントの追加
+   - SSE（Server-Sent Events）形式でのレスポンス実装
+   - タイムアウト処理と接続管理
+
+4. **モックサービス対応**
+   - テスト用ストリーミングレスポンスのモック実装
+   - 遅延シミュレーション機能
+
+5. **テストスイート**
+   - 単体テスト（ストリーミングジェネレーターの動作確認）
+   - 統合テスト（APIエンドポイントからのストリーミングレスポンス検証）
+   - 異常系テスト（エラーハンドリング、タイムアウト処理）
+
+6. **クライアントサンプル**
+   - フロントエンドでのSSE受信サンプル実装
+   - 段階的表示のデモ
 
 3. **コンテキスト最適化**
    - 大きなドキュメントのセマンティックチャンキングの改善
@@ -145,6 +184,152 @@ OpenAIサービスは以下の機能を備えています：
 
 LLMサービス実装は、ドキュメントAIヘルパーバックエンドにLLM機能を統合するための堅固な基盤を提供します。モジュラー設計により、新しいプロバイダーや機能の簡単な拡張が可能です。
 
-OpenAIサービスの実装により、プロジェクトは主要なLLMプロバイダーとの統合を達成し、実際のプロダクション環境で使用できる状態になりました。また、LiteLLMプロキシとの連携によって、将来的に異なるLLMプロバイダーを簡単に切り替えたり、同時に複数のプロバイダーを利用したりすることも可能です。
+OpenAIサービスの実装と単体テストの完了により、プロジェクトは主要なLLMプロバイダーとの統合を達成し、実際のプロダクション環境で使用できる状態になりました。全12件の単体テストがすべて成功し、以下の機能が確認されています：
 
-残りのタスクは、ストリーミングサポートの追加、コンテキスト最適化の強化、および統合テストの拡充です。
+1. サービスの基本初期化
+2. 基本的なクエリ機能
+3. カスタムオプションの処理
+4. 複雑なメッセージ構造の処理
+5. キャッシュ機能
+6. 異なるオプションでのキャッシュ動作
+7. カスタムベースURL設定
+8. 機能情報取得
+9. トークン数推定
+10. エラーハンドリング
+11. オプション準備ロジック
+12. レスポンス変換
+
+また、LiteLLMプロキシとの連携によって、将来的に異なるLLMプロバイダーを簡単に切り替えたり、同時に複数のプロバイダーを利用したりすることも可能です。
+
+残りのタスクとしては、ストリーミングサポートの追加を最優先で実装し、その後Ollamaサービスの追加を行う予定です。MCPアダプターの拡張については、後続フェーズで対応します。
+
+## 実装ロードマップ
+
+以下の順序で機能実装を進めます：
+
+### フェーズ1（現在進行中）
+1. **ストリーミングサポート実装**（2023年7月末完了予定）
+   - 基本ストリーミングインターフェース
+   - OpenAIサービスのストリーミング対応
+   - SSEエンドポイント実装
+   - テストとドキュメント
+
+2. **Ollamaサービス実装**（2023年8月中旬完了予定）
+   - 基本機能（クエリ、機能情報取得）
+   - ストリーミング対応
+   - エラーハンドリング
+   
+### フェーズ2（2023年9月以降）
+1. **モニタリングと可観測性強化**
+   - 詳細なトークン使用量ロギング
+   - パフォーマンスメトリクス
+
+2. **MCPアダプター拡張**
+   - コンテキスト最適化
+   - GitHub MCP Serverとの連携
+
+3. **セキュリティ強化**
+   - コンテンツフィルタリング
+   - レート制限とクォータ
+
+## コード例
+
+### ストリーミングサポート実装例
+
+#### 1. LLMServiceBaseの拡張
+```python
+# services/llm/base.py
+class LLMServiceBase(ABC):
+    # 既存のメソッド...
+    
+    @abstractmethod
+    async def stream_query(
+        self, prompt: str, options: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        ストリーミングモードでLLMにクエリを送信する。
+        
+        Args:
+            prompt: プロンプト
+            options: オプション
+            
+        Returns:
+            AsyncGenerator: レスポンスチャンクを生成するジェネレーター
+        """
+        pass
+```
+
+#### 2. OpenAIサービスのストリーミング実装
+```python
+# services/llm/openai_service.py
+class OpenAIService(LLMServiceBase):
+    # 既存のメソッド...
+    
+    async def stream_query(
+        self, prompt: str, options: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[str, None]:
+        """ストリーミングモードでOpenAI APIにクエリを送信する"""
+        options = options or {}
+        query_options = self._prepare_options(prompt, options)
+        model = query_options.get("model", self.default_model)
+        
+        try:
+            # ストリーミングパラメータを設定
+            query_options["stream"] = True
+            
+            # OpenAI APIにリクエスト
+            messages = query_options.pop("messages")
+            
+            # ストリーミングレスポンスを取得
+            stream = await self.async_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+                **query_options
+            )
+            
+            # チャンクを順次生成
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"Error in streaming query: {str(e)}")
+            raise LLMServiceException(f"Streaming error: {str(e)}")
+```
+
+#### 3. SSEエンドポイント
+```python
+# api/endpoints/llm.py
+@router.post(
+    "/stream",
+    response_model=None,
+    summary="Stream LLM response",
+    description="Stream response from LLM in real-time"
+)
+async def stream_llm_response(
+    request: LLMQueryRequest,
+    llm_service: LLMService = Depends(get_llm_service),
+):
+    """ストリーミングモードでLLMからのレスポンスを返す"""
+    
+    async def event_generator():
+        try:
+            # ストリーミングクエリを実行
+            async for text_chunk in llm_service.stream_query(
+                request.prompt, request.options
+            ):
+                # SSEフォーマットでチャンクを送信
+                yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+                
+            # ストリーム終了を示す
+            yield f"data: {json.dumps({'done': True})}\n\n"
+            
+        except Exception as e:
+            # エラーイベントを送信
+            error_msg = str(e)
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+    
+    # SSEレスポンスを返す
+    return EventSourceResponse(event_generator())
+```
