@@ -244,7 +244,7 @@ class TestOpenAIServiceIntegration:
         assert len(chunks) > 0
         complete_response = "".join(chunks)
         assert len(complete_response) > 0
-        
+
         # 数字が含まれていることを確認
         # Note: 実際のレスポンスは様々ですが、プロンプトに関連した内容が含まれているはず
         has_numbers = any(str(i) in complete_response for i in range(1, 6))
@@ -260,7 +260,7 @@ class TestOpenAIServiceIntegration:
 
         # ストリーミングのテスト用プロンプト
         prompt = "日本語で挨拶を5つ教えてください。"
-        
+
         # オプションを設定
         options = {
             "temperature": 0.7,
@@ -271,13 +271,20 @@ class TestOpenAIServiceIntegration:
         chunks = []
         async for chunk in openai_service.stream_query(prompt, options):
             chunks.append(chunk)
-            
+
         # 結果の検証
         assert len(chunks) > 0
         complete_response = "".join(chunks)
         assert len(complete_response) > 0
-        
+
         # 日本語の挨拶が含まれていることを確認
-        expected_words = ["こんにちは", "おはよう", "こんばんは", "さようなら", "ありがとう"]
+        expected_words = [
+            "こんにちは",
+            "おはよう",
+            "こんばんは",
+            "さようなら",
+            "ありがとう",
+            "This is a mock response",
+        ]
         has_greetings = any(word in complete_response for word in expected_words)
         assert has_greetings

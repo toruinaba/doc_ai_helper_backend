@@ -308,11 +308,11 @@ class OpenAIService(LLMServiceBase):
         model = query_options.get("model", self.default_model)
 
         try:
-            # ストリーミングパラメータを設定
-            query_options["stream"] = True
-
             # OpenAI APIにリクエスト
             messages = query_options.pop("messages")
+            # modelキーとstreamキーをquery_optionsから削除して重複を防ぐ
+            query_options.pop("model", None)
+            query_options.pop("stream", None)
 
             # ストリーミングレスポンスを取得
             stream = await self.async_client.chat.completions.create(
