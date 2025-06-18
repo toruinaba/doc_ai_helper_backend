@@ -27,6 +27,10 @@ class LLMQueryRequest(BaseModel):
     options: Dict[str, Any] = Field(
         default_factory=dict, description="Additional options for the LLM provider"
     )
+    disable_cache: bool = Field(
+        default=False,
+        description="If True, bypass cache and always make a fresh API call",
+    )
 
 
 class LLMUsage(BaseModel):

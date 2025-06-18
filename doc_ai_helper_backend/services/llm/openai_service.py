@@ -101,12 +101,19 @@ class OpenAIService(LLMServiceBase):
         query_options = self._prepare_options(prompt, options)
         model = query_options.get("model", self.default_model)
 
-        # Check cache before making API call
-        cache_key = self.cache_service.generate_key(prompt, query_options)
-        cached_response = self.cache_service.get(cache_key)
-        if cached_response:
-            logger.debug(f"Cache hit for prompt with key {cache_key[:8]}")
-            return cached_response
+        # Check if cache should be bypassed
+        disable_cache = query_options.pop("disable_cache", False)
+
+        # Check cache before making API call (if not disabled)
+        if not disable_cache:
+            cache_key = self.cache_service.generate_key(prompt, query_options)
+            cached_response = self.cache_service.get(cache_key)
+            if cached_response:
+                logger.debug(f"Cache hit for prompt with key {cache_key[:8]}")
+                return cached_response
+        else:
+            logger.debug("Cache disabled for this request")
+            cache_key = None
 
         try:
             # Call OpenAI API
@@ -116,8 +123,9 @@ class OpenAIService(LLMServiceBase):
             # Convert OpenAI response to LLMResponse
             llm_response = self._convert_to_llm_response(response, model)
 
-            # Cache the response
-            self.cache_service.set(cache_key, llm_response)
+            # Cache the response (if caching is not disabled)
+            if not disable_cache and cache_key:
+                self.cache_service.set(cache_key, llm_response)
 
             return llm_response
 
