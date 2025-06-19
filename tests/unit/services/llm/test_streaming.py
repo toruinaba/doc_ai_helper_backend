@@ -50,7 +50,9 @@ async def test_mock_llm_stream_query_with_options(mock_llm_service):
 
     # Act
     chunks = []
-    async for chunk in mock_llm_service.stream_query(prompt, conversation_history=None, options=options):
+    async for chunk in mock_llm_service.stream_query(
+        prompt, conversation_history=None, options=options
+    ):
         chunks.append(chunk)
 
     # Assert

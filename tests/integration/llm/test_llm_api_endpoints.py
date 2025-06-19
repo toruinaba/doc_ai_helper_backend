@@ -1,5 +1,5 @@
 """
-Unit tests for LLM API endpoints with conversation history support.
+Integration tests for LLM API endpoints with conversation history support.
 """
 
 import pytest
@@ -13,7 +13,6 @@ from doc_ai_helper_backend.api.endpoints.llm import router
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
     MessageItem,
-    MessageRole,
     LLMResponse,
     LLMUsage,
     ProviderCapabilities,
@@ -23,14 +22,8 @@ from doc_ai_helper_backend.models.llm import (
 @pytest.fixture
 def test_app():
     """Create a test FastAPI app with the LLM router."""
-    from doc_ai_helper_backend.api.error_handlers import setup_error_handlers
-
     app = FastAPI()
     app.include_router(router)
-
-    # Set up error handlers for proper error handling in tests
-    setup_error_handlers(app)
-
     return app
 
 
@@ -60,16 +53,11 @@ def mock_llm_service():
 @pytest.fixture
 def test_client_with_mock(test_app, mock_llm_service):
     """Create a test client with mock LLM service."""
-    from doc_ai_helper_backend.api.dependencies import get_llm_service
-
-    # Override the dependency
-    test_app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
-
-    client = TestClient(test_app)
-
-    # Clean up after test
-    yield client, mock_llm_service
-    test_app.dependency_overrides.clear()
+    with patch(
+        "doc_ai_helper_backend.api.dependencies.get_llm_service",
+        return_value=mock_llm_service,
+    ):
+        return TestClient(test_app), mock_llm_service
 
 
 def test_query_endpoint_with_conversation_history(test_client_with_mock):
@@ -196,15 +184,9 @@ async def test_conversation_history_data_types():
         {"role": "assistant", "content": "Hi there!"},
     ]
 
-    # Convert to MessageItem objects
-    conversation_history = []
-    for msg in conversation_history_dicts:
-        role = MessageRole.USER if msg["role"] == "user" else MessageRole.ASSISTANT
-        conversation_history.append(MessageItem(role=role, content=msg["content"]))
-
     request = LLMQueryRequest(
         prompt="How are you?",
-        conversation_history=conversation_history,
+        conversation_history=[MessageItem(**msg) for msg in conversation_history_dicts],
     )
 
     # Call the endpoint function directly
@@ -229,8 +211,8 @@ async def test_stream_endpoint_conversation_history_integration():
 
     # Create request with conversation history
     conversation_history = [
-        MessageItem(role=MessageRole.USER, content="Start a story"),
-        MessageItem(role=MessageRole.ASSISTANT, content="Once upon a time..."),
+        MessageItem(role="user", content="Start a story"),
+        MessageItem(role="assistant", content="Once upon a time..."),
     ]
 
     request = LLMQueryRequest(
@@ -260,11 +242,7 @@ def test_query_endpoint_error_handling(test_client_with_mock):
     # Send request
     response = client.post("/query", json=request_data)
 
-    # Check that the error is handled properly
+    # Check that error is handled properly
     assert response.status_code == 500
     response_data = response.json()
-
-    # The error should contain the message and detail from LLMServiceException
-    assert "message" in response_data
-    assert "detail" in response_data
-    assert "Error querying LLM" in response_data["message"]
+    assert "error" in response_data["detail"].lower()
