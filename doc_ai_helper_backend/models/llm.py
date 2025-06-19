@@ -87,6 +87,14 @@ class LLMResponse(BaseModel):
     raw_response: Dict[str, Any] = Field(
         default_factory=dict, description="Raw response from the provider"
     )
+    optimized_conversation_history: Optional[List[MessageItem]] = Field(
+        default=None,
+        description="Optimized conversation history that frontend should use for next request",
+    )
+    history_optimization_info: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Information about how the conversation history was optimized",
+    )
 
 
 class ProviderCapabilities(BaseModel):
