@@ -46,12 +46,13 @@ async def query_llm(
 
     Returns:
         LLMResponse: The response from the LLM
-    """    try:
+    """
+    try:
         # Prepare options
         options = request.options or {}
         if request.model:
             options["model"] = request.model
-            
+
         # Set cache control flag
         if request.disable_cache:
             options["disable_cache"] = True

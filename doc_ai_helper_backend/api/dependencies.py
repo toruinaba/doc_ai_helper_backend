@@ -29,9 +29,17 @@ def get_llm_service() -> LLMServiceBase:
     # Use the default provider from settings
     provider = settings.default_llm_provider
 
-    # In development/testing mode, use mock service
+    # In development/testing mode, use mock service if no API keys are provided
     if settings.environment.lower() in ["development", "testing"]:
-        provider = "mock"  # Configure provider-specific settings
+        # Still use the configured provider if API keys are available
+        if provider == "openai" and not settings.openai_api_key:
+            provider = "mock"
+        elif provider == "anthropic" and not settings.anthropic_api_key:
+            provider = "mock"
+        elif provider == "gemini" and not settings.gemini_api_key:
+            provider = "mock"
+
+    # Configure provider-specific settings
     config = {}
     if provider == "openai":
         config["api_key"] = settings.openai_api_key
