@@ -16,6 +16,7 @@ from doc_ai_helper_backend.core.exceptions import (
     ForbiddenException,
     GitServiceException,
     InternalServerException,
+    LLMServiceException,
     NotFoundException,
     RateLimitException,
     UnauthorizedException,
@@ -100,11 +101,10 @@ def setup_error_handlers(app: FastAPI) -> None:
                 "message": "Validation error",
                 "detail": exc.errors(),
             },
-        )
-
-    # Register specific exception handlers
+        )    # Register specific exception handlers
     app.add_exception_handler(NotFoundException, api_exception_handler)
     app.add_exception_handler(GitServiceException, api_exception_handler)
+    app.add_exception_handler(LLMServiceException, api_exception_handler)
     app.add_exception_handler(UnauthorizedException, api_exception_handler)
     app.add_exception_handler(ForbiddenException, api_exception_handler)
     app.add_exception_handler(BadRequestException, api_exception_handler)

@@ -16,7 +16,13 @@ from openai.types.chat import ChatCompletion
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
 from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
-from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
+from doc_ai_helper_backend.services.llm.utils import format_conversation_for_provider
+from doc_ai_helper_backend.models.llm import (
+    LLMResponse,
+    LLMUsage,
+    ProviderCapabilities,
+    MessageItem,
+)
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
     TemplateNotFoundError,
@@ -83,13 +89,17 @@ class OpenAIService(LLMServiceBase):
         )
 
     async def query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List["MessageItem"]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Send a query to the LLM.
 
         Args:
             prompt: The prompt to send to the LLM
+            conversation_history: Previous messages in the conversation
             options: Additional options for the query (model, temperature, etc.)
 
         Returns:
@@ -98,7 +108,7 @@ class OpenAIService(LLMServiceBase):
         options = options or {}
 
         # Prepare query options
-        query_options = self._prepare_options(prompt, options)
+        query_options = self._prepare_options(prompt, options, conversation_history)
         model = query_options.get("model", self.default_model)
 
         # Check if cache should be bypassed
@@ -206,13 +216,19 @@ class OpenAIService(LLMServiceBase):
         """
         return len(self._token_encoder.encode(text))
 
-    def _prepare_options(self, prompt: str, options: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_options(
+        self,
+        prompt: str,
+        options: Dict[str, Any],
+        conversation_history: Optional[List["MessageItem"]] = None,
+    ) -> Dict[str, Any]:
         """
         Prepare options for the OpenAI API call.
 
         Args:
             prompt: The prompt text
             options: User-provided options
+            conversation_history: Previous messages in the conversation
 
         Returns:
             Dict[str, Any]: Prepared options for the API call
@@ -224,11 +240,21 @@ class OpenAIService(LLMServiceBase):
             "max_tokens": 1000,
         }
 
-        # Handle messages - use provided messages if available, otherwise create from prompt
+        # Handle messages - use provided messages if available, otherwise create from conversation history and prompt
         if "messages" in options:
             prepared_options["messages"] = options["messages"]
         else:
-            prepared_options["messages"] = [{"role": "user", "content": prompt}]
+            # If conversation history exists, format it for OpenAI
+            if conversation_history:
+                messages = format_conversation_for_provider(
+                    conversation_history, provider="openai"
+                )
+                # Add current prompt as the latest user message
+                messages.append({"role": "user", "content": prompt})
+                prepared_options["messages"] = messages
+            else:
+                # No conversation history, just use the prompt
+                prepared_options["messages"] = [{"role": "user", "content": prompt}]
 
         # If a model was specified, use it
         if "model" in options:
@@ -289,9 +315,7 @@ class OpenAIService(LLMServiceBase):
             prompt_tokens=openai_response.usage.prompt_tokens,
             completion_tokens=openai_response.usage.completion_tokens,
             total_tokens=openai_response.usage.total_tokens,
-        )
-
-        # Create and return the response
+        )  # Create and return the response
         return LLMResponse(
             content=content,
             model=model,
@@ -301,18 +325,24 @@ class OpenAIService(LLMServiceBase):
         )
 
     async def stream_query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List["MessageItem"]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the LLM.
 
         Args:
             prompt: The prompt to send to the LLM
-            options: Additional options for the query (model, temperature, etc.)        Returns:
+            conversation_history: Previous messages in the conversation
+            options: Additional options for the query (model, temperature, etc.)
+
+        Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response
         """
         options = options or {}
-        query_options = self._prepare_options(prompt, options)
+        query_options = self._prepare_options(prompt, options, conversation_history)
         model = query_options.get("model", self.default_model)
 
         try:

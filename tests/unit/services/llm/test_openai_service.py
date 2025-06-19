@@ -104,7 +104,7 @@ class TestOpenAIService:
         options = {"temperature": 0.5, "max_tokens": 500, "model": "gpt-4"}
 
         # クエリを実行
-        response = await openai_service.query("Test prompt", options)
+        response = await openai_service.query("Test prompt", options=options)
 
         # レスポンスが適切な形式であることを確認
         assert response.model == "gpt-4"  # カスタムモデルが使用されていることを確認
@@ -126,7 +126,7 @@ class TestOpenAIService:
         options = {"messages": messages}
 
         # クエリを実行
-        response = await openai_service.query("Ignored prompt", options)
+        response = await openai_service.query("Ignored prompt", None, options)
 
         # APIが正しいパラメータで呼び出されたことを確認
         call_args = openai_service.async_client.chat.completions.create.call_args[1]
@@ -163,10 +163,10 @@ class TestOpenAIService:
         openai_service.async_client.chat.completions.create.reset_mock()
 
         # 1回目のクエリ
-        await openai_service.query(prompt, {"temperature": 0.7})
+        await openai_service.query(prompt, None, {"temperature": 0.7})
 
         # 2回目のクエリ（異なるオプション）
-        await openai_service.query(prompt, {"temperature": 0.8})
+        await openai_service.query(prompt, None, {"temperature": 0.8})
 
         # オプションが異なるため、APIが2回呼び出されていることを確認
         assert openai_service.async_client.chat.completions.create.call_count == 2
@@ -262,6 +262,45 @@ class TestOpenAIService:
         assert prepared_options_default["model"] == "gpt-3.5-turbo"  # デフォルトモデル
 
     @pytest.mark.asyncio
+    async def test_prepare_options_with_conversation_history(self, openai_service):
+        """会話履歴を含むオプション準備ロジックをテスト"""
+        from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
+
+        # 基本的なプロンプトとオプション
+        prompt = "Test prompt"
+        options = {"temperature": 0.5}
+
+        # 会話履歴を作成
+        conversation_history = [
+            MessageItem(role=MessageRole.SYSTEM, content="You are a helpful assistant"),
+            MessageItem(role=MessageRole.USER, content="Hello"),
+            MessageItem(
+                role=MessageRole.ASSISTANT, content="Hi there! How can I help you?"
+            ),
+        ]
+
+        # 会話履歴ありでオプションを準備
+        prepared_options = openai_service._prepare_options(
+            prompt, options, conversation_history
+        )
+
+        # メッセージが正しく構成されていることを確認
+        assert len(prepared_options["messages"]) == 4
+        assert prepared_options["messages"][0]["role"] == "system"
+        assert (
+            prepared_options["messages"][0]["content"] == "You are a helpful assistant"
+        )
+        assert prepared_options["messages"][1]["role"] == "user"
+        assert prepared_options["messages"][1]["content"] == "Hello"
+        assert prepared_options["messages"][2]["role"] == "assistant"
+        assert (
+            prepared_options["messages"][2]["content"]
+            == "Hi there! How can I help you?"
+        )
+        assert prepared_options["messages"][3]["role"] == "user"
+        assert prepared_options["messages"][3]["content"] == "Test prompt"
+
+    @pytest.mark.asyncio
     async def test_convert_to_llm_response(self, openai_service):
         """OpenAIレスポンスの変換をテスト"""
         # モックOpenAIレスポンス
@@ -324,3 +363,103 @@ class TestOpenAIService:
         # ストリーミングパラメータが設定されているか確認
         call_kwargs = openai_service.async_client.chat.completions.create.call_args[1]
         assert call_kwargs.get("stream") is True
+
+    @pytest.mark.asyncio
+    async def test_query_with_conversation_history(self, openai_service):
+        """会話履歴を使用したクエリをテスト"""
+        from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
+
+        # 会話履歴を作成
+        conversation_history = [
+            MessageItem(role=MessageRole.USER, content="こんにちは"),
+            MessageItem(
+                role=MessageRole.ASSISTANT, content="こんにちは、どうぞお手伝いします。"
+            ),
+            MessageItem(role=MessageRole.USER, content="質問があります"),
+        ]
+
+        # クエリを実行
+        response = await openai_service.query(
+            "詳細を教えてください", conversation_history=conversation_history
+        )
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content == "Mock response"
+
+        # APIが正しいパラメータで呼び出されたことを確認
+        assert openai_service.async_client.chat.completions.create.called
+        call_args = openai_service.async_client.chat.completions.create.call_args[1]
+        messages = call_args["messages"]
+
+        # メッセージの数が正しいこと（会話履歴3件 + 現在のプロンプト1件）
+        assert len(messages) == 4
+
+        # 各メッセージの内容が正しいこと
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "こんにちは"
+        assert messages[1]["role"] == "assistant"
+        assert messages[1]["content"] == "こんにちは、どうぞお手伝いします。"
+        assert messages[2]["role"] == "user"
+        assert messages[2]["content"] == "質問があります"
+        assert messages[3]["role"] == "user"
+        assert messages[3]["content"] == "詳細を教えてください"
+
+    @pytest.mark.asyncio
+    async def test_stream_query_with_conversation_history(
+        self, openai_service, monkeypatch
+    ):
+        """会話履歴を使用したストリーミングクエリをテスト"""
+        from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
+
+        # ストリーミングレスポンスのモック
+        mock_chunk1 = MagicMock()
+        mock_chunk1.choices = [MagicMock()]
+        mock_chunk1.choices[0].delta.content = "Hello"
+
+        mock_chunk2 = MagicMock()
+        mock_chunk2.choices = [MagicMock()]
+        mock_chunk2.choices[0].delta.content = " world"
+
+        # ストリーミングレスポンスを返すAsyncGeneratorのモック
+        async def mock_stream():
+            yield mock_chunk1
+            yield mock_chunk2
+
+        # AsyncOpenAIクライアントのchat.completions.createメソッドをモック
+        openai_service.async_client.chat.completions.create = AsyncMock(
+            return_value=mock_stream()
+        )
+
+        # 会話履歴を作成
+        conversation_history = [
+            MessageItem(
+                role=MessageRole.SYSTEM, content="あなたは役立つアシスタントです"
+            ),
+            MessageItem(role=MessageRole.USER, content="こんにちは"),
+            MessageItem(role=MessageRole.ASSISTANT, content="こんにちは、どうぞ"),
+        ]
+
+        # テスト実行
+        chunks = []
+        async for chunk in openai_service.stream_query(
+            "質問があります", conversation_history=conversation_history
+        ):
+            chunks.append(chunk)
+
+        # 検証
+        assert chunks == ["Hello", " world"]
+        assert openai_service.async_client.chat.completions.create.call_count == 1
+
+        # 呼び出しパラメータを検証
+        call_kwargs = openai_service.async_client.chat.completions.create.call_args[1]
+        assert call_kwargs.get("stream") is True
+
+        # メッセージの検証
+        messages = call_kwargs["messages"]
+        assert len(messages) == 4  # 会話履歴3件 + 現在のプロンプト1件
+        assert messages[0]["role"] == "system"
+        assert messages[1]["role"] == "user"
+        assert messages[2]["role"] == "assistant"
+        assert messages[3]["role"] == "user"
+        assert messages[3]["content"] == "質問があります"

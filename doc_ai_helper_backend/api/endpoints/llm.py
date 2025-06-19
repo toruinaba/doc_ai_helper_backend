@@ -47,8 +47,7 @@ async def query_llm(
     Returns:
         LLMResponse: The response from the LLM
     """
-    try:
-        # Prepare options
+    try:        # Prepare options
         options = request.options or {}
         if request.model:
             options["model"] = request.model
@@ -61,8 +60,12 @@ async def query_llm(
         if request.context_documents:
             options["context_documents"] = request.context_documents
 
-        # Send query to LLM
-        response = await llm_service.query(request.prompt, options)
+        # Send query to LLM with conversation history
+        response = await llm_service.query(
+            request.prompt,
+            conversation_history=request.conversation_history,
+            options=options
+        )
         return response
 
     except Exception as e:
@@ -188,8 +191,7 @@ async def stream_llm_response(
         )
 
     async def event_generator():
-        try:
-            # Prepare options
+        try:            # Prepare options
             options = request.options or {}
             if request.model:
                 options["model"] = request.model
@@ -198,8 +200,14 @@ async def stream_llm_response(
             if request.context_documents:
                 options["context_documents"] = (
                     request.context_documents
-                )  # Stream query to LLM
-            async for text_chunk in llm_service.stream_query(request.prompt, options):
+                )  
+              # Stream query to LLM with conversation history
+            stream = llm_service.stream_query(
+                request.prompt,
+                conversation_history=request.conversation_history,
+                options=options
+            )
+            async for text_chunk in stream:
                 # Send each chunk as an SSE event
                 yield f"data: {json.dumps({'text': text_chunk})}\n\n"
 

@@ -56,7 +56,7 @@ class TestOpenAIServiceIntegration:
         prompt = "1 + 1 = ?"
 
         # クエリを実行
-        response = await openai_service.query(prompt)
+        response = await openai_service.query(prompt, None, None)
 
         # レスポンスが適切な形式であることを確認
         assert isinstance(response, LLMResponse)
@@ -98,7 +98,7 @@ class TestOpenAIServiceIntegration:
         options = {"messages": messages, "temperature": 0.7, "max_tokens": 100}
 
         # クエリを実行
-        response = await openai_service.query(prompt, options)
+        response = await openai_service.query(prompt, None, options)
 
         # レスポンスが適切な形式であることを確認
         assert isinstance(response, LLMResponse)
@@ -117,12 +117,12 @@ class TestOpenAIServiceIntegration:
 
         # 1回目のクエリ
         start_time = time.time()
-        response1 = await openai_service.query(prompt)
+        response1 = await openai_service.query(prompt, None, None)
         first_query_time = time.time() - start_time
 
         # 2回目のクエリ（キャッシュから取得されるはず）
         start_time = time.time()
-        response2 = await openai_service.query(prompt)
+        response2 = await openai_service.query(prompt, None, None)
         second_query_time = time.time() - start_time
 
         # レスポンスが同じであることを確認
@@ -164,7 +164,7 @@ class TestOpenAIServiceIntegration:
         try:
             # 不正な温度値（>2.0）を設定
             invalid_options = {"temperature": 3.0}
-            await openai_service.query("Test prompt", invalid_options)
+            await openai_service.query("Test prompt", None, invalid_options)
             # エラーが発生しなかった場合はモックモードかもしれない
             if os.environ.get("TEST_MODE") != "mock":
                 pytest.fail("Expected an exception for invalid temperature")
@@ -214,7 +214,7 @@ class TestOpenAIServiceIntegration:
 
         # 基本的なクエリが動作することを確認
         prompt = "Hello, LiteLLM!"
-        response = await service.query(prompt)
+        response = await service.query(prompt, None, None)
 
         # レスポンスが適切な形式であることを確認
         assert isinstance(response, LLMResponse)
@@ -237,7 +237,7 @@ class TestOpenAIServiceIntegration:
 
         # ストリーミング結果を収集
         chunks = []
-        async for chunk in openai_service.stream_query(prompt):
+        async for chunk in openai_service.stream_query(prompt, None, None):
             chunks.append(chunk)
 
         # 結果の検証
@@ -269,7 +269,7 @@ class TestOpenAIServiceIntegration:
 
         # ストリーミング結果を収集
         chunks = []
-        async for chunk in openai_service.stream_query(prompt, options):
+        async for chunk in openai_service.stream_query(prompt, None, options):
             chunks.append(chunk)
 
         # 結果の検証
