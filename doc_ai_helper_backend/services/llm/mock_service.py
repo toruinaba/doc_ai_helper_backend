@@ -10,7 +10,13 @@ import os
 import asyncio
 from typing import Dict, Any, Optional, List, AsyncGenerator
 
-from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
+from doc_ai_helper_backend.models.llm import (
+    LLMResponse,
+    LLMUsage,
+    ProviderCapabilities,
+    MessageItem,
+    MessageRole,
+)
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
 
@@ -47,13 +53,17 @@ class MockLLMService(LLMServiceBase):
         }
 
     async def query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Send a query to the mock LLM.
 
         Args:
             prompt: The prompt to send
+            conversation_history: Previous messages in the conversation
             options: Additional options for the query
 
         Returns:
@@ -63,13 +73,14 @@ class MockLLMService(LLMServiceBase):
             options = {}
 
         # Simulate processing delay
-        await self._simulate_delay()
-
-        # Determine which model to use
+        await self._simulate_delay()  # Determine which model to use
         model = options.get("model", self.default_model)
 
-        # Generate a response based on the prompt
-        content = self._generate_response(prompt)
+        # Generate a response based on the prompt and conversation history
+        if conversation_history:
+            content = self._generate_contextual_response(prompt, conversation_history)
+        else:
+            content = self._generate_response(prompt)
 
         # Calculate mock token usage
         prompt_tokens = len(prompt) // 4
@@ -187,14 +198,70 @@ class MockLLMService(LLMServiceBase):
                 "This is just a mock response for development and testing purposes."
             )
 
+    def _generate_contextual_response(
+        self, prompt: str, history: List[MessageItem]
+    ) -> str:
+        """
+        会話履歴を考慮した応答を生成する。
+
+        Args:
+            prompt: 現在のプロンプト
+            history: 会話履歴
+
+        Returns:
+            str: 生成された応答
+        """
+        # パターンに一致する応答があればそれを使用
+        for pattern, response in self.response_patterns.items():
+            if pattern.lower() in prompt.lower():
+                return f"{response} (会話履歴を考慮しています)"
+
+        # システムメッセージがあるかチェック
+        system_messages = [msg for msg in history if msg.role == MessageRole.SYSTEM]
+        has_system_message = len(system_messages) > 0
+
+        # 前回の質問を参照する場合
+        if "前の質問" in prompt.lower() or "previous question" in prompt.lower():
+            for msg in reversed(history):
+                if msg.role == MessageRole.USER and msg.content != prompt:
+                    return f"前の質問は「{msg.content}」でした。"
+
+        # 過去の回答を参照する場合
+        if (
+            "前の回答" in prompt.lower()
+            or "previous answer" in prompt.lower()
+            or "last response" in prompt.lower()
+        ):
+            for msg in reversed(history):
+                if msg.role == MessageRole.ASSISTANT:
+                    return f"前回の回答は「{msg.content}」でした。"
+
+        # 会話の長さに基づく応答
+        if len(history) > 2:
+            base_response = f"会話の文脈を考慮した応答です。これまでに{len(history)}回のやり取りがありました。"
+            if has_system_message:
+                system_info = f" システム指示 [system] が設定されています: 「{system_messages[0].content[:30]}...」"
+                return f"{base_response}{system_info}\n実際のプロンプト: {prompt}"
+            return f"{base_response}\n実際のプロンプト: {prompt}"  # 会話履歴の要約
+        conversation_summary = "\n".join(
+            [f"[{msg.role.value}]: {msg.content[:30]}..." for msg in history[-3:]]
+        )
+
+        # デフォルトの応答
+        return f"これはモック応答です。会話履歴に基づいて生成されました。\n\n最近の会話:\n{conversation_summary}\n\n現在の質問: {prompt}"
+
     async def stream_query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the mock LLM.
 
         Args:
             prompt: The prompt to send
+            conversation_history: Previous messages in the conversation
             options: Additional options for the query
 
         Returns:
@@ -203,8 +270,13 @@ class MockLLMService(LLMServiceBase):
         if options is None:
             options = {}
 
-        # Get the full response
-        full_response = self._generate_response(prompt)
+        # Get the full response based on conversation history
+        if conversation_history:
+            full_response = self._generate_contextual_response(
+                prompt, conversation_history
+            )
+        else:
+            full_response = self._generate_response(prompt)
 
         # Split into chunks of approximately 10-20 characters
         chunks = []

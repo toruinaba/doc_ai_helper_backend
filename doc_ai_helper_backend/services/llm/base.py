@@ -7,7 +7,11 @@ This module provides the base abstract class for LLM services.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, AsyncGenerator
 
-from doc_ai_helper_backend.models.llm import LLMResponse, ProviderCapabilities
+from doc_ai_helper_backend.models.llm import (
+    LLMResponse,
+    ProviderCapabilities,
+    MessageItem,
+)
 
 
 class LLMServiceBase(ABC):
@@ -21,13 +25,17 @@ class LLMServiceBase(ABC):
 
     @abstractmethod
     async def query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Send a query to the LLM.
 
         Args:
             prompt: The prompt to send to the LLM
+            conversation_history: Previous messages in the conversation for context
             options: Additional options for the query (model, temperature, etc.)
 
         Returns:
@@ -80,13 +88,17 @@ class LLMServiceBase(ABC):
 
     @abstractmethod
     async def stream_query(
-        self, prompt: str, options: Optional[Dict[str, Any]] = None
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the LLM.
 
         Args:
             prompt: The prompt to send to the LLM
+            conversation_history: Previous messages in the conversation for context
             options: Additional options for the query (model, temperature, etc.)
 
         Returns:

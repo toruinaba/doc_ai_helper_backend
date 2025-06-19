@@ -6,6 +6,31 @@ This module contains Pydantic models for LLM services.
 
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
+from enum import Enum
+from datetime import datetime
+
+
+class MessageRole(str, Enum):
+    """
+    Role in a conversation message.
+    """
+
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+
+class MessageItem(BaseModel):
+    """
+    A single message in a conversation.
+    """
+
+    role: MessageRole = Field(..., description="Role of the message sender")
+    content: str = Field(..., description="Content of the message")
+    timestamp: Optional[datetime] = Field(
+        default_factory=datetime.now,
+        description="Timestamp when the message was created",
+    )
 
 
 class LLMQueryRequest(BaseModel):
@@ -30,6 +55,9 @@ class LLMQueryRequest(BaseModel):
     disable_cache: bool = Field(
         default=False,
         description="If True, bypass cache and always make a fresh API call",
+    )
+    conversation_history: Optional[List[MessageItem]] = Field(
+        default=None, description="Previous messages in the conversation for context"
     )
 
 
