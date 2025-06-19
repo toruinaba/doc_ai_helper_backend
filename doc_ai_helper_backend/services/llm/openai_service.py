@@ -16,7 +16,10 @@ from openai.types.chat import ChatCompletion
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
 from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
-from doc_ai_helper_backend.services.llm.utils import format_conversation_for_provider
+from doc_ai_helper_backend.services.llm.utils import (
+    format_conversation_for_provider,
+    optimize_conversation_history,
+)
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
@@ -112,9 +115,9 @@ class OpenAIService(LLMServiceBase):
         model = query_options.get("model", self.default_model)
 
         # Check if cache should be bypassed
-        disable_cache = query_options.pop("disable_cache", False)
-
-        # Check cache before making API call (if not disabled)
+        disable_cache = query_options.pop(
+            "disable_cache", False
+        )  # Check cache before making API call (if not disabled)
         if not disable_cache:
             cache_key = self.cache_service.generate_key(prompt, query_options)
             cached_response = self.cache_service.get(cache_key)
@@ -131,7 +134,22 @@ class OpenAIService(LLMServiceBase):
             response = await self._call_openai_api(query_options)
 
             # Convert OpenAI response to LLMResponse
-            llm_response = self._convert_to_llm_response(response, model)
+            llm_response = self._convert_to_llm_response(
+                response, model
+            )  # Optimize conversation history if provided
+            if conversation_history:
+                optimized_history, optimization_info = optimize_conversation_history(
+                    conversation_history, max_tokens=4000
+                )
+                llm_response.optimized_conversation_history = optimized_history
+                llm_response.history_optimization_info = optimization_info
+            else:
+                # No conversation history provided
+                llm_response.optimized_conversation_history = []
+                llm_response.history_optimization_info = {
+                    "was_optimized": False,
+                    "reason": "No conversation history provided",
+                }
 
             # Cache the response (if caching is not disabled)
             if not disable_cache and cache_key:

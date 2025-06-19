@@ -8,7 +8,13 @@ from typing import Dict, Any
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
 from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
-from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
+from doc_ai_helper_backend.models.llm import (
+    LLMResponse,
+    LLMUsage,
+    ProviderCapabilities,
+    MessageItem,
+    MessageRole,
+)
 
 
 class TestOpenAIServiceIntegration:
@@ -288,3 +294,182 @@ class TestOpenAIServiceIntegration:
         ]
         has_greetings = any(word in complete_response for word in expected_words)
         assert has_greetings
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_basic(self, openai_service: LLMServiceBase):
+        """基本的な会話履歴が正しく処理されることを確認"""
+        prompt = "今日の天気はどうですか？"
+
+        # 会話履歴を作成
+        conversation_history = [
+            MessageItem(role=MessageRole.USER, content="こんにちは"),
+            MessageItem(
+                role=MessageRole.ASSISTANT,
+                content="こんにちは！何かお手伝いできることはありますか？",
+            ),
+        ]
+
+        # クエリを実行
+        response = await openai_service.query(prompt, conversation_history, None)
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content is not None
+        assert len(response.content) > 0
+
+        # 使用量情報が含まれていることを確認
+        assert response.usage is not None
+
+        # 最適化された会話履歴が返されることを確認
+        # 短い会話では最適化されずに元の履歴がそのまま返される
+        assert response.optimized_conversation_history is not None
+        assert len(response.optimized_conversation_history) >= len(conversation_history)
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_optimization(
+        self, openai_service: LLMServiceBase
+    ):
+        """長い会話履歴が最適化されることを確認"""
+        prompt = "この会話をまとめてください。"
+
+        # 長い会話履歴を作成（要約が発生するように十分長くする）
+        conversation_history = []
+        for i in range(20):  # 20往復の会話を作成
+            conversation_history.extend(
+                [
+                    MessageItem(
+                        role=MessageRole.USER,
+                        content=f"質問{i+1}: これは{i+1}番目の質問です。長めの内容にして、トークン数を増やします。具体的には、日常生活について、仕事について、趣味について、将来の計画について等々、様々なトピックについて質問したいと思います。",
+                    ),
+                    MessageItem(
+                        role=MessageRole.ASSISTANT,
+                        content=f"回答{i+1}: ご質問ありがとうございます。{i+1}番目のご質問にお答えします。詳細な説明をさせていただきますと、このような内容になります。日常生活、仕事、趣味、将来の計画など、どのトピックについても丁寧にお答えできます。",
+                    ),
+                ]
+            )
+
+        # クエリを実行
+        response = await openai_service.query(prompt, conversation_history, None)
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content is not None
+        assert len(response.content) > 0
+
+        # 最適化された会話履歴が返されることを確認
+        assert response.optimized_conversation_history is not None
+
+        # 最適化情報が含まれていることを確認
+        assert response.history_optimization_info is not None
+
+        # 最適化により会話履歴が短縮されていることを確認
+        # （元の会話は40メッセージ、最適化後は少なくなるはず）
+        original_count = len(conversation_history)
+        optimized_count = len(response.optimized_conversation_history)
+
+        # モックモードでは必ず最適化が発生する、実際のAPIでは条件によっては最適化されない場合もある
+        if os.environ.get("TEST_MODE") == "mock":
+            assert (
+                optimized_count < original_count
+            ), f"Expected optimization: {optimized_count} < {original_count}"
+            assert response.history_optimization_info["was_optimized"] == True
+        else:
+            # 実際のAPIでは最適化が発生するかはトークン数による
+            # 最適化情報が正しく設定されていることを確認
+            assert isinstance(response.history_optimization_info["was_optimized"], bool)
+            if response.history_optimization_info["was_optimized"]:
+                assert optimized_count < original_count
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_with_system_message(
+        self, openai_service: LLMServiceBase
+    ):
+        """システムメッセージ付きの会話履歴が正しく処理されることを確認"""
+        prompt = "前回の話の続きをお願いします。"
+
+        # システムメッセージを含む会話履歴を作成
+        conversation_history = [
+            MessageItem(
+                role=MessageRole.SYSTEM,
+                content="あなたは親切なアシスタントです。常に丁寧に回答してください。",
+            ),
+            MessageItem(
+                role=MessageRole.USER,
+                content="プロジェクトの進捗について相談があります。",
+            ),
+            MessageItem(
+                role=MessageRole.ASSISTANT,
+                content="プロジェクトの進捗についてご相談いただき、ありがとうございます。どのような点についてお聞かせください？",
+            ),
+            MessageItem(
+                role=MessageRole.USER, content="スケジュールが遅れそうで心配です。"
+            ),
+            MessageItem(
+                role=MessageRole.ASSISTANT,
+                content="スケジュールの遅れについてご心配をおかけしております。具体的にどの部分で遅れが生じているか教えていただけますでしょうか？",
+            ),
+        ]
+
+        # クエリを実行
+        response = await openai_service.query(prompt, conversation_history, None)
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content is not None
+        assert len(response.content) > 0
+
+        # 最適化された会話履歴が返されることを確認
+        assert response.optimized_conversation_history is not None
+
+        # システムメッセージが保持されていることを確認
+        system_messages = [
+            msg
+            for msg in response.optimized_conversation_history
+            if msg.role == MessageRole.SYSTEM
+        ]
+        assert len(system_messages) > 0, "System message should be preserved"
+        assert (
+            system_messages[0].content
+            == "あなたは親切なアシスタントです。常に丁寧に回答してください。"
+        )
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_empty(self, openai_service: LLMServiceBase):
+        """空の会話履歴でも正しく動作することを確認"""
+        prompt = "初回の質問です。"
+
+        # 空の会話履歴
+        conversation_history = []
+
+        # クエリを実行
+        response = await openai_service.query(prompt, conversation_history, None)
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content is not None
+        assert len(response.content) > 0
+
+        # 最適化された会話履歴が返されることを確認（空の場合でも空のリストが返される）
+        assert response.optimized_conversation_history is not None
+        assert isinstance(response.optimized_conversation_history, list)
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_none(self, openai_service: LLMServiceBase):
+        """Noneの会話履歴でも正しく動作することを確認"""
+        prompt = "初回の質問です。"
+
+        # None会話履歴
+        conversation_history = None
+
+        # クエリを実行
+        response = await openai_service.query(prompt, conversation_history, None)
+
+        # レスポンスが適切な形式であることを確認
+        assert isinstance(response, LLMResponse)
+        assert response.content is not None
+        assert len(response.content) > 0
+
+        # 最適化された会話履歴が返されることを確認（Noneの場合でも空のリストが返される）
+        assert response.optimized_conversation_history is not None
+        assert isinstance(response.optimized_conversation_history, list)
+        assert len(response.optimized_conversation_history) == 0

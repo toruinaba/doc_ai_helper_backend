@@ -19,6 +19,7 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
+from doc_ai_helper_backend.services.llm.utils import optimize_conversation_history
 
 
 class MockLLMService(LLMServiceBase):
@@ -80,14 +81,12 @@ class MockLLMService(LLMServiceBase):
         if conversation_history:
             content = self._generate_contextual_response(prompt, conversation_history)
         else:
-            content = self._generate_response(prompt)
-
-        # Calculate mock token usage
+            content = self._generate_response(prompt)  # Calculate mock token usage
         prompt_tokens = len(prompt) // 4
         completion_tokens = len(content) // 4
 
         # Create response
-        return LLMResponse(
+        response = LLMResponse(
             content=content,
             model=model,
             provider="mock",
@@ -103,6 +102,23 @@ class MockLLMService(LLMServiceBase):
                 "content": content,
             },
         )
+
+        # Optimize conversation history if provided
+        if conversation_history:
+            optimized_history, optimization_info = optimize_conversation_history(
+                conversation_history, max_tokens=4000
+            )
+            response.optimized_conversation_history = optimized_history
+            response.history_optimization_info = optimization_info
+        else:
+            # No conversation history provided
+            response.optimized_conversation_history = []
+            response.history_optimization_info = {
+                "was_optimized": False,
+                "reason": "No conversation history provided",
+            }
+
+        return response
 
     async def get_capabilities(self) -> ProviderCapabilities:
         """

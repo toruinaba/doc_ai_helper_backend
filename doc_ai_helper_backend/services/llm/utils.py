@@ -83,7 +83,7 @@ def optimize_conversation_history(
     max_tokens: int = DEFAULT_MAX_TOKENS,
     preserve_recent: int = 2,
     encoding_name: str = "cl100k_base",
-) -> List[MessageItem]:
+) -> Tuple[List[MessageItem], Dict[str, Any]]:
     """
     トークン制限内に収まるよう会話履歴を最適化する。
 
@@ -98,10 +98,25 @@ def optimize_conversation_history(
         encoding_name: 使用するエンコーディング名
 
     Returns:
-        List[MessageItem]: 最適化された会話履歴
+        Tuple[List[MessageItem], Dict[str, Any]]: 最適化された会話履歴と最適化情報
     """
     if not history:
-        return []
+        return [], {"was_optimized": False, "reason": "Empty history"}
+
+    # 元の履歴のトークン数を計算
+    original_tokens = estimate_conversation_tokens(history, encoding_name)
+
+    # 最適化が不要な場合
+    if original_tokens <= max_tokens:
+        optimization_info = {
+            "was_optimized": False,
+            "reason": "Within token limit",
+            "original_message_count": len(history),
+            "optimized_message_count": len(history),
+            "original_tokens": original_tokens,
+            "optimized_tokens": original_tokens,
+        }
+        return history.copy(), optimization_info
 
     # 最新のN個を保存するため、履歴を逆順にする
     preserved_messages = (
@@ -135,12 +150,24 @@ def optimize_conversation_history(
     # 保存するメッセージを追加
     optimized_history.extend(preserved_messages)
 
+    # 最適化情報を作成
+    optimized_tokens = estimate_conversation_tokens(optimized_history, encoding_name)
+    optimization_info = {
+        "was_optimized": True,
+        "optimization_method": "truncation",
+        "original_message_count": len(history),
+        "optimized_message_count": len(optimized_history),
+        "original_tokens": original_tokens,
+        "optimized_tokens": optimized_tokens,
+        "messages_removed": len(history) - len(optimized_history),
+    }
+
     logger.debug(
         f"Optimized conversation history: {len(history)} messages -> {len(optimized_history)} messages, "
-        f"tokens: ~{estimate_conversation_tokens(optimized_history, encoding_name)}/{max_tokens}"
+        f"tokens: ~{optimized_tokens}/{max_tokens}"
     )
 
-    return optimized_history
+    return optimized_history, optimization_info
 
 
 def format_conversation_for_provider(
@@ -213,7 +240,7 @@ async def summarize_conversation_history(
         summary_prompt_template: 要約に使用するプロンプトテンプレート
 
     Returns:
-        Tuple[List[MessageItem], Dict[str, Any]]: 
+        Tuple[List[MessageItem], Dict[str, Any]]:
             最適化された会話履歴と最適化情報
     """
     if len(history) <= max_messages_to_keep:
@@ -224,14 +251,20 @@ async def summarize_conversation_history(
     conversation_messages = [msg for msg in history if msg.role != MessageRole.SYSTEM]
 
     if len(conversation_messages) <= max_messages_to_keep:
-        return history, {"optimization_applied": False, "reason": "Below threshold after system separation"}
+        return history, {
+            "optimization_applied": False,
+            "reason": "Below threshold after system separation",
+        }
 
     # 最新のメッセージを保持
     recent_messages = conversation_messages[-max_messages_to_keep:]
     messages_to_summarize = conversation_messages[:-max_messages_to_keep]
 
     if not messages_to_summarize:
-        return history, {"optimization_applied": False, "reason": "No messages to summarize"}
+        return history, {
+            "optimization_applied": False,
+            "reason": "No messages to summarize",
+        }
 
     # 要約用のプロンプトを準備
     if summary_prompt_template is None:
@@ -243,10 +276,9 @@ async def summarize_conversation_history(
 要約:"""
 
     # 会話履歴をテキストに変換
-    conversation_text = "\n".join([
-        f"{msg.role.value}: {msg.content}" 
-        for msg in messages_to_summarize
-    ])
+    conversation_text = "\n".join(
+        [f"{msg.role.value}: {msg.content}" for msg in messages_to_summarize]
+    )
 
     summary_prompt = summary_prompt_template.format(conversation_text=conversation_text)
 
@@ -255,14 +287,14 @@ async def summarize_conversation_history(
         summary_response = await llm_service.query(
             summary_prompt,
             conversation_history=None,  # 要約時は履歴を使用しない
-            options={"temperature": 0.3, "max_tokens": 500}  # 要約は一貫性を重視
+            options={"temperature": 0.3, "max_tokens": 500},  # 要約は一貫性を重視
         )
 
         # 要約を含む最適化済み履歴を作成
         summary_message = MessageItem(
             role=MessageRole.ASSISTANT,
             content=f"[会話要約] {summary_response.content}",
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         # システムメッセージ + 要約 + 最新メッセージ
@@ -274,7 +306,7 @@ async def summarize_conversation_history(
             "optimized_message_count": len(optimized_history),
             "summarized_message_count": len(messages_to_summarize),
             "kept_recent_message_count": len(recent_messages),
-            "summary_tokens": estimate_message_tokens(summary_message)
+            "summary_tokens": estimate_message_tokens(summary_message),
         }
 
         return optimized_history, optimization_info
@@ -288,6 +320,6 @@ async def summarize_conversation_history(
             "optimization_method": "fallback_truncation",
             "original_message_count": len(history),
             "optimized_message_count": len(fallback_history),
-            "error": str(e)
+            "error": str(e),
         }
         return fallback_history, optimization_info

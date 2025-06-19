@@ -67,8 +67,11 @@ def test_optimize_conversation_history():
         MessageItem(role=MessageRole.USER, content="こんにちは"),
         MessageItem(role=MessageRole.ASSISTANT, content="どうぞ"),
     ]
-    optimized = optimize_conversation_history(short_history, max_tokens=1000)
+    optimized, optimization_info = optimize_conversation_history(
+        short_history, max_tokens=1000
+    )
     assert len(optimized) == len(short_history)
+    assert optimization_info["was_optimized"] == False
 
     # リストのコピーが返されていることを確認
     assert optimized is not short_history
@@ -84,10 +87,12 @@ def test_optimize_conversation_history():
     ]
 
     # 最大トークンを厳しく制限して最適化
-    optimized = optimize_conversation_history(
+    optimized, optimization_info = optimize_conversation_history(
         long_history, max_tokens=100, preserve_recent=2
     )
     assert len(optimized) < len(long_history)
+    assert optimization_info["was_optimized"] == True
+    assert optimization_info["optimization_method"] == "truncation"
 
     # 最新のメッセージは保持されている
     assert optimized[-1].content == long_history[-1].content
@@ -105,11 +110,12 @@ def test_optimize_conversation_history():
         for i in range(5)
     ]
 
-    optimized_verbose = optimize_conversation_history(
+    optimized_verbose, optimization_info_verbose = optimize_conversation_history(
         verbose_history, max_tokens=500, preserve_recent=2
     )
     assert len(optimized_verbose) <= 3  # 長いメッセージなので削減される
     assert optimized_verbose[-2:] == verbose_history[-2:]  # 最新の2つは保持
+    assert optimization_info_verbose["was_optimized"] == True
 
 
 def test_format_conversation_for_provider():

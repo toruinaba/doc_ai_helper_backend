@@ -45,35 +45,10 @@ async def query_llm(
 
     Args:
         request: The query request containing prompt and options
-        llm_service: The LLM service to use (injected)
-
-    Returns:
+        llm_service: The LLM service to use (injected)    Returns:
         LLMResponse: The response from the LLM
     """
     try:
-        # 会話履歴の最適化判定
-        optimized_history = None
-        optimization_info = None
-        conversation_history = request.conversation_history
-        
-        # 会話履歴が長い場合は要約を実行
-        if conversation_history and len(conversation_history) > 10:
-            from doc_ai_helper_backend.services.llm.utils import summarize_conversation_history
-            try:
-                optimized_history, optimization_info = await summarize_conversation_history(
-                    conversation_history, 
-                    llm_service,
-                    max_messages_to_keep=6
-                )
-                conversation_history = optimized_history
-            except Exception as summarize_error:
-                # 要約に失敗した場合は元の履歴を使用し、ログに記録
-                logger.warning(f"Failed to summarize conversation history: {str(summarize_error)}")
-                optimization_info = {
-                    "optimization_applied": False, 
-                    "error": str(summarize_error)
-                }
-        
         # Prepare options
         options = request.options or {}
         if request.model:
@@ -88,37 +63,13 @@ async def query_llm(
             options["context_documents"] = request.context_documents
 
         # Send query to LLM with conversation history
+        # LLMサービス層で会話履歴の最適化が行われる
         response = await llm_service.query(
             request.prompt,
-            conversation_history=conversation_history,
+            conversation_history=request.conversation_history,
             options=options,
         )
-        
-        # 最適化された会話履歴をレスポンスに含める
-        if optimized_history is not None:
-            # 現在のユーザーメッセージとアシスタントの応答を追加
-            from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
-            from datetime import datetime
-            
-            current_user_message = MessageItem(
-                role=MessageRole.USER,
-                content=request.prompt,
-                timestamp=datetime.now()
-            )
-            
-            current_assistant_message = MessageItem(
-                role=MessageRole.ASSISTANT,
-                content=response.content,
-                timestamp=datetime.now()
-            )
-            
-            # フロントエンドが次回使用する最適化済み履歴
-            response.optimized_conversation_history = optimized_history + [
-                current_user_message,
-                current_assistant_message
-            ]
-            response.history_optimization_info = optimization_info
-        
+
         return response
 
     except Exception as e:
