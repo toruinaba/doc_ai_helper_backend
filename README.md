@@ -23,14 +23,183 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - 拡張ドキュメントメタデータの提供
 
 2. **拡張機能（フェーズ2）**: その他の機能拡張 [🔄進行中]
-   - 検索機能の実装
+   - バックエンド経由LLM API連携の実装 [🔄優先実装項目]
    - リポジトリ管理機能の実装
+   - 検索機能の実装
    - キャッシュ機能の強化
    - パフォーマンスとセキュリティの最適化
 
 3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
+
+## バックエンド経由LLM API連携
+
+プロジェクトの拡張として、外部LLM APIとの連携をバックエンド経由で実装します。これにより以下の利点が得られます：
+
+### 主なメリット
+
+1. **セキュリティの強化**
+   - API キーをフロントエンドに露出させない
+   - バックエンドでユーザー認証と権限チェックを一元管理
+   - センシティブ情報のフィルタリング
+
+2. **抽象化と柔軟性**
+   - 複数LLMプロバイダ（OpenAI, Anthropic, Gemini等）を抽象化し、切り替え可能に
+   - プロンプトテンプレートの一元管理
+   - LLM APIの変更にフロントエンド側の変更なしで対応可能
+
+3. **パフォーマンスと機能最適化**
+   - レスポンスのキャッシュによるAPI利用コスト削減
+   - コンテキスト最適化
+   - レート制限の一元管理
+
+4. **Model Context Protocol (MCP) との連携**
+   - 異なるLLMプロバイダー間でのコンテキスト管理標準化
+   - Markdownドキュメントから抽出した情報を構造化された形式でLLMに提供
+   - 既存の処理パイプライン（MarkdownProcessor, LinkTransformer）の活用
+
+### LLMサービス実装概要
+
+LLMサービス層は、クリーンな抽象化レイヤーを通じて様々なLLMプロバイダー（OpenAI、Anthropicなど）と対話するための統一インターフェースを提供します。実装は関心事の明確な分離を持つモジュラー設計に従っています：
+
+#### コンポーネント
+
+1. **ベースLLMサービス（`base.py`）**
+   - すべてのLLMサービス実装に共通するインターフェースを定義
+   - `query()`：LLMプロバイダーにプロンプトを送信
+   - `stream_query()`：ストリーミングモードでLLMプロバイダーにプロンプトを送信
+   - `get_capabilities()`：プロバイダーの機能を取得
+   - `format_prompt()`：変数を使用してプロンプトテンプレートをフォーマット
+   - `estimate_tokens()`：価格/制限のためのトークン数を推定
+
+2. **LLMサービスファクトリー（`factory.py`）**
+   - 適切なLLMサービスインスタンスを作成するためのファクトリーパターン
+   - プロバイダーの動的登録をサポート
+   - プロバイダー設定を管理
+
+3. **OpenAIサービス（`openai_service.py`）**
+   - OpenAI APIとの通信を実装
+   - Chat Completions APIを使用した標準的なクエリ処理
+   - ストリーミングレスポンスのサポート
+   - キャッシュ機能によるAPI呼び出しの最適化
+   - カスタムベースURLのサポート（LiteLLMプロキシサーバーなどと連携可能）
+   - トークン見積もりのためのtiktokenライブラリ統合
+   - エラー処理とロギング機能
+   - ユーザーとシステムインストラクションを含む複雑なメッセージ構造のサポート
+
+4. **キャッシュサービス（`cache_service.py`）**
+   - LLMレスポンスのためのインメモリキャッシュを実装
+   - プロンプトとオプションから決定論的なキャッシュキーを生成
+   - キャッシュアイテムのTTL（Time-To-Live）を実装
+   - キャッシュと期限切れアイテムをクリアするためのメソッドを提供
+
+5. **MCPアダプター（`mcp_adapter.py`）**
+   - Model Context Protocolに従ってコンテキストのフォーマットを処理
+   - ドキュメントを標準化されたコンテキスト形式に変換
+   - トークン制限内に収まるようにコンテキストを最適化
+   - 関連性に基づいてコンテンツの優先順位付け
+
+6. **テンプレートマネージャー（`template_manager.py`）**
+   - プロンプトテンプレートを管理するシステムを提供
+   - JSONファイルからテンプレートを読み込み
+   - 変数置換によるテンプレートのフォーマット
+   - 必須変数の検証
+
+#### 実装状況
+
+- ✅ LLMサービス基本アーキテクチャの設計と実装
+- ✅ 抽象基底クラス（`LLMServiceBase`）の実装
+- ✅ サービスファクトリー（`LLMServiceFactory`）の実装
+- ✅ キャッシュサービス（`LLMCacheService`）の実装
+- ✅ テンプレート管理システム（`PromptTemplateManager`）の実装
+- ✅ モックサービス（`MockLLMService`）の実装
+- ✅ OpenAIサービス（`OpenAIService`）の実装と単体テスト完了
+- ✅ ストリーミングレスポンスのサポート（2025年6月完了）
+- ✅ SSE（Server-Sent Events）エンドポイントの実装
+- ✅ MCPアダプター（`MCPAdapter`）の基本実装
+- 🔄 追加のLLMプロバイダー実装（Ollama、最優先）- 2025年7月中完了予定
+- 🔄 MCPアダプターの拡張機能（後続フェーズ）
+
+#### ストリーミング実装状況
+
+ストリーミングレスポンスのサポートは完全に実装され、テスト済みです。実装には以下の要素が含まれています：
+
+1. **基本インターフェースの拡張**
+   - `LLMServiceBase`クラスに`stream_query`メソッドを追加
+   - AsyncGeneratorを返す非同期メソッドの実装
+   - 全ての実装（OpenAI、Mock）でのストリーミングサポート
+
+2. **OpenAIサービス実装**
+   - OpenAI APIのストリーミングモード完全対応
+   - パラメータ重複バグの修正（`model`と`stream`パラメータの重複を回避）
+   - チャンク処理とジェネレーター実装の最適化
+   - 包括的なエラーハンドリングの追加
+
+3. **APIエンドポイント実装**
+   - SSE（Server-Sent Events）エンドポイントの完全実装
+   - フロントエンドとの連携テスト完了
+
+OpenAIサービスのストリーミング実装例:
+
+```python
+async def stream_query(
+    self, prompt: str, options: Optional[Dict[str, Any]] = None
+) -> AsyncGenerator[str, None]:
+    """ストリーミングモードでOpenAI APIにクエリを送信する"""
+    options = options or {}
+    query_options = self._prepare_options(prompt, options)
+    model = query_options.get("model", self.default_model)
+    
+    try:
+        # OpenAI APIにリクエスト
+        messages = query_options.pop("messages")
+        # modelキーとstreamキーをquery_optionsから削除して重複を防ぐ
+        query_options.pop("model", None)
+        query_options.pop("stream", None)
+        
+        # ストリーミングレスポンスを取得
+        stream = await self.async_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True,
+            **query_options
+        )
+        
+        # チャンクを順次生成
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+                
+    except Exception as e:
+        logger.error(f"Error in streaming query: {str(e)}")
+        raise LLMServiceException(f"Streaming error: {str(e)}")
+```
+
+#### Ollamaサービス実装計画
+
+Ollamaサービスの実装は、次の優先実装項目として位置づけられています。Ollamaは、軽量なローカルLLMサーバーであり、以下の特徴があります：
+
+1. **ローカル実行**: ネットワーク遅延の少ない高速なレスポンス
+2. **カスタムモデル**: 様々なオープンソースモデルのサポート
+3. **リソース効率**: 限られたリソースでの効率的な実行
+
+実装アプローチとしては、以下を予定しています：
+
+1. **基本クラスの実装**
+   - `OllamaService` クラスの作成（`LLMServiceBase` を継承）
+   - Ollama APIとの通信実装（httpxを使用）
+   - 基本的なクエリ機能の実装
+
+2. **拡張機能**
+   - ストリーミングサポートの実装（Ollamaのストリーミング機能を活用）
+   - モデル管理機能の追加（利用可能なモデルの取得、モデル切り替え）
+   - パラメーター最適化（温度、トップP、繰り返しペナルティなど）
+
+3. **統合テスト**
+   - 単体テストと統合テストの実装
+   - エッジケースの検証（エラー処理、タイムアウト、大きなコンテキスト）
+   - パフォーマンス測定
 
 ## 実装計画
 
@@ -42,9 +211,12 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
 - ドキュメント取得APIの基本機能実装完了
 - リポジトリ構造取得APIの基本機能実装完了
 - Mockサービスの実装完了（開発・デモ・テスト用）
+- LLMサービス層の基本実装完了（OpenAI、ストリーミングサポート含む）
 
 **実装方針の明確化**:
-- Markdownドキュメント対応を最優先で実装
+- Markdownドキュメント対応を最優先で実装 [✅完了]
+- LLM API連携の基本機能実装 [✅完了]
+- Ollamaサービス実装を次の優先項目として推進 [🔄進行中]
 - データベース層はモックで実装（APIの仕様が定まった段階でモデル定義を行う）
 - Quarto対応は将来の拡張として位置付け
 
@@ -60,6 +232,7 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - Mock実装（`services/git/mock_service.py`）
    - ドキュメント処理サービス（`services/document_service.py`）
    - キャッシュサービス（基本実装）
+   - LLMサービス実装（`services/llm/`）
 
 3. **モックを用いたAPIの動作確認** [✅完了]
    - 実際のデータベースなしでサービス層をモックしてAPIの動作を確認
@@ -71,43 +244,57 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - リンク情報の抽出と提供
    - ドキュメントメタデータの拡充
    
-5. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
+5. **LLM API連携の実装** [✅部分的に完了]
+   - LLMサービス抽象化レイヤーの実装（`services/llm/base.py`） [✅完了]
+   - プロバイダー固有の実装（OpenAI, モックサービス） [✅完了]
+   - `LLMServiceFactory` の実装（`services/llm/factory.py`） [✅完了]
+   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅基本実装完了]
+   - LLM問い合わせ用エンドポイントの追加（`api/endpoints/llm.py`） [✅完了]
+   - プロンプトテンプレート管理機能の実装 [✅完了]
+   - レスポンスキャッシュの実装 [✅完了]
+   - ストリーミングレスポンスのサポート [✅完了]
+   - SSE（Server-Sent Events）エンドポイントの実装 [✅完了]
+   - 追加のLLMプロバイダー実装（Ollama） [🔄進行中]
+   - MCPアダプターの拡張機能 [🔄計画中]
+
+6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
    - Quartoプロジェクト検出機能の追加
    - ソースファイルと出力ファイルの関連付けエンドポイント
    - リンク変換オプションの追加
    - フロントマター解析とメタデータ提供機能の拡張
    - リポジトリ設定モデルとAPIの追加
 
-6. **データベース層の実装** [🔄進行予定]
+7. **データベース層の実装** [🔄進行予定]
    - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
    - モデル定義（`db/models.py`）
    - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
    - Alembicによるマイグレーション設定
    - リポジトリ設定・マッピング機能の追加
 
-7. **Quartoドキュメント対応の追加** [⏱️未着手]
+8. **Quartoドキュメント対応の追加** [⏱️未着手]
    - Quartoプロジェクト設定（_quarto.yml）の解析
    - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
    - リポジトリ構造分析とパスマッピング
    - サイト構造情報の提供
 
-8. **テストの充実** [🔄部分的に完了]
+9. **テストの充実** [🔄部分的に完了]
    - APIエンドポイントのテスト（ドキュメント取得、構造取得）[✅完了]
    - 統合テスト（実際のDBを使った全体的なフロー確認）
    - モックを使った外部サービスのテスト [✅完了]
    - Markdownドキュメント機能の拡張テスト [✅完了]
+   - LLMサービスのテスト [✅完了]
    - 将来的なQuartoプロジェクト対応のテスト [⏱️未着手]
 
-9. **リファクタリングとコード品質向上** [🔄部分的に完了]
-   - モックサービスをテスト用からプロダクションコードへ移行 [✅完了]
-   - APIパスの整理（`/contents`と`/structure`の明確な分離）[✅完了]
-   - Markdownドキュメント処理の強化 [✅完了]
-   - ログ出力の強化 [🔄計画中]
-   - エラーハンドリングの改善 [🔄計画中]
-   - パフォーマンス最適化 [🔄計画中]
-   - セキュリティ対策の強化 [🔄計画中]
+10. **リファクタリングとコード品質向上** [🔄部分的に完了]
+    - モックサービスをテスト用からプロダクションコードへ移行 [✅完了]
+    - APIパスの整理（`/contents`と`/structure`の明確な分離）[✅完了]
+    - Markdownドキュメント処理の強化 [✅完了]
+    - LLMサービスのエラーハンドリング強化 [✅完了]
+    - ログ出力の強化 [🔄計画中]
+    - パフォーマンス最適化 [🔄計画中]
+    - セキュリティ対策の強化 [🔄計画中]
 
-10. **本番環境準備** [未着手]
+11. **本番環境準備** [未着手]
     - Docker Composeの調整
     - 環境変数の設定
     - 監視やバックアップなどの運用機能の実装
@@ -130,15 +317,27 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - 将来的にはQuartoドキュメント設定（パスマッピング、出力ディレクトリなど）の管理
    - リポジトリタイプ（Markdown/Quarto）の検出と管理
 
-3. **検索API** [🔄実装予定]
+3. **LLM API連携** [✅部分的に完了]
+   - 外部LLMサービス（OpenAI）との統合 [✅完了]
+   - ストリーミングレスポンスのサポート [✅完了]
+   - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
+   - Model Context Protocol (MCP) 対応 [✅基本実装完了]
+   - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
+   - プロンプトテンプレート管理 [✅完了]
+   - レスポンスキャッシュ [✅完了]
+   - 追加のプロバイダー実装（Ollama） [🔄進行中]
+   - MCPアダプターの拡張機能 [🔄計画中]
+
+4. **検索API** [🔄実装予定]
    - リポジトリ内のファイル検索
    - テキスト検索とメタデータ検索
    - ドキュメントタイプや属性によるフィルタリング
 
-4. **キャッシュ機能** [基本実装済み]
+5. **キャッシュ機能** [基本実装済み]
    - 頻繁にアクセスされるドキュメントのキャッシュ
    - リポジトリ構造のキャッシュ
    - 設定情報のキャッシュ
+   - LLMレスポンスのキャッシュ [✅完了]
 
 ## 技術スタック
 
@@ -214,6 +413,26 @@ http://localhost:8000/docs
     - `ref`: ブランチまたはタグ名（デフォルト: main）
     - `path`: フィルタリングするパス（デフォルト: ""）
     - `include_mappings`: ソース・出力ファイルのマッピングを含めるか（デフォルト: false、将来機能）
+
+### LLM連携エンドポイント
+- `POST /api/v1/llm/query` - LLMへの問い合わせ
+  - ボディパラメータ:
+    - `prompt`: ユーザーからのプロンプト
+    - `documents`: コンテキストとして使用するドキュメント情報
+    - `options`: LLM固有のオプション（モデル、温度等）
+    - `provider`: 使用するLLMプロバイダー（デフォルト: システム設定値）
+
+- `POST /api/v1/llm/stream` - ストリーミングモードでLLMからのレスポンスを取得
+  - ボディパラメータ: （`/query`と同じ）
+  - レスポンス: SSE（Server-Sent Events）形式のストリーミングレスポンス
+  - 形式: `data: {"text": "チャンクテキスト"}\n\n`
+  - 完了時: `data: {"done": true}\n\n`
+  - エラー時: `data: {"error": "エラーメッセージ"}\n\n`
+
+- `GET /api/v1/llm/providers` - 利用可能なLLMプロバイダー一覧の取得
+- `GET /api/v1/llm/capabilities` - 選択されたプロバイダーの機能情報取得
+- `GET /api/v1/llm/templates` - プロンプトテンプレート一覧の取得
+- `POST /api/v1/llm/format-prompt` - プロンプトテンプレートのフォーマット
 
 ### リポジトリ管理エンドポイント（計画中）
 - `GET /api/v1/repositories` - リポジトリ一覧の取得
@@ -322,6 +541,43 @@ class DocumentResponse(BaseModel):
     # relations: Optional[DocumentRelations]  # 関連ドキュメント情報（将来実装予定）
 ```
 
+### LLMデータモデル
+
+```python
+# LLMクエリリクエストモデル
+class LLMQueryRequest(BaseModel):
+    prompt: str                 # ユーザープロンプト
+    documents: Optional[List[DocumentReference]] = None  # コンテキストとして使用するドキュメント
+    options: Optional[Dict[str, Any]] = None  # LLM固有のオプション
+    provider: Optional[str] = None  # LLMプロバイダー
+
+# LLMレスポンスモデル
+class LLMResponse(BaseModel):
+    text: str                   # LLMからのレスポンステキスト
+    usage: LLMUsage             # トークン使用量
+    model: str                  # 使用されたモデル
+    provider: str               # LLMプロバイダー
+    processed_at: datetime      # 処理時間
+    elapsed_time: float         # 処理に要した時間（秒）
+    cached: bool = False        # キャッシュからの応答かどうか
+    raw_response: Optional[Any] = None  # 生のレスポンスデータ（デバッグ用）
+
+# トークン使用量モデル
+class LLMUsage(BaseModel):
+    prompt_tokens: int          # プロンプトのトークン数
+    completion_tokens: int      # 応答のトークン数
+    total_tokens: int           # 合計トークン数
+    
+# ドキュメント参照モデル
+class DocumentReference(BaseModel):
+    service: str                # Gitサービス
+    owner: str                  # リポジトリオーナー
+    repository: str             # リポジトリ名
+    path: str                   # ドキュメントパス
+    ref: Optional[str] = None   # ブランチまたはタグ
+    content: Optional[str] = None  # 直接コンテンツを提供する場合
+```
+
 ## ユースケース
 
 このAPIは以下の主要ユースケースをサポートします：
@@ -333,8 +589,9 @@ class DocumentResponse(BaseModel):
 
 2. **LLMコンテキストの提供** [現在の主要ターゲット]
    - Markdownファイルの取得
-   - フロントエンド側からLLMへの問い合わせ用コンテキスト提供
-   - メタデータと併せたコンテンツ提供
+   - バックエンド経由のLLM問い合わせ（OpenAI、将来的にOllamaなど）
+   - ストリーミングレスポンスによるリアルタイム表示
+   - メタデータと併せたコンテキスト提供
 
 3. **HTMLドキュメントの表示** [将来的に拡張]
    - QuartoでビルドされたリポジトリからのHTML取得
@@ -357,7 +614,19 @@ class DocumentResponse(BaseModel):
    - バックエンド側: フロントマター解析、メタデータ提供
    - フロントエンド側: タイトル、説明、タグなどの表示
 
-4. **ファイル関連付け** [将来的に拡張]
+4. **LLM連携** [✅部分的に完了]
+   - バックエンド側: 
+     - LLM APIへのプロキシ（OpenAI、将来的にOllama） [✅完了]
+     - コンテキスト最適化とMCPサポート [✅基本実装完了]
+     - ストリーミングレスポンスのサポート [✅完了]
+     - SSE（Server-Sent Events）エンドポイント [✅完了]
+     - テンプレート管理とレスポンスキャッシュ [✅完了]
+   - フロントエンド側: 
+     - ユーザーインターフェース [🔄進行中]
+     - ストリーミングレスポンスの表示 [✅完了]
+     - SSEクライアント実装 [✅完了]
+
+5. **ファイル関連付け** [将来的に拡張]
    - バックエンド側: ソースファイルと出力ファイルのマッピング提供
    - フロントエンド側: ユーザーへのソース/出力切り替えUI提供
 

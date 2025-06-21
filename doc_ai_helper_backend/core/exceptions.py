@@ -49,6 +49,33 @@ class UnauthorizedException(BaseAPIException):
         super().__init__(status_code=401, message=message, detail=detail)
 
 
+class ServiceNotFoundError(Exception):
+    """Exception raised when a requested service is not found."""
+
+    pass
+
+
+class LLMServiceException(BaseAPIException):
+    """Exception for LLM service related errors."""
+
+    def __init__(
+        self, message: str = "LLM service error", detail: Optional[Any] = None
+    ):
+        super().__init__(status_code=500, message=message, detail=detail)
+
+
+class TemplateNotFoundError(Exception):
+    """Exception raised when a requested template is not found."""
+
+    pass
+
+
+class TemplateSyntaxError(Exception):
+    """Exception raised when there's a syntax error in a template."""
+
+    pass
+
+
 class ForbiddenException(BaseAPIException):
     """Exception for forbidden access."""
 

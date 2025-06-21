@@ -10,3 +10,8 @@ alembic>=1.16.0
 # API functionality
 requests>=2.32.0
 httpx>=0.28.0
+
+# LLM functionality
+openai>=1.8.0
+tiktoken>=0.5.0
+sse-starlette>=1.6.5

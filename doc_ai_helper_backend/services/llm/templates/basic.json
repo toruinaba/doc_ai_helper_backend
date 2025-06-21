@@ -1,0 +1,24 @@
+{
+    "id": "basic",
+    "name": "Basic Query",
+    "description": "A basic query template with optional document context",
+    "template": "{{system_prompt}}\n\n{{#if context}}Context:\n{{context}}{{/if}}\n\nQuestion: {{query}}",
+    "variables": [
+        {
+            "name": "system_prompt",
+            "description": "The system prompt to guide the LLM behavior",
+            "required": true,
+            "default": "You are a helpful AI assistant specialized in providing information about documentation. Provide accurate, concise, and helpful responses."
+        },
+        {
+            "name": "context",
+            "description": "Optional document context to inform the response",
+            "required": false
+        },
+        {
+            "name": "query",
+            "description": "The user's query",
+            "required": true
+        }
+    ]
+}
