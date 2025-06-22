@@ -1,5 +1,5 @@
 """
-Integration tests for GitHub service.
+Integration tests for GitHub service using real GitHub API.
 """
 
 import os
@@ -15,18 +15,30 @@ from doc_ai_helper_backend.core.exceptions import (
 from doc_ai_helper_backend.services.git.github_service import GitHubService
 
 
-class TestGitHubServiceIntegration:
-    """GitHubServiceの統合テスト"""
+def pytest_configure(config):
+    """統合テストの設定"""
+    # 必要な環境変数をチェック
+    required_env_vars = {
+        "GITHUB_TOKEN": "GitHub API integration tests",
+    }
+
+    missing_vars = []
+    for var, description in required_env_vars.items():
+        if not os.getenv(var):
+            missing_vars.append(f"{var} (for {description})")
+
+    if missing_vars:
+        pytest.skip(
+            f"Integration tests skipped. Missing environment variables: {', '.join(missing_vars)}"
+        )
+
+
+class TestGitHubServiceRealAPI:
+    """GitHubService実API統合テスト（実際のGitHubトークンが必要）"""
 
     @pytest.fixture
     def github_service(self):
-        """GitHubServiceのインスタンスを取得する"""
-        # テストモードの取得
-        test_mode = os.environ.get("TEST_MODE", "mock")
-
-        if test_mode == "mock":
-            pytest.skip("Skipping integration test in mock mode")
-
+        """実際のGitHubServiceのインスタンスを取得する"""
         # 環境変数からアクセストークンを取得
         token = os.environ.get("GITHUB_TOKEN")
         if not token:
