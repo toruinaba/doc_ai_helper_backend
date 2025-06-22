@@ -28,12 +28,21 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - MCP（Model Context Protocol）サーバーの実装 [✅完了]
    - Function Calling/ツール実行機能の実装 [✅完了]
    - フィードバック分析エンジンの実装 [✅完了]
-   - リポジトリ管理機能の実装 [🔄計画中]
-   - 検索機能の実装 [🔄計画中]
+
+3. **GitHub統合（フェーズ3）**: MCP経由のGitHub連携機能 [🔄次期実装]
+   - GitHub MCPツール実装（Issue/PR作成）
+   - GitHub認証・権限管理
+   - Function Calling統合
+   - GitHub統合テスト
+
+4. **拡張機能（フェーズ4）**: その他の機能拡張 [⏱️将来対応]
+   - フィードバック投稿API（ユーザー制御機能）
+   - リポジトリ管理機能の実装
+   - 検索機能の実装
    - キャッシュ機能の強化
    - パフォーマンスとセキュリティの最適化
 
-3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
+5. **Quartoサポート（フェーズ5）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -208,6 +217,12 @@ async def stream_query(
 - MCPツール群（document/feedback/analysis）の実装完了
 - ユニットテスト完全実装（29件全てPASSED）
 
+### 🔄 次期実装対象（フェーズ3: GitHub MCP統合）
+- **GitHub MCPツール**: GitHub Issue/PR作成のMCPツール実装
+- **GitHub認証**: Personal Access Token による認証・権限管理
+- **Function Calling統合**: LLMからの直接GitHub操作機能
+- **統合テスト**: 実GitHub APIとの統合テスト実装
+
 **実装方針の明確化**:
 - Markdownドキュメント対応を最優先で実装 [✅完了]
 - LLM API連携の基本機能実装 [✅完了]
@@ -264,21 +279,30 @@ async def stream_query(
    - フィードバック分析エンジンの実装 [✅完了]
    - MCPツールの完全実装とテスト [✅完了]
 
-6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
+6. **GitHub MCP統合の実装** [🔄次期実装予定]
+   - GitHub APIクライアント基盤の実装
+   - `create_github_issue` MCPツールの実装
+   - `create_github_pr` MCPツールの実装
+   - GitHub認証・権限管理機能の実装
+   - MCPサーバーへのGitHubツール登録
+   - Function Calling統合とエラーハンドリング
+   - ユニットテスト・統合テスト実装
+
+7. **APIの拡張（将来機能）** [⏱️将来対応]
    - Quartoプロジェクト検出機能の追加
    - ソースファイルと出力ファイルの関連付けエンドポイント
    - リンク変換オプションの追加
    - フロントマター解析とメタデータ提供機能の拡張
    - リポジトリ設定モデルとAPIの追加
 
-7. **データベース層の実装** [🔄進行予定]
+8. **データベース層の実装** [🔄進行予定]
    - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
    - モデル定義（`db/models.py`）
    - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
    - Alembicによるマイグレーション設定
    - リポジトリ設定・マッピング機能の追加
 
-8. **Quartoドキュメント対応の追加** [⏱️未着手]
+9. **Quartoドキュメント対応の追加** [⏱️未着手]
    - Quartoプロジェクト設定（_quarto.yml）の解析
    - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
    - リポジトリ構造分析とパスマッピング
@@ -339,12 +363,18 @@ async def stream_query(
    - フィードバック分析エンジン [✅完了]
    - MCPツール（document/feedback/analysis）[✅完了]
 
-4. **検索API** [🔄実装予定]
+4. **GitHub統合** [🔄次期実装予定]
+   - GitHub MCPツール（Issue/PR作成）[🔄実装予定]
+   - GitHub認証・権限管理 [🔄実装予定]
+   - Function Calling経由GitHub操作 [🔄実装予定]
+   - GitHub統合テスト [🔄実装予定]
+
+5. **検索API** [🔄実装予定]
    - リポジトリ内のファイル検索
    - テキスト検索とメタデータ検索
    - ドキュメントタイプや属性によるフィルタリング
 
-5. **キャッシュ機能** [基本実装済み]
+6. **キャッシュ機能** [基本実装済み]
    - 頻繁にアクセスされるドキュメントのキャッシュ
    - リポジトリ構造のキャッシュ
    - 設定情報のキャッシュ
@@ -770,3 +800,60 @@ Markdownドキュメント処理機能は完全に実装されています。以
 - エンドツーエンドテストの追加
 - リポジトリ管理機能の実装
 - 検索機能の実装
+
+## 📋 次期実装計画（フェーズ3: GitHub MCP統合）
+
+### 🎯 実装目標
+MCP経由でのGitHub Issue/PR作成機能を実装し、LLMとの対話からダイレクトにGitHubへフィードバック投稿できる仕組みを構築します。
+
+### 📅 実装スケジュール（2週間）
+- **Week 1**: GitHub APIクライアント基盤 + MCPツール実装
+- **Week 2**: Function Calling統合 + テスト実装 + 最適化
+
+### 🔧 実装予定機能
+
+#### **GitHub MCPツール**
+```python
+# 実装予定のMCPツール
+async def create_github_issue(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # Issue タイトル
+    description: str,      # Issue 本文
+    labels: List[str] = None,      # ラベル
+    assignees: List[str] = None    # アサイニー
+) -> Dict[str, Any]:
+    """GitHub Issue を作成し、結果を返す"""
+
+async def create_github_pr(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # PR タイトル
+    description: str,      # PR 説明
+    file_path: str,        # 変更するファイルパス
+    file_content: str,     # 新しいファイル内容
+    branch_name: str = None,       # ブランチ名
+    base_branch: str = "main"      # ベースブランチ
+) -> Dict[str, Any]:
+    """GitHub Pull Request を作成し、結果を返す"""
+```
+
+#### **使用例**
+```python
+# LLMとの対話例
+ユーザー: "この README.md の構造が分かりにくいので、改善提案をGitHubのIssueとして投稿してください"
+
+LLM: analyze_document_structure() で分析
+     ↓
+     generate_feedback_from_conversation() でフィードバック生成
+     ↓
+     create_github_issue() でIssue作成
+     ↓
+     "GitHub Issue #123 を作成しました: https://github.com/owner/repo/issues/123"
+```
+
+### 🎯 実装の利点
+1. **最小実装**: 既存MCP基盤（29テスト通過済み）をフル活用
+2. **即座に動作**: フロントエンド不要でLLM対話テスト可能
+3. **段階的拡張**: 基本機能確立後、フィードバックAPI等を追加可能
+4. **実装量削減**: 約250行の実装でコア機能完成
+
+---

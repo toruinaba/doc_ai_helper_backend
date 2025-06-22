@@ -174,31 +174,39 @@ tests/integration/
 - [ ] 関連セクション推薦
 - [ ] 理解度評価
 
-### フェーズ3: 外部統合とフィードバック投稿（優先度: 高）
+### フェーズ3: GitHub MCP統合（優先度: 高）
 
-#### 3.1 GitHub統合（実装優先）
-- [ ] GitHub MCP Server統合
-- [ ] Issue作成機能
-- [ ] PR作成機能
+#### 3.1 GitHub MCPツール実装（実装優先）
+- [ ] GitHub APIクライアント基盤実装
+- [ ] `create_github_issue` MCPツール実装
+- [ ] `create_github_pr` MCPツール実装
+- [ ] GitHub認証・権限管理機能
+- [ ] MCPサーバーへのGitHubツール登録
+
+#### 3.2 統合・テスト・最適化
+- [ ] Function CallingでのGitHub統合テスト
 - [ ] Unit テストでMock GitHub API使用
 - [ ] 統合テストで実際のGitHub API使用（オプション）
+- [ ] エラーハンドリング・リトライ機能強化
+- [ ] ドキュメント更新とデプロイ準備
 
-#### 3.2 フィードバック投稿API
-**新しいAPIエンドポイント:**
-- [ ] `POST /api/v1/feedback/analyze` - 対話分析
+### フェーズ4: 拡張機能とUX向上（優先度: 中）
+
+#### 4.1 フィードバック投稿API（将来拡張）
+**ユーザー制御によるフィードバック機能:**
+- [ ] `POST /api/v1/feedback/analyze` - 対話分析・プレビュー
 - [ ] `POST /api/v1/feedback/generate` - 改善提案生成
-- [ ] `POST /api/v1/feedback/submit` - フィードバック投稿
-- [ ] `GET /api/v1/mcp/tools` - 利用可能ツール
+- [ ] `POST /api/v1/feedback/submit` - ユーザー承認付き投稿
+- [ ] `GET /api/v1/feedback/history` - 投稿履歴管理
+- [ ] フィードバック編集・承認ワークフロー
 
-### フェーズ4: UX向上機能（優先度: 中）
-
-#### 4.1 文書理解支援
+#### 4.2 文書理解支援
 - [ ] 文書構造分析
 - [ ] 専門用語解説
 - [ ] 関連セクション推薦
 - [ ] 理解度評価
 
-#### 4.2 検索・発見機能
+#### 4.3 検索・発見機能
 - [ ] 文書内容検索
 - [ ] 関連文書推薦
 - [ ] 質問候補提示
@@ -227,13 +235,18 @@ tests/integration/
 - [x] MCPFunctionAdapter統合完了
 - [x] 29個のUnit テスト検証完了
 
-### Week 5-6: GitHub統合とAPI完成 🔄 **次フェーズ準備完了**
-- [ ] 実際のGitHub MCP統合実装
-- [ ] フィードバック投稿API完成（実リポジトリ投稿）
-- [ ] 統合テスト（実API使用）の実装
-- [ ] エンドツーエンドテスト実装
+### Week 5-6: GitHub MCP統合実装 🔄 **次フェーズ実装対象**
+- [ ] GitHub APIクライアント基盤実装（認証・基本API）
+- [ ] `create_github_issue` MCPツール実装
+- [ ] `create_github_pr` MCPツール実装
+- [ ] MCPサーバーへのGitHubツール登録
+- [ ] Function Calling統合とエラーハンドリング
+- [ ] ユニットテスト（Mock GitHub API）実装
+- [ ] 統合テスト（実GitHub API使用）実装
+- [ ] ドキュメント更新・デプロイ準備
 
-### Week 7-8: データ管理機能 ⏳ **後期実装**
+### Week 7-8: 拡張機能実装 ⏳ **GitHub MCP完成後**
+- [ ] フィードバック投稿API実装（ユーザー制御機能）
 - [ ] データベース層の実装
 - [ ] リポジトリ管理機能完成
 - [ ] 検索機能実装
@@ -511,5 +524,166 @@ pytest tests/integration/ -v
 - テスト実行時間の維持（目標: 30秒以内）
 - CI/CDパイプラインの安定稼働
 - コードカバレッジの維持（目標: 90%以上）
+
+---
+
+## 📋 フェーズ3詳細実装計画（MCP GitHub統合）
+
+### 🎯 実装スコープ（修正版）
+**優先実装**: MCP経由のGitHub Issue/PR作成機能
+**除外**: フィードバック投稿API（フェーズ4に延期）
+**期間**: 2週間（Week 5-6）
+
+### 📅 2週間実装スケジュール
+
+#### **Week 1: GitHub基盤・MCPツール実装**
+
+**Day 1-2: GitHub APIクライアント基盤**
+- [ ] `doc_ai_helper_backend/services/github/` ディレクトリ作成
+- [ ] `github_client.py` 基本クラス実装（認証、基本API）
+- [ ] GitHub Personal Access Token認証機能
+- [ ] 基本的なHTTPクライアント設定（httpx使用）
+- [ ] リポジトリアクセス権限チェック機能
+
+**Day 3-4: GitHub Issue作成MCPツール**
+- [ ] `doc_ai_helper_backend/services/mcp/tools/github_tools.py` 作成
+- [ ] `create_github_issue()` 関数実装
+  - リポジトリ指定
+  - Issue タイトル・本文生成
+  - ラベル・アサイニー設定
+- [ ] Issue作成のバリデーション機能
+
+**Day 5-6: GitHub PR作成MCPツール**
+- [ ] `create_github_pr()` 関数実装
+  - ブランチ作成・ファイル更新
+  - PR タイトル・説明生成
+  - レビュアー設定
+- [ ] PR作成のバリデーション機能
+
+**Day 7: MCPサーバー統合**
+- [ ] `server.py` の `_register_github_tools()` 実装
+- [ ] FastMCPでのGitHubツール登録
+- [ ] `config.py` GitHub設定追加
+- [ ] 基本動作確認テスト
+
+#### **Week 2: 統合・テスト・最適化**
+
+**Day 8-9: Function Calling統合**
+- [ ] OpenAIサービスでのGitHub Function Calling対応
+- [ ] MockサービスでのGitHub Function Calling対応
+- [ ] Function実行エラーハンドリング強化
+
+**Day 10-11: テスト実装**
+- [ ] ユニットテスト実装（Mock GitHub API使用）
+  - `tests/unit/services/mcp/test_github_tools.py`
+  - `tests/unit/services/github/test_github_client.py`
+- [ ] 統合テスト基盤作成（実GitHub API使用）
+  - `tests/integration/github/test_github_mcp.py`
+
+**Day 12-13: 実GitHub API統合・最適化**
+- [ ] 実際のGitHub APIとの統合テスト
+- [ ] エラーハンドリング・リトライ機能強化
+- [ ] レート制限対応
+- [ ] パフォーマンス最適化
+
+**Day 14: 完成・ドキュメント**
+- [ ] 全機能統合テスト
+- [ ] API仕様書更新
+- [ ] 使用方法ドキュメント作成
+- [ ] デプロイ準備・CI/CD更新
+
+### 🔧 実装詳細
+
+#### **新規実装ファイル構成**
+```
+doc_ai_helper_backend/
+├── services/
+│   ├── github/
+│   │   ├── __init__.py
+│   │   ├── github_client.py      # GitHub API クライアント（約100行）
+│   │   └── auth_manager.py       # 認証管理（約50行）
+│   └── mcp/tools/
+│       └── github_tools.py       # GitHub MCPツール（約100行）
+└── tests/
+    ├── unit/services/
+    │   ├── github/               # GitHub関連ユニットテスト
+    │   └── mcp/test_github_tools.py
+    └── integration/github/       # GitHub統合テスト
+```
+
+#### **MCPツール実装例**
+```python
+# github_tools.py 実装予定
+async def create_github_issue(
+    repository: str,
+    title: str,
+    description: str,
+    labels: List[str] = None,
+    assignees: List[str] = None
+) -> Dict[str, Any]:
+    """
+    GitHub リポジトリに新しいIssueを作成。
+    
+    Args:
+        repository: リポジトリ名（owner/repo形式）
+        title: Issue のタイトル
+        description: Issue の詳細説明
+        labels: 適用するラベルのリスト
+        assignees: アサインするユーザーのリスト
+    
+    Returns:
+        作成されたIssueの情報（URL、番号など）
+    """
+
+async def create_github_pr(
+    repository: str,
+    title: str,
+    description: str,
+    file_path: str,
+    file_content: str,
+    branch_name: str = None,
+    base_branch: str = "main"
+) -> Dict[str, Any]:
+    """
+    GitHub リポジトリに新しいPull Requestを作成。
+    """
+```
+
+### 📊 成功指標（修正版）
+
+#### **Week 1完了指標**
+- [ ] GitHub APIクライアント基盤完成
+- [ ] 2つのMCPツール（Issue/PR作成）実装完成
+- [ ] MCPサーバーへの統合完了
+- [ ] 基本動作確認成功
+
+#### **Week 2完了指標**
+- [ ] Function Calling統合完成
+- [ ] 15個以上のユニットテスト実装
+- [ ] 実GitHub API統合テスト成功
+- [ ] エラーハンドリング・最適化完成
+
+#### **フェーズ3全体成功指標**
+- **新規実装量**: 約250行（テスト除く）
+- **テスト追加**: 15個以上のユニットテスト
+- **統合動作**: LLM対話でGitHub Issue/PR自動作成
+- **既存活用度**: 95%（MCPサーバー基盤をフル活用）
+
+### 🎯 実装の利点（再確認）
+
+#### **1. 最小実装での最大効果**
+- 既存MCP基盤（29テスト通過済み）をフル活用
+- FastMCPサーバーパターンの踏襲
+- Function Calling機能の自然な拡張
+
+#### **2. 即座の動作確認**
+- フロントエンド不要でLLM対話テスト可能
+- 既存の会話履歴機能と自然な連携
+- OpenAI/Mock両環境での検証
+
+#### **3. 段階的拡張の基盤**
+- MCP GitHub統合 → フィードバックAPI（将来）
+- 基本機能確立 → 高度な機能追加
+- 実装リスクの最小化
 
 ---

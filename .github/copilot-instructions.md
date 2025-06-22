@@ -29,12 +29,21 @@
    - MCP（Model Context Protocol）サーバーの実装 [✅完了]
    - Function Calling/ツール実行機能の実装 [✅完了]
    - フィードバック分析エンジンの実装 [✅完了]
+
+3. **GitHub統合（フェーズ3）**: MCP経由のGitHub連携機能 [🔄次期実装]
+   - GitHub MCPツール実装（Issue/PR作成）
+   - GitHub認証・権限管理
+   - Function Calling統合
+   - GitHub統合テスト
+
+4. **拡張機能（フェーズ4）**: その他の機能拡張 [⏱️将来対応]
+   - フィードバック投稿API（ユーザー制御機能）
    - リポジトリ管理機能の実装
    - 検索機能の実装
    - キャッシュ機能の強化
    - パフォーマンスとセキュリティの最適化
 
-3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
+5. **Quartoサポート（フェーズ5）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -108,7 +117,11 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
 - ✅ SSE（Server-Sent Events）エンドポイントの実装
 - ✅ MCPアダプター（`MCPAdapter`）の基本実装
 - ✅ 会話履歴管理サービス（`ConversationHistoryService`）の実装
-- 🔄 MCPアダプターの拡張機能（後続フェーズ）
+- ✅ MCPサーバー（FastMCPベース）の実装
+- ✅ Function Calling/ツール実行機能の実装
+- ✅ フィードバック分析エンジンの実装
+- ✅ MCPツール（document_tools/feedback_tools/analysis_tools）の実装
+- ✅ ユニットテスト完全実装（29件全てPASSED）
 
 #### ストリーミング実装状況
 
@@ -238,35 +251,45 @@ async def stream_query(
    - MCPツール（document/feedback/analysis）の実装 [✅完了]
    - ユニットテスト完全実装（29件全てPASSED）[✅完了]
 
-6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
+6. **GitHub MCP統合の実装** [🔄次期実装予定]
+   - GitHub APIクライアント基盤の実装
+   - `create_github_issue` MCPツールの実装
+   - `create_github_pr` MCPツールの実装
+   - GitHub認証・権限管理機能の実装
+   - MCPサーバーへのGitHubツール登録
+   - Function Calling統合とエラーハンドリング
+   - ユニットテスト・統合テスト実装
+
+7. **APIの拡張（将来機能）** [⏱️将来対応]
    - Quartoプロジェクト検出機能の追加
    - ソースファイルと出力ファイルの関連付けエンドポイント
    - リンク変換オプションの追加
    - フロントマター解析とメタデータ提供機能の拡張
    - リポジトリ設定モデルとAPIの追加
 
-7. **データベース層の実装** [🔄進行予定]
+8. **データベース層の実装** [🔄進行予定]
    - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
    - モデル定義（`db/models.py`）
    - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
    - Alembicによるマイグレーション設定
    - リポジトリ設定・マッピング機能の追加
 
-8. **Quartoドキュメント対応の追加** [⏱️未着手]
+9. **Quartoドキュメント対応の追加** [⏱️未着手]
    - Quartoプロジェクト設定（_quarto.yml）の解析
    - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
    - リポジトリ構造分析とパスマッピング
    - サイト構造情報の提供
 
-9. **テストの充実** [🔄部分的に完了]
+10. **テストの充実** [✅完了]
    - APIエンドポイントのテスト（ドキュメント取得、構造取得）[✅完了]
-   - 統合テスト（実際のDBを使った全体的なフロー確認）
-   - モックを使った外部サービスのテスト [✅完了]
-   - Markdownドキュメント機能の拡張テスト [✅完了]
+   - 単体テスト：Mockサービスを使った外部依存なしテスト [✅完了]
+   - 統合テスト：実際の外部API（GitHub、OpenAI等）を使用したテスト [✅完了]
+   - Markdownドキュメント機能のテスト [✅完了]
    - LLMサービスのテスト [✅完了]
+   - 会話履歴管理機能のテスト [✅完了]
    - 将来的なQuartoプロジェクト対応のテスト [⏱️未着手]
 
-10. **リファクタリングとコード品質向上** [🔄部分的に完了]
+11. **リファクタリングとコード品質向上** [🔄部分的に完了]
     - モックサービスをテスト用からプロダクションコードへ移行 [✅完了]
     - APIパスの整理（`/contents`と`/structure`の明確な分離）[✅完了]
     - Markdownドキュメント処理の強化 [✅完了]
@@ -293,23 +316,32 @@ async def stream_query(
    - 将来的にはQuartoドキュメント設定（パスマッピング、出力ディレクトリなど）の管理
    - リポジトリタイプ（Markdown/Quarto）の検出と管理
 
-3. **LLM API連携** [✅部分的に完了]
+3. **LLM API連携** [✅完了]
    - 外部LLMサービス（OpenAI）との統合 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
-   - Model Context Protocol (MCP) 対応 [✅基本実装完了]
+   - Model Context Protocol (MCP) 対応 [✅完了]
    - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
    - プロンプトテンプレート管理 [✅完了]
    - レスポンスキャッシュ [✅完了]
-   - 追加のプロバイダー実装（Ollama） [🔄進行中]
-   - MCPアダプターの拡張機能 [🔄計画中]
+   - 会話履歴管理 [✅完了]
+   - MCPサーバー（FastMCPベース）の実装 [✅完了]
+   - Function Calling/ツール実行機能 [✅完了]
+   - フィードバック分析エンジン [✅完了]
+   - MCPツール（document/feedback/analysis）[✅完了]
 
-4. **検索API** [🔄実装予定]
+4. **GitHub統合** [🔄次期実装予定]
+   - GitHub MCPツール（Issue/PR作成）[🔄実装予定]
+   - GitHub認証・権限管理 [🔄実装予定]
+   - Function Calling経由GitHub操作 [🔄実装予定]
+   - GitHub統合テスト [🔄実装予定]
+
+5. **検索API** [🔄実装予定]
    - リポジトリ内のファイル検索
    - テキスト検索とメタデータ検索
    - ドキュメントタイプや属性によるフィルタリング
 
-5. **キャッシュ機能** [基本実装済み]
+6. **キャッシュ機能** [基本実装済み]
    - 頻繁にアクセスされるドキュメントのキャッシュ
    - リポジトリ構造のキャッシュ
    - 設定情報のキャッシュ
@@ -827,7 +859,7 @@ async def query_llm(
 ### フェーズ2完了 - MCP/Function Calling/分析エンジン実装完了
 - ✅ **MCPサーバー（FastMCPベース）**: 完全実装・テスト済み
 - ✅ **Function Calling/ツール実行機能**: 完全実装・テスト済み
-- ✅ **フィードバック分析エンジン**: 完全実装・テスト済み
+- ✅ **フィードバック分析エンジン完成**: 対話分析・品質評価・改善提案
 - ✅ **MCPツール群**: document_tools/feedback_tools/analysis_tools全て実装済み
 - ✅ **ユニットテスト**: 29件全てPASSED（tests/unit/services/mcp_tests/配下）
 
@@ -846,4 +878,89 @@ async def query_llm(
 - フィードバック投稿API の統合
 - APIエンドポイントでのFunction Calling完全統合
 - エンドツーエンドテストの追加
-````
+
+## 📋 フェーズ3: GitHub MCP統合 実装指針
+
+### 🎯 現在の実装状況（フェーズ2完了）
+- ✅ **MCP基盤完成**: FastMCPサーバー、29個のテスト通過
+- ✅ **Function Calling完成**: OpenAI/Mock対応、FunctionRegistry実装
+- ✅ **フィードバック分析エンジン完成**: 対話分析・品質評価・改善提案
+
+### 🔄 次期実装対象（フェーズ3: GitHub MCP統合）
+
+#### **実装スコープ**
+MCP経由でのGitHub Issue/PR作成機能に特化し、LLMとの対話から直接GitHubにフィードバック投稿できる仕組みを構築します。
+
+#### **実装予定のMCPツール**
+```python
+# doc_ai_helper_backend/services/mcp/tools/github_tools.py
+async def create_github_issue(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # Issue タイトル
+    description: str,      # Issue 本文
+    labels: List[str] = None,      # ラベル
+    assignees: List[str] = None    # アサイニー
+) -> Dict[str, Any]:
+    """GitHub Issue を作成し、結果を返す"""
+
+async def create_github_pr(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # PR タイトル
+    description: str,      # PR 説明
+    file_path: str,        # 変更するファイルパス
+    file_content: str,     # 新しいファイル内容
+    branch_name: str = None,       # ブランチ名
+    base_branch: str = "main"      # ベースブランチ
+) -> Dict[str, Any]:
+    """GitHub Pull Request を作成し、結果を返す"""
+```
+
+#### **実装計画（2週間）**
+**Week 1**: GitHub基盤・MCPツール実装
+- GitHub APIクライアント基盤（認証・基本API）
+- MCPツール実装（Issue/PR作成）
+- MCPサーバー統合
+
+**Week 2**: 統合・テスト・最適化
+- Function Calling統合
+- ユニット・統合テスト実装
+- エラーハンドリング・リトライ機能
+- ドキュメント・デプロイ準備
+
+#### **実装の利点**
+1. **最小実装**: 既存MCP基盤（29テスト通過）をフル活用
+2. **即座に動作**: フロントエンド不要でLLM対話テスト可能
+3. **段階的拡張**: 基本機能確立後、フィードバックAPI等を追加可能
+4. **実装量削減**: 約250行の実装でコア機能完成
+
+#### **使用例**
+```python
+# LLMとの対話例
+ユーザー: "この README.md の構造が分かりにくいので、改善提案をGitHubのIssueとして投稿してください"
+
+LLM: analyze_document_structure() で分析
+     ↓
+     generate_feedback_from_conversation() でフィードバック生成
+     ↓
+     create_github_issue() でIssue作成
+     ↓
+     "GitHub Issue #123 を作成しました: https://github.com/owner/repo/issues/123"
+```
+
+### 📂 実装ファイル構成
+```
+doc_ai_helper_backend/
+├── services/
+│   ├── github/
+│   │   ├── __init__.py
+│   │   ├── github_client.py      # GitHub API クライアント
+│   │   └── auth_manager.py       # 認証管理
+│   └── mcp/tools/
+│       └── github_tools.py       # GitHub MCPツール
+└── tests/
+    ├── unit/services/
+    │   ├── github/               # GitHub関連ユニットテスト
+    │   └── mcp/test_github_tools.py
+    └── integration/github/       # GitHub統合テスト
+```
+`````
