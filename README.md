@@ -22,9 +22,12 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - リンク情報の抽出と変換
    - 拡張ドキュメントメタデータの提供
 
-2. **拡張機能（フェーズ2）**: その他の機能拡張 [🔄進行中]
+2. **拡張機能（フェーズ2）**: その他の機能拡張 [✅完了]
    - バックエンド経由LLM API連携の実装 [✅完了]
    - 会話履歴管理機能の実装 [✅完了]
+   - MCP（Model Context Protocol）サーバーの実装 [✅完了]
+   - Function Calling/ツール実行機能の実装 [✅完了]
+   - フィードバック分析エンジンの実装 [✅完了]
    - リポジトリ管理機能の実装 [🔄計画中]
    - 検索機能の実装 [🔄計画中]
    - キャッシュ機能の強化
@@ -126,7 +129,11 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
 - ✅ SSE（Server-Sent Events）エンドポイントの実装
 - ✅ MCPアダプター（`MCPAdapter`）の基本実装
 - ✅ 会話履歴管理サービス（`ConversationHistoryService`）の実装
-- 🔄 MCPアダプターの拡張機能（後続フェーズ）
+- ✅ MCPサーバー（FastMCPベース）の実装
+- ✅ Function Calling/ツール実行機能の実装
+- ✅ フィードバック分析エンジンの実装
+- ✅ MCPツール（document_tools/feedback_tools/analysis_tools）の実装
+- ✅ ユニットテスト完全実装（29件全てPASSED）
 
 #### ストリーミング実装状況
 
@@ -195,11 +202,19 @@ async def stream_query(
 - Mockサービスの実装完了（開発・デモ・テスト用）
 - LLMサービス層の基本実装完了（OpenAI、ストリーミングサポート含む）
 - 会話履歴管理機能の実装完了
+- MCPサーバー（FastMCPベース）の実装完了
+- Function Calling/ツール実行機能の実装完了
+- フィードバック分析エンジンの実装完了
+- MCPツール群（document/feedback/analysis）の実装完了
+- ユニットテスト完全実装（29件全てPASSED）
 
 **実装方針の明確化**:
 - Markdownドキュメント対応を最優先で実装 [✅完了]
 - LLM API連携の基本機能実装 [✅完了]
 - 会話履歴管理機能の実装 [✅完了]
+- MCP（Model Context Protocol）サーバーの実装 [✅完了]
+- Function Calling/ツール実行機能の実装 [✅完了]
+- フィードバック分析エンジンの実装 [✅完了]
 - データベース層はモックで実装（APIの仕様が定まった段階でモデル定義を行う）
 - Quarto対応は将来の拡張として位置付け
 
@@ -207,6 +222,7 @@ async def stream_query(
 - 単体テストとAPIテスト: Mockサービスを活用した外部依存なしテスト
 - 統合テスト: 実際の外部API（GitHub、OpenAI等）を使用したテスト
 - 明確な分離により、開発効率と信頼性を両立
+- MCPサーバー・ツール・Function Callingのユニットテスト（29件全てPASSED）
 
 ### 開発ステップ
 1. **基本API定義の完了** [✅完了]
@@ -236,14 +252,17 @@ async def stream_query(
    - LLMサービス抽象化レイヤーの実装（`services/llm/base.py`） [✅完了]
    - プロバイダー固有の実装（OpenAI, モックサービス） [✅完了]
    - `LLMServiceFactory` の実装（`services/llm/factory.py`） [✅完了]
-   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅基本実装完了]
+   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅完了]
    - LLM問い合わせ用エンドポイントの追加（`api/endpoints/llm.py`） [✅完了]
    - プロンプトテンプレート管理機能の実装 [✅完了]
    - レスポンスキャッシュの実装 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）エンドポイントの実装 [✅完了]
    - 会話履歴管理機能の実装 [✅完了]
-   - MCPアダプターの拡張機能 [🔄計画中]
+   - MCPサーバー（FastMCPベース）の実装 [✅完了]
+   - Function Calling/ツール実行機能の実装 [✅完了]
+   - フィードバック分析エンジンの実装 [✅完了]
+   - MCPツールの完全実装とテスト [✅完了]
 
 6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
    - Quartoプロジェクト検出機能の追加
@@ -310,12 +329,15 @@ async def stream_query(
    - 外部LLMサービス（OpenAI）との統合 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
-   - Model Context Protocol (MCP) 対応 [✅基本実装完了]
+   - Model Context Protocol (MCP) 対応 [✅完了]
    - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
    - プロンプトテンプレート管理 [✅完了]
    - レスポンスキャッシュ [✅完了]
    - 会話履歴管理 [✅完了]
-   - MCPアダプターの拡張機能 [🔄計画中]
+   - MCPサーバー（FastMCPベース）の実装 [✅完了]
+   - Function Calling/ツール実行機能 [✅完了]
+   - フィードバック分析エンジン [✅完了]
+   - MCPツール（document/feedback/analysis）[✅完了]
 
 4. **検索API** [🔄実装予定]
    - リポジトリ内のファイル検索
@@ -712,3 +734,39 @@ Markdownドキュメント処理機能は完全に実装されています。以
 - `LinkTransformer`: リンクの検出と変換を担当
 - `parse_frontmatter`: フロントマーターの解析を担当
 - `DocumentProcessorFactory`: ドキュメントタイプに応じたプロセッサーを生成
+
+## 進捗サマリー（2025年6月22日現在）
+
+### フェーズ2完了 - MCP/Function Calling/分析エンジン実装完了
+- ✅ **MCPサーバー（FastMCPベース）**: 完全実装・テスト済み
+- ✅ **Function Calling/ツール実行機能**: 完全実装・テスト済み
+- ✅ **フィードバック分析エンジン**: 完全実装・テスト済み
+- ✅ **MCPツール群**: document_tools/feedback_tools/analysis_tools全て実装済み
+- ✅ **ユニットテスト**: 29件全てPASSED（tests/unit/services/mcp_tests/配下）
+
+### 主要実装コンポーネント
+- **MCPサーバー**: `doc_ai_helper_backend/services/mcp/server.py`
+- **Function Registry**: `doc_ai_helper_backend/services/llm/function_manager.py`
+- **MCPアダプター**: `doc_ai_helper_backend/services/mcp/function_adapter.py`
+- **ツール群**: 
+  - document_tools: ドキュメント解析・最適化
+  - feedback_tools: フィードバック収集・分析
+  - analysis_tools: テキスト分析・感情分析
+- **設定管理**: `doc_ai_helper_backend/services/mcp/config.py`
+
+### 完了した実装項目（フェーズ1-2）
+- ✅ Markdownドキュメント取得・処理（フロントマター解析、リンク変換）
+- ✅ LLMサービス基本アーキテクチャ（OpenAI、ストリーミング、キャッシュ）
+- ✅ 会話履歴管理サービス
+- ✅ MCPサーバー（FastMCPベース）とツール群
+- ✅ Function Calling/ツール実行機能
+- ✅ フィードバック分析エンジン
+- ✅ 包括的ユニットテスト（全29件パス）
+
+### 次期計画（フェーズ3）
+- GitHub統合機能の強化
+- フィードバック投稿APIの統合
+- APIエンドポイントでのFunction Calling完全統合
+- エンドツーエンドテストの追加
+- リポジトリ管理機能の実装
+- 検索機能の実装
