@@ -5,7 +5,7 @@ This module contains Pydantic models for LLM services.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, Literal
 from enum import Enum
 from datetime import datetime
 
@@ -73,6 +73,78 @@ class LLMUsage(BaseModel):
     total_tokens: int = Field(default=0, description="Total number of tokens used")
 
 
+# Function Calling関連のモデル
+
+
+class FunctionParameter(BaseModel):
+    """
+    Function parameter definition for function calling.
+    """
+
+    type: str = Field(
+        ..., description="Parameter type (string, number, boolean, object, array)"
+    )
+    description: Optional[str] = Field(
+        default=None, description="Parameter description"
+    )
+    enum: Optional[List[str]] = Field(
+        default=None, description="Allowed values for the parameter"
+    )
+    items: Optional[Dict[str, Any]] = Field(
+        default=None, description="Item type for array parameters"
+    )
+    properties: Optional[Dict[str, "FunctionParameter"]] = Field(
+        default=None, description="Properties for object parameters"
+    )
+    required: Optional[List[str]] = Field(
+        default=None, description="Required properties for object parameters"
+    )
+
+
+class FunctionDefinition(BaseModel):
+    """
+    Function definition for function calling.
+    """
+
+    name: str = Field(..., description="Function name")
+    description: Optional[str] = Field(default=None, description="Function description")
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Function parameters schema"
+    )
+
+
+class FunctionCall(BaseModel):
+    """
+    Function call details from LLM response.
+    """
+
+    name: str = Field(..., description="Function name to call")
+    arguments: str = Field(..., description="Function arguments as JSON string")
+
+
+class ToolCall(BaseModel):
+    """
+    Tool call details from LLM response.
+    """
+
+    id: str = Field(..., description="Tool call ID")
+    type: Literal["function"] = Field(default="function", description="Tool call type")
+    function: FunctionCall = Field(..., description="Function call details")
+
+
+class ToolChoice(BaseModel):
+    """
+    Tool choice strategy for function calling.
+    """
+
+    type: Literal["auto", "none", "required"] = Field(
+        ..., description="Tool choice strategy"
+    )
+    function: Optional[str] = Field(
+        default=None, description="Specific function name for forced calls"
+    )
+
+
 class LLMResponse(BaseModel):
     """
     Response model for LLM query.
@@ -94,6 +166,14 @@ class LLMResponse(BaseModel):
     history_optimization_info: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Information about how the conversation history was optimized",
+    )
+    tool_calls: Optional[List[ToolCall]] = Field(
+        default=None,
+        description="Tool calls requested by the LLM (for function calling)",
+    )
+    function_call: Optional[FunctionCall] = Field(
+        default=None,
+        description="Function call requested by the LLM (legacy format)",
     )
 
 

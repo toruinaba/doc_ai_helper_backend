@@ -87,3 +87,42 @@ class AuthorizationError(APIError):
     ):
         """Initialize authorization error."""
         super().__init__(message, status.HTTP_403_FORBIDDEN, detail)
+
+
+class FunctionCallError(APIError):
+    """Function call error."""
+
+    def __init__(
+        self, message: str = "Function call error", detail: Optional[Any] = None
+    ):
+        """Initialize function call error."""
+        super().__init__(message, status.HTTP_500_INTERNAL_SERVER_ERROR, detail)
+
+
+class FunctionNotFoundError(APIError):
+    """Function not found error."""
+
+    def __init__(self, function_name: str, detail: Optional[Any] = None):
+        """Initialize function not found error."""
+        message = f"Function '{function_name}' not found"
+        super().__init__(message, status.HTTP_404_NOT_FOUND, detail)
+
+
+class InvalidFunctionArgumentsError(APIError):
+    """Invalid function arguments error."""
+
+    def __init__(self, function_name: str, detail: Optional[Any] = None):
+        """Initialize invalid function arguments error."""
+        message = f"Invalid arguments for function '{function_name}'"
+        super().__init__(message, status.HTTP_422_UNPROCESSABLE_ENTITY, detail)
+
+
+class FunctionExecutionError(APIError):
+    """Function execution error."""
+
+    def __init__(
+        self, function_name: str, error_detail: str, detail: Optional[Any] = None
+    ):
+        """Initialize function execution error."""
+        message = f"Error executing function '{function_name}': {error_detail}"
+        super().__init__(message, status.HTTP_500_INTERNAL_SERVER_ERROR, detail)

@@ -11,6 +11,11 @@ from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     ProviderCapabilities,
     MessageItem,
+    # Function Calling関連のモデルを追加
+    FunctionCall,
+    FunctionDefinition,
+    ToolCall,
+    ToolChoice,
 )
 
 
@@ -103,5 +108,57 @@ class LLMServiceBase(ABC):
 
         Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response
+        """
+        pass
+
+    @abstractmethod
+    async def query_with_tools(
+        self,
+        prompt: str,
+        tools: List[FunctionDefinition],
+        conversation_history: Optional[List[MessageItem]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
+        """
+        Send a query to the LLM with function calling tools.
+
+        Args:
+            prompt: The prompt to send to the LLM
+            tools: List of available function definitions
+            conversation_history: Previous messages in the conversation for context
+            tool_choice: Strategy for tool selection (auto, none, required, or specific function)
+            options: Additional options for the query (model, temperature, etc.)
+
+        Returns:
+            LLMResponse: The response from the LLM, potentially including tool calls
+        """
+        pass
+
+    @abstractmethod
+    async def execute_function_call(
+        self,
+        function_call: FunctionCall,
+        available_functions: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Execute a function call requested by the LLM.
+
+        Args:
+            function_call: The function call details from the LLM
+            available_functions: Dictionary of available functions to call
+
+        Returns:
+            Dict[str, Any]: The result of the function execution
+        """
+        pass
+
+    @abstractmethod
+    async def get_available_functions(self) -> List[FunctionDefinition]:
+        """
+        Get the list of available functions for this LLM service.
+
+        Returns:
+            List[FunctionDefinition]: List of available function definitions
         """
         pass

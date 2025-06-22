@@ -58,6 +58,44 @@ class LLMServiceFactory:
         return service_class(**config)
 
     @classmethod
+    def create_with_mcp(
+        cls, provider: str, enable_mcp: bool = True, **config
+    ) -> LLMServiceBase:
+        """
+        Create an LLM service instance with MCP integration.
+
+        Args:
+            provider: The name of the LLM provider
+            enable_mcp: Whether to enable MCP function calling integration
+            **config: Configuration options for the service
+
+        Returns:
+            LLMServiceBase: An instance of the requested LLM service with MCP integration
+
+        Raises:
+            ServiceNotFoundError: If the requested provider is not registered
+        """
+        service = cls.create(provider, **config)
+
+        if enable_mcp:
+            try:
+                from doc_ai_helper_backend.services.mcp.server import mcp_server
+                from doc_ai_helper_backend.services.mcp.function_adapter import (
+                    MCPFunctionAdapter,
+                )
+
+                # Create MCP adapter and set it on the service
+                mcp_adapter = MCPFunctionAdapter(mcp_server)
+                if hasattr(service, "set_mcp_adapter"):
+                    service.set_mcp_adapter(mcp_adapter)
+
+            except ImportError as e:
+                # MCP not available, continue without it
+                pass
+
+        return service
+
+    @classmethod
     def get_available_providers(cls) -> list[str]:
         """
         Get a list of available LLM providers.

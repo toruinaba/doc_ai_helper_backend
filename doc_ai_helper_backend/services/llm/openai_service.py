@@ -79,6 +79,10 @@ class OpenAIService(LLMServiceBase):
         self.sync_client = OpenAI(**client_params)
         self.async_client = AsyncOpenAI(**client_params)
 
+        # Initialize MCP integration
+        self._mcp_adapter = None
+        self._function_call_manager = None
+
         # Load token encoder for the default model
         try:
             self._token_encoder = tiktoken.encoding_for_model(default_model)
@@ -383,3 +387,45 @@ class OpenAIService(LLMServiceBase):
         except Exception as e:
             logger.error(f"Error in streaming query: {str(e)}")
             raise LLMServiceException(f"Streaming error: {str(e)}")
+
+    def set_mcp_adapter(self, mcp_adapter) -> None:
+        """
+        Set MCP adapter for function calling integration.
+
+        Args:
+            mcp_adapter: MCP function adapter instance
+        """
+        self._mcp_adapter = mcp_adapter
+        if mcp_adapter:
+            self._function_call_manager = mcp_adapter.get_function_registry()
+            logger.info("MCP adapter configured for OpenAI service")
+
+    def get_available_functions(self) -> List[Dict[str, Any]]:
+        """
+        Get available functions for function calling.
+
+        Returns:
+            List of function definitions
+        """
+        if self._mcp_adapter:
+            return [func.dict() for func in self._mcp_adapter.get_available_functions()]
+        return []
+
+    async def execute_function_call(self, function_call) -> Dict[str, Any]:
+        """
+        Execute a function call using MCP adapter.
+
+        Args:
+            function_call: Function call to execute
+
+        Returns:
+            Function execution result
+        """
+        if self._mcp_adapter:
+            return await self._mcp_adapter.execute_function_call(function_call)
+        else:
+            return {
+                "success": False,
+                "error": "MCP adapter not configured",
+                "result": None,
+            }
