@@ -23,9 +23,10 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - 拡張ドキュメントメタデータの提供
 
 2. **拡張機能（フェーズ2）**: その他の機能拡張 [🔄進行中]
-   - バックエンド経由LLM API連携の実装 [🔄優先実装項目]
-   - リポジトリ管理機能の実装
-   - 検索機能の実装
+   - バックエンド経由LLM API連携の実装 [✅完了]
+   - 会話履歴管理機能の実装 [✅完了]
+   - リポジトリ管理機能の実装 [🔄計画中]
+   - 検索機能の実装 [🔄計画中]
    - キャッシュ機能の強化
    - パフォーマンスとセキュリティの最適化
 
@@ -106,6 +107,12 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
    - 変数置換によるテンプレートのフォーマット
    - 必須変数の検証
 
+7. **会話履歴管理（`conversation_history.py`）**
+   - LLM問い合わせの会話履歴を管理
+   - セッション単位での会話フローの保持
+   - 過去のコンテキストを考慮した問い合わせ処理
+   - 履歴データの構造化と効率的なアクセス
+
 #### 実装状況
 
 - ✅ LLMサービス基本アーキテクチャの設計と実装
@@ -115,10 +122,10 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
 - ✅ テンプレート管理システム（`PromptTemplateManager`）の実装
 - ✅ モックサービス（`MockLLMService`）の実装
 - ✅ OpenAIサービス（`OpenAIService`）の実装と単体テスト完了
-- ✅ ストリーミングレスポンスのサポート（2025年6月完了）
+- ✅ ストリーミングレスポンスのサポート完了
 - ✅ SSE（Server-Sent Events）エンドポイントの実装
 - ✅ MCPアダプター（`MCPAdapter`）の基本実装
-- 🔄 追加のLLMプロバイダー実装（Ollama、最優先）- 2025年7月中完了予定
+- ✅ 会話履歴管理サービス（`ConversationHistoryService`）の実装
 - 🔄 MCPアダプターの拡張機能（後続フェーズ）
 
 #### ストリーミング実装状況
@@ -176,31 +183,6 @@ async def stream_query(
         raise LLMServiceException(f"Streaming error: {str(e)}")
 ```
 
-#### Ollamaサービス実装計画
-
-Ollamaサービスの実装は、次の優先実装項目として位置づけられています。Ollamaは、軽量なローカルLLMサーバーであり、以下の特徴があります：
-
-1. **ローカル実行**: ネットワーク遅延の少ない高速なレスポンス
-2. **カスタムモデル**: 様々なオープンソースモデルのサポート
-3. **リソース効率**: 限られたリソースでの効率的な実行
-
-実装アプローチとしては、以下を予定しています：
-
-1. **基本クラスの実装**
-   - `OllamaService` クラスの作成（`LLMServiceBase` を継承）
-   - Ollama APIとの通信実装（httpxを使用）
-   - 基本的なクエリ機能の実装
-
-2. **拡張機能**
-   - ストリーミングサポートの実装（Ollamaのストリーミング機能を活用）
-   - モデル管理機能の追加（利用可能なモデルの取得、モデル切り替え）
-   - パラメーター最適化（温度、トップP、繰り返しペナルティなど）
-
-3. **統合テスト**
-   - 単体テストと統合テストの実装
-   - エッジケースの検証（エラー処理、タイムアウト、大きなコンテキスト）
-   - パフォーマンス測定
-
 ## 実装計画
 
 ### 現在の状況
@@ -212,13 +194,19 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
 - リポジトリ構造取得APIの基本機能実装完了
 - Mockサービスの実装完了（開発・デモ・テスト用）
 - LLMサービス層の基本実装完了（OpenAI、ストリーミングサポート含む）
+- 会話履歴管理機能の実装完了
 
 **実装方針の明確化**:
 - Markdownドキュメント対応を最優先で実装 [✅完了]
 - LLM API連携の基本機能実装 [✅完了]
-- Ollamaサービス実装を次の優先項目として推進 [🔄進行中]
+- 会話履歴管理機能の実装 [✅完了]
 - データベース層はモックで実装（APIの仕様が定まった段階でモデル定義を行う）
 - Quarto対応は将来の拡張として位置付け
+
+**テスト戦略**:
+- 単体テストとAPIテスト: Mockサービスを活用した外部依存なしテスト
+- 統合テスト: 実際の外部API（GitHub、OpenAI等）を使用したテスト
+- 明確な分離により、開発効率と信頼性を両立
 
 ### 開発ステップ
 1. **基本API定義の完了** [✅完了]
@@ -244,7 +232,7 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
    - リンク情報の抽出と提供
    - ドキュメントメタデータの拡充
    
-5. **LLM API連携の実装** [✅部分的に完了]
+5. **LLM API連携の実装** [✅完了]
    - LLMサービス抽象化レイヤーの実装（`services/llm/base.py`） [✅完了]
    - プロバイダー固有の実装（OpenAI, モックサービス） [✅完了]
    - `LLMServiceFactory` の実装（`services/llm/factory.py`） [✅完了]
@@ -254,7 +242,7 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
    - レスポンスキャッシュの実装 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）エンドポイントの実装 [✅完了]
-   - 追加のLLMプロバイダー実装（Ollama） [🔄進行中]
+   - 会話履歴管理機能の実装 [✅完了]
    - MCPアダプターの拡張機能 [🔄計画中]
 
 6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
@@ -277,12 +265,13 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
    - リポジトリ構造分析とパスマッピング
    - サイト構造情報の提供
 
-9. **テストの充実** [🔄部分的に完了]
+9. **テストの充実** [✅完了]
    - APIエンドポイントのテスト（ドキュメント取得、構造取得）[✅完了]
-   - 統合テスト（実際のDBを使った全体的なフロー確認）
-   - モックを使った外部サービスのテスト [✅完了]
-   - Markdownドキュメント機能の拡張テスト [✅完了]
+   - 単体テスト：Mockサービスを使った外部依存なしテスト [✅完了]
+   - 統合テスト：実際の外部API（GitHub、OpenAI等）を使用したテスト [✅完了]
+   - Markdownドキュメント機能のテスト [✅完了]
    - LLMサービスのテスト [✅完了]
+   - 会話履歴管理機能のテスト [✅完了]
    - 将来的なQuartoプロジェクト対応のテスト [⏱️未着手]
 
 10. **リファクタリングとコード品質向上** [🔄部分的に完了]
@@ -317,7 +306,7 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
    - 将来的にはQuartoドキュメント設定（パスマッピング、出力ディレクトリなど）の管理
    - リポジトリタイプ（Markdown/Quarto）の検出と管理
 
-3. **LLM API連携** [✅部分的に完了]
+3. **LLM API連携** [✅完了]
    - 外部LLMサービス（OpenAI）との統合 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
@@ -325,7 +314,7 @@ Ollamaサービスの実装は、次の優先実装項目として位置づけ�
    - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
    - プロンプトテンプレート管理 [✅完了]
    - レスポンスキャッシュ [✅完了]
-   - 追加のプロバイダー実装（Ollama） [🔄進行中]
+   - 会話履歴管理 [✅完了]
    - MCPアダプターの拡張機能 [🔄計画中]
 
 4. **検索API** [🔄実装予定]
@@ -434,6 +423,13 @@ http://localhost:8000/docs
 - `GET /api/v1/llm/templates` - プロンプトテンプレート一覧の取得
 - `POST /api/v1/llm/format-prompt` - プロンプトテンプレートのフォーマット
 
+### 会話履歴管理エンドポイント
+- `POST /api/v1/llm/conversations` - 新しい会話セッションの作成
+- `GET /api/v1/llm/conversations/{conversation_id}` - 会話履歴の取得
+- `POST /api/v1/llm/conversations/{conversation_id}/messages` - 会話への新しいメッセージ追加
+- `DELETE /api/v1/llm/conversations/{conversation_id}` - 会話セッションの削除
+- `GET /api/v1/llm/conversations` - 会話セッション一覧の取得
+
 ### リポジトリ管理エンドポイント（計画中）
 - `GET /api/v1/repositories` - リポジトリ一覧の取得
 - `POST /api/v1/repositories` - リポジトリの登録
@@ -451,6 +447,38 @@ http://localhost:8000/docs
 
 ```bash
 pytest
+```
+
+### テスト戦略
+
+このプロジェクトでは、2層のテスト戦略を採用しています：
+
+1. **単体テストとAPIテスト** (`tests/unit/` および `tests/api/`)
+   - 外部依存関係を排除したテスト
+   - Mockサービスを活用した高速テスト
+   - 開発中の継続的な実行に適している
+
+2. **統合テスト** (`tests/integration/`)
+   - 実際の外部API（GitHub、OpenAI等）を使用
+   - 実際の動作の検証
+   - 環境変数による設定が必要
+   - CI/CDでの実行またはリリース前の手動実行
+
+#### 統合テスト実行の要件
+
+統合テストの実行には以下の環境変数が必要です：
+
+```bash
+# GitHub統合テスト
+export GITHUB_TOKEN="your_github_token"
+
+# OpenAI統合テスト  
+export OPENAI_API_KEY="your_openai_api_key"
+```
+
+統合テストのみを実行する場合：
+```bash
+pytest tests/integration/
 ```
 
 ## ブランチ戦略
@@ -576,6 +604,30 @@ class DocumentReference(BaseModel):
     path: str                   # ドキュメントパス
     ref: Optional[str] = None   # ブランチまたはタグ
     content: Optional[str] = None  # 直接コンテンツを提供する場合
+
+# 会話履歴関連モデル
+class ConversationMessage(BaseModel):
+    role: str                   # メッセージの役割（user, assistant, system）
+    content: str                # メッセージ内容
+    timestamp: datetime         # メッセージ作成時刻
+    metadata: Optional[Dict[str, Any]] = None  # 追加メタデータ
+
+class Conversation(BaseModel):
+    id: str                     # 会話ID
+    title: Optional[str] = None # 会話タイトル
+    created_at: datetime        # 作成時刻
+    updated_at: datetime        # 最終更新時刻
+    messages: List[ConversationMessage]  # メッセージ履歴
+    metadata: Optional[Dict[str, Any]] = None  # 追加メタデータ
+
+class ConversationCreateRequest(BaseModel):
+    title: Optional[str] = None # 初期タイトル
+    initial_message: Optional[str] = None  # 初期メッセージ
+
+class ConversationResponse(BaseModel):
+    conversation: Conversation  # 会話データ
+    message_count: int          # メッセージ数
+    last_activity: datetime     # 最終活動時刻
 ```
 
 ## ユースケース
@@ -589,9 +641,10 @@ class DocumentReference(BaseModel):
 
 2. **LLMコンテキストの提供** [現在の主要ターゲット]
    - Markdownファイルの取得
-   - バックエンド経由のLLM問い合わせ（OpenAI、将来的にOllamaなど）
+   - バックエンド経由のLLM問い合わせ（OpenAI）
    - ストリーミングレスポンスによるリアルタイム表示
    - メタデータと併せたコンテキスト提供
+   - 会話履歴管理による継続的な対話サポート
 
 3. **HTMLドキュメントの表示** [将来的に拡張]
    - QuartoでビルドされたリポジトリからのHTML取得
@@ -614,17 +667,19 @@ class DocumentReference(BaseModel):
    - バックエンド側: フロントマター解析、メタデータ提供
    - フロントエンド側: タイトル、説明、タグなどの表示
 
-4. **LLM連携** [✅部分的に完了]
+4. **LLM連携** [✅完了]
    - バックエンド側: 
-     - LLM APIへのプロキシ（OpenAI、将来的にOllama） [✅完了]
+     - LLM APIへのプロキシ（OpenAI） [✅完了]
      - コンテキスト最適化とMCPサポート [✅基本実装完了]
      - ストリーミングレスポンスのサポート [✅完了]
      - SSE（Server-Sent Events）エンドポイント [✅完了]
      - テンプレート管理とレスポンスキャッシュ [✅完了]
+     - 会話履歴管理機能 [✅完了]
    - フロントエンド側: 
      - ユーザーインターフェース [🔄進行中]
      - ストリーミングレスポンスの表示 [✅完了]
      - SSEクライアント実装 [✅完了]
+     - 会話履歴の表示と管理 [🔄進行中]
 
 5. **ファイル関連付け** [将来的に拡張]
    - バックエンド側: ソースファイルと出力ファイルのマッピング提供
