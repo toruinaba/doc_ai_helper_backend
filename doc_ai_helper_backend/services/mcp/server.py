@@ -30,9 +30,9 @@ class DocumentAIHelperMCPServer:
 
     def _setup_server(self):
         """Set up the MCP server with tools and resources."""
-        logger.info(f"Setting up MCP Server '{self.config.server_name}'")
-
-        # Register tools based on configuration
+        logger.info(
+            f"Setting up MCP Server '{self.config.server_name}'"
+        )  # Register tools based on configuration
         if self.config.enable_document_tools:
             self._register_document_tools()
 
@@ -41,6 +41,9 @@ class DocumentAIHelperMCPServer:
 
         if self.config.enable_analysis_tools:
             self._register_analysis_tools()
+
+        if self.config.enable_github_tools:
+            self._register_github_tools()
 
         logger.info(f"MCP Server '{self.config.server_name}' initialized successfully")
 
@@ -155,6 +158,65 @@ class DocumentAIHelperMCPServer:
             )
 
         logger.info("Analysis tools registered with FastMCP")
+
+    def _register_github_tools(self):
+        """Register GitHub integration tools using FastMCP decorators."""
+        from .tools.github_tools import (
+            create_github_issue,
+            create_github_pull_request,
+            check_github_repository_permissions,
+        )
+
+        @self.app.tool("create_github_issue")
+        async def create_issue_tool(
+            repository: str,
+            title: str,
+            description: str,
+            labels: Optional[List[str]] = None,
+            assignees: Optional[List[str]] = None,
+            github_token: Optional[str] = None,
+        ) -> str:
+            """Create a new issue in a GitHub repository."""
+            return await create_github_issue(
+                repository=repository,
+                title=title,
+                description=description,
+                labels=labels,
+                assignees=assignees,
+                github_token=github_token,
+            )
+
+        @self.app.tool("create_github_pull_request")
+        async def create_pr_tool(
+            repository: str,
+            title: str,
+            description: str,
+            head_branch: str,
+            base_branch: str = "main",
+            github_token: Optional[str] = None,
+        ) -> str:
+            """Create a new pull request in a GitHub repository."""
+            return await create_github_pull_request(
+                repository=repository,
+                title=title,
+                description=description,
+                head_branch=head_branch,
+                base_branch=base_branch,
+                github_token=github_token,
+            )
+
+        @self.app.tool("check_github_repository_permissions")
+        async def check_permissions_tool(
+            repository: str,
+            github_token: Optional[str] = None,
+        ) -> str:
+            """Check permissions for a GitHub repository."""
+            return await check_github_repository_permissions(
+                repository=repository,
+                github_token=github_token,
+            )
+
+        logger.info("GitHub tools registered with FastMCP")
 
     async def list_tools_async(self) -> List[Dict[str, Any]]:
         """List all available tools asynchronously."""
