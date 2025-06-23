@@ -688,81 +688,99 @@ async def create_github_pr(
 
 ---
 
-## 📊 フェーズ3 Week 1完了報告（2025年6月23日）
+## 📊 フェーズ3 Week 2実装開始（2025年6月23日）
 
-### ✅ Week 1: GitHub基盤・MCPツール実装 【完了】
+### 🚀 Week 2: 統合・テスト・最適化 【進行中】
 
-#### **Day 1-2: GitHub APIクライアント基盤実装**
-- ✅ **GitHub認証管理**: `GitHubAuthManager` 完全実装
-  - Personal Access Token認証対応
-  - 環境変数からの自動取得
-  - トークンバリデーション・マスキング機能
-- ✅ **GitHub APIクライアント**: `GitHubClient` 完全実装  
-  - 非同期HTTP通信（httpx使用）
-  - 包括的エラーハンドリング（401/403/404/429/500対応）
-  - レート制限・タイムアウト対応
-- ✅ **GitHub例外システム**: 6種類の専用例外クラス実装
-  - `GitHubAuthError`, `GitHubAPIError`, `GitHubRateLimitError`等
+#### **Day 8-9: OpenAI/MockサービスのGitHub Function Calling統合 【進行中】**
 
-#### **Day 3-6: GitHub MCPツール実装**
-- ✅ **create_github_issue**: Issue作成MCPツール完全実装
-  - リポジトリ権限チェック機能
-  - ラベル・アサイニー設定対応
-  - 詳細なJSON応答とエラーハンドリング
-- ✅ **create_github_pull_request**: PR作成MCPツール完全実装
-  - ブランチ指定・マージベース設定
-  - Pull Request権限チェック
-- ✅ **check_github_repository_permissions**: 権限確認ツール実装
-  - 読み込み・書き込み・管理者権限チェック
-  - リポジトリ情報取得機能
+##### **実装進捗**
+- ✅ **抽象メソッド追加**: LLMServiceBaseに新規追加されたメソッドを特定
+  - `query_with_tools()`: ツール付きクエリ機能
+  - `execute_function_call()`: Function Call実行機能
+  - `get_available_functions()`: 利用可能関数取得機能
 
-#### **Day 7: MCPサーバー統合**
-- ✅ **DocumentAIHelperMCPServer統合**: GitHubツール登録完了
-  - `_register_github_tools()` メソッド実装
-  - 設定管理拡張（`enable_github_tools`フラグ）
-  - 3つのGitHubツールのFastMCP統合
+- ✅ **OpenAIService実装**: 不足していた抽象メソッドを実装
+  - `query_with_tools()`: Function定義をoptionsに組み込み、既存queryメソッド活用
+  - `get_available_functions()`: MCPアダプター経由で関数定義取得
+  - `execute_function_call()`: MCPアダプター経由でFunction Call実行
 
-#### **Function Calling統合準備**
-- ✅ **GitHub Function定義**: `github_functions.py` 実装
-  - OpenAI互換のFunction Definition
-  - FunctionRegistry統合準備
-  - 使用例・ベストプラクティス定義
+- ✅ **MockLLMService実装**: テスト用の抽象メソッドを実装
+  - `query_with_tools()`: GitHub Function Call判定・モック応答生成
+  - `get_available_functions()`: GitHub関数定義を返すモック実装
+  - `execute_function_call()`: GitHub操作のモック結果生成
 
-#### **テスト実装**
-- ✅ **27個のユニットテスト**: GitHub関連テスト完全実装
-  - `TestGitHubAuthManager`: 12個のテスト（認証・バリデーション）
-  - `TestGitHubClient`: 15個のテスト（API通信・エラー処理）
-  - Mock環境での完全動作検証
+- ✅ **型定義修正**: OpenAI/MockサービスでToolCall関連の型エラーを修正
+  - ToolCallモデルのフィールド名修正（`function_call` → `function`）
+  - 必要なインポート追加（FunctionDefinition, FunctionCall, ToolChoice, ToolCall）
+  - コードフォーマット・インデント修正
 
-#### **実装成果指標**
-- **新規実装コード**: 約430行（テスト除く）
-  - GitHub基盤: 約150行
-  - MCPツール: 約280行
-- **テストカバレッジ**: 27個のテスト（全て通過）
-- **MCPツール登録**: 3つのGitHubツール正常動作確認
-- **外部依存**: httpx（既存）、fastmcp（追加）のみ
+##### **現在の課題と対応予定**
+- 🔄 **LLMServiceBase互換性**: stream_queryの型定義不整合（既存実装との統合調整）
+- 🔄 **OpenAIクライアント型エラー**: 設定パラメータの型変換問題（別途対応予定）
+- 🔄 **テンプレートマネージャー**: get_template_idsメソッド未実装（既存実装確認）
 
-### 🎯 Week 1成功指標達成状況
+##### **実装成果指標**
+- **新規実装コード**: 約180行（OpenAI+Mock統合メソッド）
+- **GitHub Function Calling基盤**: 3つの抽象メソッド実装完了
+- **基本動作確認**: GitHub Function定義取得成功（3個の関数）
+- **型安全性向上**: ToolCall/FunctionCall関連の型エラー修正
 
-| 指標 | 目標 | 達成値 | 状況 |
-|------|------|--------|------|
-| GitHub APIクライアント基盤 | 完成 | ✅実装済み | 達成 |
-| MCPツール実装 | 2つ以上 | ✅3つ実装 | 超過達成 |
-| MCPサーバー統合 | 完了 | ✅統合済み | 達成 |
-| 基本動作確認 | 成功 | ✅テスト通過 | 達成 |
-| ユニットテスト | 15個以上 | ✅27個実装 | 超過達成 |
+#### **Day 10-11: 統合テスト実装 【次回予定】**
+- 実GitHub API使用統合テスト作成
+- Function Calling End-to-Endテスト実装
+- エラーハンドリング・リトライ機能テスト
 
-### 🔄 Week 2への移行準備完了
+#### **Day 12-13: エラーハンドリング・最適化 【次回予定】**
+- GitHub APIレート制限対応
+- Function Call実行エラー処理強化
+- パフォーマンス最適化・ロギング改善
 
-#### **Week 2実装対象（Day 8-14）**
-- **Day 8-9**: OpenAI/MockサービスのGitHub Function Calling統合
-- **Day 10-11**: 統合テスト実装（実GitHub API使用）  
-- **Day 12-13**: エラーハンドリング・リトライ機能強化
-- **Day 14**: 完成・ドキュメント更新・デプロイ準備
+#### **Day 14: 完成・ドキュメント 【次回予定】**
+- 全機能統合テスト
+- Week2完了報告・ドキュメント更新
+- Week2成功指標達成確認
 
-#### **既存基盤活用度**: 95%
-- FastMCP基盤（29テスト通過）をフル活用
-- Function Calling機能（OpenAI/Mock対応済み）の自然な拡張
-- 会話履歴管理・フィードバック分析エンジンとの連携準備完了
+### 🎯 Week 2中間進捗評価
 
----
+| Day | タスク | 進捗 | 状況 |
+|-----|--------|------|------|
+| Day 8 | OpenAI/Mock Function Calling統合 | 80% | ✅基本実装完了、🔄型エラー調整中 |
+| Day 9 | 統合動作確認・リファクタリング | 20% | 🔄テスト実行・修正予定 |
+| Day 10-11 | 統合テスト実装 | 0% | ⏰次回実装予定 |
+| Day 12-13 | エラーハンドリング・最適化 | 0% | ⏰次回実装予定 |
+| Day 14 | 完成・ドキュメント | 0% | ⏰次回実装予定 |
+
+### 🛠️ 単体テスト修正完了報告 (Day 9)
+
+#### **修正完了項目**
+- ✅ **ToolCallフィールド名エラー**: テストで`function_call` → `function`に修正完了
+- ✅ **JSON Serialization エラー**: FunctionDefinitionオブジェクトの`cache_service.py`で正常にJSON化
+- ✅ **MockLLMService動作確認**: GitHub Function Calling正常動作
+- ✅ **Type Safety向上**: 必要なインポート追加完了
+
+#### **修正された具体的な問題**
+1. **ToolCall.function_call → ToolCall.function**: テストファイル4箇所修正
+2. **Cache Service**: FunctionDefinitionの`_serialize_options`メソッド追加
+3. **型エラー**: OpenAI/MockサービスでToolCall,FunctionCall,ToolChoiceインポート追加
+
+#### **現在のテスト状況**
+- ✅ **MockLLMService GitHub Function Calling**: 1/1 PASSED
+- ❌ **OpenAIService テスト**: SSL証明書エラー（モック未実装）
+- 🔄 **その他のMockサービステスト**: レスポンス内容不一致
+
+#### **実装成果**
+```python
+# 成功例：MockLLMServiceでのGitHub Function Calling
+Content: I'll help you with that GitHub operation.
+Tool calls: [ToolCall(id='call_6562cdc0', type='function', 
+             function=FunctionCall(name='create_github_issue', 
+             arguments='{"repository": "owner/repo", ...}'))]
+```
+
+#### **次の修正予定**
+- OpenAIServiceテスト：適切なモック実装
+- Mockサービステスト：期待値とレスポンス内容の調整  
+- テスト全体の動作確認とリファクタリング
+
+Week2 Day 9の単体テスト修正は順調に進捗しており、GitHub Function Calling統合のコア機能は正常動作しています。

@@ -25,6 +25,10 @@ from doc_ai_helper_backend.models.llm import (
     LLMUsage,
     ProviderCapabilities,
     MessageItem,
+    FunctionDefinition,
+    FunctionCall,
+    ToolChoice,
+    ToolCall,
 )
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
@@ -280,13 +284,39 @@ class OpenAIService(LLMServiceBase):
 
         # If a model was specified, use it
         if "model" in options:
-            prepared_options["model"] = options["model"]
-
-        # If context_documents were provided, add them to the prompt
+            prepared_options["model"] = options[
+                "model"
+            ]  # If context_documents were provided, add them to the prompt
         if "context_documents" in options and options["context_documents"]:
             # In a real implementation, you would process these documents
             # through the MCP adapter and add them to the messages
             pass
+
+        # Handle function calling - include tools if provided
+        if "functions" in options and options["functions"]:
+            # Convert function definitions to OpenAI tools format
+            tools = []
+            for func_def in options["functions"]:
+                if hasattr(func_def, "name"):
+                    # Convert FunctionDefinition to OpenAI format
+                    tool = {
+                        "type": "function",
+                        "function": {
+                            "name": func_def.name,
+                            "description": func_def.description,
+                            "parameters": func_def.parameters,
+                        },
+                    }
+                    tools.append(tool)
+                elif isinstance(func_def, dict):
+                    # Already in correct format
+                    tools.append(func_def)
+
+            if tools:
+                prepared_options["tools"] = tools
+                # Set tool_choice if specified
+                if "tool_choice" in options:
+                    prepared_options["tool_choice"] = options["tool_choice"]
 
         # Override default options with user-provided options
         for key, value in options.items():
@@ -330,21 +360,46 @@ class OpenAIService(LLMServiceBase):
             LLMResponse: The standardized LLM response
         """
         # Extract content from the response
-        content = openai_response.choices[0].message.content or ""
+        message = openai_response.choices[0].message
+        content = message.content or ""  # Handle function/tool calls if present
+        tool_calls = []
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            from doc_ai_helper_backend.models.llm import ToolCall, FunctionCall
 
-        # Create usage information
-        usage = LLMUsage(
-            prompt_tokens=openai_response.usage.prompt_tokens,
-            completion_tokens=openai_response.usage.completion_tokens,
-            total_tokens=openai_response.usage.total_tokens,
-        )  # Create and return the response
-        return LLMResponse(
+            for tool_call in message.tool_calls:
+                if tool_call.type == "function":
+                    function_call = FunctionCall(
+                        name=tool_call.function.name,
+                        arguments=tool_call.function.arguments,
+                    )
+                    tool_call_obj = ToolCall(
+                        id=tool_call.id, type="function", function=function_call
+                    )
+                    tool_calls.append(tool_call_obj)
+
+        # Create usage information (handle case where usage might be None)
+        usage = None
+        if openai_response.usage:
+            usage = LLMUsage(
+                prompt_tokens=openai_response.usage.prompt_tokens,
+                completion_tokens=openai_response.usage.completion_tokens,
+                total_tokens=openai_response.usage.total_tokens,
+            )
+        else:
+            # Create default usage if not provided
+            usage = LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0)
+
+        # Create and return the response
+        response = LLMResponse(
             content=content,
             model=model,
             provider="openai",
             usage=usage,
             raw_response=openai_response.model_dump(),
+            tool_calls=tool_calls if tool_calls else None,
         )
+
+        return response
 
     async def stream_query(
         self,
@@ -400,26 +455,61 @@ class OpenAIService(LLMServiceBase):
             self._function_call_manager = mcp_adapter.get_function_registry()
             logger.info("MCP adapter configured for OpenAI service")
 
-    def get_available_functions(self) -> List[Dict[str, Any]]:
+    async def query_with_tools(
+        self,
+        prompt: str,
+        tools: List["FunctionDefinition"],
+        conversation_history: Optional[List["MessageItem"]] = None,
+        tool_choice: Optional["ToolChoice"] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
         """
-        Get available functions for function calling.
-
-        Returns:
-            List of function definitions
-        """
-        if self._mcp_adapter:
-            return [func.dict() for func in self._mcp_adapter.get_available_functions()]
-        return []
-
-    async def execute_function_call(self, function_call) -> Dict[str, Any]:
-        """
-        Execute a function call using MCP adapter.
+        Send a query to the LLM with function calling tools.
 
         Args:
-            function_call: Function call to execute
+            prompt: The prompt to send to the LLM
+            tools: List of available function definitions
+            conversation_history: Previous messages in the conversation for context
+            tool_choice: Strategy for tool selection
+            options: Additional options for the query
 
         Returns:
-            Function execution result
+            LLMResponse: The response from the LLM, potentially including tool calls
+        """
+        # Prepare options with function definitions
+        query_options = options or {}
+        query_options["functions"] = tools
+
+        if tool_choice:
+            query_options["tool_choice"] = tool_choice
+
+        return await self.query(prompt, conversation_history, query_options)
+
+    async def get_available_functions(self) -> List["FunctionDefinition"]:
+        """
+        Get the list of available functions for this LLM service.
+
+        Returns:
+            List[FunctionDefinition]: List of available function definitions
+        """
+        if self._mcp_adapter:
+            return self._mcp_adapter.get_available_functions()
+        return []
+
+    async def execute_function_call(
+        self,
+        function_call: "FunctionCall",
+        available_functions: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Execute a function call requested by the LLM.
+
+        Args:
+            function_call: The function call details from the LLM
+            available_functions: Dictionary of available functions to call
+
+        Returns:
+            Dict[str, Any]: The result of the function execution
         """
         if self._mcp_adapter:
             return await self._mcp_adapter.execute_function_call(function_call)

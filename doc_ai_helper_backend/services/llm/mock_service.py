@@ -7,6 +7,7 @@ This module provides a mock implementation of the LLM service interface.
 import json
 import time
 import os
+import uuid
 import asyncio
 from typing import Dict, Any, Optional, List, AsyncGenerator
 
@@ -16,6 +17,10 @@ from doc_ai_helper_backend.models.llm import (
     ProviderCapabilities,
     MessageItem,
     MessageRole,
+    FunctionDefinition,
+    FunctionCall,
+    ToolChoice,
+    ToolCall,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
@@ -77,15 +82,32 @@ class MockLLMService(LLMServiceBase):
         await self._simulate_delay()  # Determine which model to use
         model = options.get("model", self.default_model)
 
-        # Generate a response based on the prompt and conversation history
-        if conversation_history:
-            content = self._generate_contextual_response(prompt, conversation_history)
-        else:
-            content = self._generate_response(prompt)  # Calculate mock token usage
-        prompt_tokens = len(prompt) // 4
-        completion_tokens = len(content) // 4
+        # Check if GitHub function calling is requested
+        functions = options.get("functions", [])
+        github_functions = []
+        if functions:
+            github_functions = [
+                f
+                for f in functions
+                if hasattr(f, "name") and "github" in f.name.lower()
+            ]
 
-        # Create response
+        # Generate appropriate response
+        tool_calls = []
+        if github_functions and self._should_call_github_function(prompt):
+            # Simulate GitHub function calling
+            tool_calls = self._generate_mock_github_tool_calls(prompt, github_functions)
+            content = "I'll help you with that GitHub operation."
+        else:
+            # Generate normal response
+            if conversation_history:
+                content = self._generate_contextual_response(
+                    prompt, conversation_history
+                )
+            else:
+                content = self._generate_response(prompt)  # Calculate mock token usage
+        prompt_tokens = len(prompt) // 4
+        completion_tokens = len(content) // 4  # Create response
         response = LLMResponse(
             content=content,
             model=model,
@@ -101,6 +123,7 @@ class MockLLMService(LLMServiceBase):
                 "model": model,
                 "content": content,
             },
+            tool_calls=tool_calls if tool_calls else None,
         )
 
         # Optimize conversation history if provided
@@ -326,3 +349,201 @@ class MockLLMService(LLMServiceBase):
             await asyncio.sleep(delay)
 
             yield chunk
+
+    def _should_call_github_function(self, prompt: str) -> bool:
+        """
+        Determine if the prompt suggests a GitHub operation should be performed.
+
+        Args:
+            prompt: The user prompt to analyze
+
+        Returns:
+            bool: True if a GitHub function should be called
+        """
+        github_keywords = [
+            "create issue",
+            "create an issue",
+            "report bug",
+            "report issue",
+            "create pr",
+            "create pull request",
+            "submit pr",
+            "make pr",
+            "check permissions",
+            "check repository",
+            "check access",
+            "post to github",
+            "submit to github",
+            "create in github",
+        ]
+
+        prompt_lower = prompt.lower()
+        return any(keyword in prompt_lower for keyword in github_keywords)
+
+    def _generate_mock_github_tool_calls(
+        self, prompt: str, github_functions: List
+    ) -> List:
+        """
+        Generate mock GitHub tool calls based on the prompt.
+
+        Args:
+            prompt: The user prompt
+            github_functions: Available GitHub functions
+
+        Returns:
+            List of mock tool calls"""
+        tool_calls = []
+        prompt_lower = prompt.lower()
+
+        # Determine which GitHub function to call based on prompt content
+        if any(word in prompt_lower for word in ["issue", "bug", "report", "problem"]):
+            # Create issue
+            for func in github_functions:
+                if hasattr(func, "name") and func.name == "create_github_issue":
+                    function_call = FunctionCall(
+                        name="create_github_issue",
+                        arguments='{"repository": "owner/repo", "title": "Mock Issue", "description": "This is a mock issue created for testing", "labels": ["bug"]}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(word in prompt_lower for word in ["pr", "pull request", "merge"]):
+            # Create pull request
+            for func in github_functions:
+                if hasattr(func, "name") and func.name == "create_github_pull_request":
+                    function_call = FunctionCall(
+                        name="create_github_pull_request",
+                        arguments='{"repository": "owner/repo", "title": "Mock PR", "description": "This is a mock pull request", "head_branch": "feature-branch"}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(word in prompt_lower for word in ["permission", "access", "check"]):
+            # Check permissions
+            for func in github_functions:
+                if (
+                    hasattr(func, "name")
+                    and func.name == "check_github_repository_permissions"
+                ):
+                    function_call = FunctionCall(
+                        name="check_github_repository_permissions",
+                        arguments='{"repository": "owner/repo"}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        return tool_calls
+
+    async def query_with_tools(
+        self,
+        prompt: str,
+        tools: List["FunctionDefinition"],
+        conversation_history: Optional[List["MessageItem"]] = None,
+        tool_choice: Optional["ToolChoice"] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
+        """
+        Send a query to the mock LLM with function calling tools.
+
+        Args:
+            prompt: The prompt to send to the LLM
+            tools: List of available function definitions
+            conversation_history: Previous messages in the conversation for context
+            tool_choice: Strategy for tool selection
+            options: Additional options for the query
+
+        Returns:
+            LLMResponse: The response from the LLM, potentially including tool calls
+        """
+        # Prepare options with function definitions
+        query_options = options or {}
+        query_options["functions"] = tools
+
+        if tool_choice:
+            query_options["tool_choice"] = tool_choice
+
+        return await self.query(prompt, conversation_history, query_options)
+
+    async def get_available_functions(self) -> List["FunctionDefinition"]:
+        """
+        Get the list of available functions for this mock LLM service.
+
+        Returns:
+            List[FunctionDefinition]: List of available function definitions
+        """
+        # Return mock GitHub function definitions for testing
+        from doc_ai_helper_backend.services.llm.github_functions import (
+            get_github_function_definitions,
+        )
+
+        return get_github_function_definitions()
+
+    async def execute_function_call(
+        self,
+        function_call: "FunctionCall",
+        available_functions: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Execute a mock function call.
+
+        Args:
+            function_call: The function call details from the LLM
+            available_functions: Dictionary of available functions to call
+
+        Returns:
+            Dict[str, Any]: Mock result of the function execution
+        """
+        # Generate mock results based on function name
+        if "github" in function_call.name.lower():
+            if "issue" in function_call.name.lower():
+                return {
+                    "success": True,
+                    "result": {
+                        "number": 123,
+                        "url": "https://github.com/owner/repo/issues/123",
+                        "title": "Mock Issue",
+                        "state": "open",
+                    },
+                }
+            elif "pull_request" in function_call.name.lower():
+                return {
+                    "success": True,
+                    "result": {
+                        "number": 456,
+                        "url": "https://github.com/owner/repo/pull/456",
+                        "title": "Mock Pull Request",
+                        "state": "open",
+                    },
+                }
+            elif "permission" in function_call.name.lower():
+                return {
+                    "success": True,
+                    "result": {
+                        "admin": True,
+                        "maintain": True,
+                        "push": True,
+                        "triage": True,
+                        "pull": True,
+                    },
+                }
+
+        # Default mock response
+        return {
+            "success": True,
+            "result": f"Mock execution of {function_call.name}",
+        }
