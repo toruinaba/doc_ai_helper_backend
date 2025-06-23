@@ -42,10 +42,7 @@ async def create_github_issue(
         JSON string containing the created issue information including URL and number
     """
     try:
-        # Initialize GitHub client
-        client = GitHubClient(token=github_token)
-
-        # Validate repository format
+        # Validate repository format first
         if "/" not in repository:
             return json.dumps(
                 {
@@ -54,6 +51,9 @@ async def create_github_issue(
                     "error_type": "validation_error",
                 }
             )
+
+        # Initialize GitHub client
+        client = GitHubClient(token=github_token)
 
         # Check repository permissions
         logger.info(f"Checking permissions for repository: {repository}")
@@ -173,10 +173,7 @@ async def create_github_pull_request(
         JSON string containing the created pull request information including URL and number
     """
     try:
-        # Initialize GitHub client
-        client = GitHubClient(token=github_token)
-
-        # Validate repository format
+        # Validate repository format first
         if "/" not in repository:
             return json.dumps(
                 {
@@ -185,6 +182,9 @@ async def create_github_pull_request(
                     "error_type": "validation_error",
                 }
             )
+
+        # Initialize GitHub client
+        client = GitHubClient(token=github_token)
 
         # Check repository permissions
         logger.info(f"Checking permissions for repository: {repository}")
@@ -294,10 +294,7 @@ async def check_github_repository_permissions(
         JSON string containing permission information
     """
     try:
-        # Initialize GitHub client
-        client = GitHubClient(token=github_token)
-
-        # Validate repository format
+        # Validate repository format first
         if "/" not in repository:
             return json.dumps(
                 {
@@ -306,6 +303,9 @@ async def check_github_repository_permissions(
                     "error_type": "validation_error",
                 }
             )
+
+        # Initialize GitHub client
+        client = GitHubClient(token=github_token)
 
         # Check permissions
         logger.info(f"Checking permissions for repository: {repository}")
@@ -339,6 +339,16 @@ async def check_github_repository_permissions(
                 "success": False,
                 "error": f"Repository not found: {repository}",
                 "error_type": "repository_not_found",
+            }
+        )
+
+    except GitHubPermissionError as e:
+        logger.error(f"Permission denied for repository: {repository}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error_type": "permission_denied",
             }
         )
 
