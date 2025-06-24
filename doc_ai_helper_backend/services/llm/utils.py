@@ -40,6 +40,7 @@ def estimate_message_tokens(
     if isinstance(message, str):
         try:
             import tiktoken
+
             encoding = tiktoken.get_encoding(encoding_name)
             return len(encoding.encode(message))
         except ImportError:
@@ -48,9 +49,9 @@ def estimate_message_tokens(
         except Exception as e:
             logger.warning(f"Failed to estimate tokens: {str(e)}")
             return len(message) // 4
-    
+
     # messageがMessageItemオブジェクトでない場合の処理
-    if not hasattr(message, 'content'):
+    if not hasattr(message, "content"):
         logger.warning(f"Invalid message object: {type(message)}")
         return 0
 

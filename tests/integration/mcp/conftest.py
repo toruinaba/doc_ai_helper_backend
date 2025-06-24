@@ -31,7 +31,7 @@ async def mcp_server() -> AsyncGenerator[DocumentAIHelperMCPServer, None]:
         enable_github_tools=False,  # 統合テストでは無効化（API制限回避）
         enable_utility_tools=True,
     )
-    
+
     server = DocumentAIHelperMCPServer(config)
     yield server
     # クリーンアップは特に不要（in-memoryのため）
@@ -41,8 +41,10 @@ async def mcp_server() -> AsyncGenerator[DocumentAIHelperMCPServer, None]:
 async def mcp_server_with_github() -> AsyncGenerator[DocumentAIHelperMCPServer, None]:
     """GitHub機能有効化したMCP統合テスト用サーバー。"""
     # GitHub API制限を考慮し、環境変数でのみ有効化
-    github_enabled = os.getenv("ENABLE_GITHUB_INTEGRATION_TESTS", "false").lower() == "true"
-    
+    github_enabled = (
+        os.getenv("ENABLE_GITHUB_INTEGRATION_TESTS", "false").lower() == "true"
+    )
+
     config = MCPConfig(
         server_name="test_doc_ai_helper_mcp_github",
         enable_document_tools=True,
@@ -51,7 +53,7 @@ async def mcp_server_with_github() -> AsyncGenerator[DocumentAIHelperMCPServer, 
         enable_github_tools=github_enabled,
         enable_utility_tools=True,
     )
-    
+
     server = DocumentAIHelperMCPServer(config)
     yield server
 
@@ -95,18 +97,18 @@ def sample_conversation_history() -> list[Dict[str, Any]]:
         {
             "role": "user",
             "content": "このREADME.mdの構造について教えてください。",
-            "timestamp": "2024-01-15T10:00:00Z"
+            "timestamp": "2024-01-15T10:00:00Z",
         },
         {
-            "role": "assistant", 
+            "role": "assistant",
             "content": "README.mdは以下の構造になっています：\n1. プロジェクト概要\n2. 主な機能\n3. 技術スタック\n4. 使用方法",
-            "timestamp": "2024-01-15T10:00:05Z"
+            "timestamp": "2024-01-15T10:00:05Z",
         },
         {
             "role": "user",
             "content": "もう少し詳しい説明が必要だと思います。改善提案をお願いします。",
-            "timestamp": "2024-01-15T10:01:00Z"
-        }
+            "timestamp": "2024-01-15T10:01:00Z",
+        },
     ]
 
 

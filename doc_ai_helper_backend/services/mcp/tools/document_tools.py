@@ -77,7 +77,7 @@ async def extract_document_context(
     except Exception as e:
         logger.error(f"Error extracting document context: {e}")
         import json
-        
+
         return json.dumps(
             {
                 "title": title,

@@ -257,7 +257,7 @@ class MockLLMService(LLMServiceBase):
 
         for pattern, response in self.response_patterns.items():
             if pattern in prompt_lower:
-                return response        # Default response for no pattern match
+                return response  # Default response for no pattern match
         if "?" in prompt:
             return "That's an interesting question. As a mock LLM, I'd provide a detailed answer here."
         elif len(prompt) < 20:
@@ -285,15 +285,19 @@ class MockLLMService(LLMServiceBase):
         # パターンに一致する応答があればそれを使用
         for pattern, response in self.response_patterns.items():
             if pattern.lower() in prompt.lower():
-                return f"{response} (会話履歴を考慮しています)"        # historyが空または不正な場合のデフォルト処理
+                return f"{response} (会話履歴を考慮しています)"  # historyが空または不正な場合のデフォルト処理
         if not history or not isinstance(history, list):
             return self._generate_response(prompt)
 
         # 有効なMessageItemのみをフィルタ
-        valid_history = [msg for msg in history if hasattr(msg, 'role') and hasattr(msg, 'content')]
+        valid_history = [
+            msg for msg in history if hasattr(msg, "role") and hasattr(msg, "content")
+        ]
 
         # システムメッセージがあるかチェック
-        system_messages = [msg for msg in valid_history if msg.role == MessageRole.SYSTEM]
+        system_messages = [
+            msg for msg in valid_history if msg.role == MessageRole.SYSTEM
+        ]
         has_system_message = len(system_messages) > 0
 
         # 前回の質問を参照する場合

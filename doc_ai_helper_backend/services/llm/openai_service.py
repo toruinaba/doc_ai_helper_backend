@@ -280,10 +280,12 @@ class OpenAIService(LLMServiceBase):
                 prepared_options["messages"] = messages
             else:
                 # No conversation history, just use the prompt
-                prepared_options["messages"] = [{"role": "user", "content": prompt}]        # If a model was specified, use it
+                prepared_options["messages"] = [
+                    {"role": "user", "content": prompt}
+                ]  # If a model was specified, use it
         if "model" in options:
             prepared_options["model"] = options["model"]
-            
+
         # Log the model being used
         logger.info(f"Using OpenAI model: {prepared_options['model']}")
         if "context_documents" in options and options["context_documents"]:
@@ -315,13 +317,23 @@ class OpenAIService(LLMServiceBase):
                 prepared_options["tools"] = tools
                 # Set tool_choice if specified
                 if "tool_choice" in options:
-                    prepared_options["tool_choice"] = options["tool_choice"]        # Override default options with user-provided options
+                    prepared_options["tool_choice"] = options[
+                        "tool_choice"
+                    ]  # Override default options with user-provided options
         for key, value in options.items():
-            if key not in ["model", "messages", "context_documents", "enable_function_calling", "available_functions"]:
+            if key not in [
+                "model",
+                "messages",
+                "context_documents",
+                "enable_function_calling",
+                "available_functions",
+            ]:
                 prepared_options[key] = value
 
         # Handle custom function calling parameters
-        if options.get("enable_function_calling") and options.get("available_functions"):
+        if options.get("enable_function_calling") and options.get(
+            "available_functions"
+        ):
             # Convert available_functions to OpenAI tools format
             tools = []
             for func_name in options["available_functions"]:
@@ -335,12 +347,12 @@ class OpenAIService(LLMServiceBase):
                         "parameters": {
                             "type": "object",
                             "properties": {},
-                            "required": []
-                        }
-                    }
+                            "required": [],
+                        },
+                    },
                 }
                 tools.append(tool)
-            
+
             if tools:
                 prepared_options["tools"] = tools
 

@@ -16,33 +16,39 @@ from doc_ai_helper_backend.services.mcp.config import MCPConfig
 class TestMCPServerIntegration:
     """MCPサーバー基盤の統合テストクラス。"""
 
-    async def test_mcp_server_initialization(self, mcp_server: DocumentAIHelperMCPServer):
+    async def test_mcp_server_initialization(
+        self, mcp_server: DocumentAIHelperMCPServer
+    ):
         """MCPサーバーの正常な初期化をテスト。"""
         assert mcp_server is not None
         assert mcp_server.app is not None
         assert mcp_server.config.server_name == "test_doc_ai_helper_mcp"
 
-    async def test_mcp_server_tool_registration(self, mcp_server: DocumentAIHelperMCPServer):
+    async def test_mcp_server_tool_registration(
+        self, mcp_server: DocumentAIHelperMCPServer
+    ):
         """MCPサーバーでのツール登録状況をテスト。"""
         # FastMCPのツール登録確認
         app = mcp_server.app
-        
+
         # ツールが正常に登録されていることを確認
         # FastMCPのget_tools()メソッドを使用してツール一覧を取得
         tools = await app.get_tools()
         assert tools is not None, "ツール一覧が取得できない"
         assert len(tools) > 0, "登録されたツールが存在しない"
-        
+
         # 期待されるツールが含まれていることを確認
         tool_names = [tool.name for tool in tools.values()]  # toolsは辞書の可能性
         expected_tools = [
             "extract_document_context",
-            "analyze_document_structure", 
-            "optimize_document_content"
+            "analyze_document_structure",
+            "optimize_document_content",
         ]
-        
+
         for expected_tool in expected_tools:
-            assert expected_tool in tool_names, f"期待されるツール '{expected_tool}' が見つからない"
+            assert (
+                expected_tool in tool_names
+            ), f"期待されるツール '{expected_tool}' が見つからない"
 
     async def test_mcp_server_config_variations(self):
         """異なる設定でのMCPサーバー初期化をテスト。"""
@@ -99,9 +105,9 @@ class TestMCPServerIntegration:
         """複数のMCPサーバーインスタンスの同時作成をテスト。"""
         config1 = MCPConfig(server_name="test_server_1")
         config2 = MCPConfig(server_name="test_server_2")
-        
+
         server1 = DocumentAIHelperMCPServer(config1)
         server2 = DocumentAIHelperMCPServer(config2)
-        
+
         assert server1.config.server_name != server2.config.server_name
         assert server1.app is not server2.app
