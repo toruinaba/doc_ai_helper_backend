@@ -74,22 +74,50 @@ class MockLLMService(LLMServiceBase):
 
         Returns:
             LLMResponse: A mock response
+
+        Raises:
+            Exception: If error simulation is requested
         """
         if options is None:
             options = {}
 
+        # Check for error simulation requests
+        if prompt and any(
+            keyword in prompt.lower()
+            for keyword in ["simulate_error", "force_error", "test_error"]
+        ):
+            from doc_ai_helper_backend.core.exceptions import LLMServiceException
+
+            raise LLMServiceException("Simulated error for testing purposes")
+
+        # Check for empty prompts
+        if not prompt or prompt.strip() == "":
+            from doc_ai_helper_backend.core.exceptions import LLMServiceException
+
+            raise LLMServiceException("Prompt cannot be empty")
+
         # Simulate processing delay
         await self._simulate_delay()  # Determine which model to use
-        model = options.get("model", self.default_model)
-
-        # Check if GitHub function calling is requested
+        model = options.get(
+            "model", self.default_model
+        )  # Check if function calling is requested
         functions = options.get("functions", [])
         github_functions = []
+        utility_functions = []
         if functions:
             github_functions = [
                 f
                 for f in functions
                 if hasattr(f, "name") and "github" in f.name.lower()
+            ]
+            utility_functions = [
+                f
+                for f in functions
+                if hasattr(f, "name")
+                and any(
+                    keyword in f.name.lower()
+                    for keyword in ["time", "count", "email", "random", "calculate"]
+                )
             ]
 
         # Generate appropriate response
@@ -98,6 +126,12 @@ class MockLLMService(LLMServiceBase):
             # Simulate GitHub function calling
             tool_calls = self._generate_mock_github_tool_calls(prompt, github_functions)
             content = "I'll help you with that GitHub operation."
+        elif utility_functions and self._should_call_utility_function(prompt):
+            # Simulate utility function calling
+            tool_calls = self._generate_mock_utility_tool_calls(
+                prompt, utility_functions
+            )
+            content = "I'll help you with that utility operation."
         else:
             # Generate normal response
             if conversation_history:
@@ -449,6 +483,170 @@ class MockLLMService(LLMServiceBase):
 
         return tool_calls
 
+    def _should_call_utility_function(self, prompt: str) -> bool:
+        """
+        Determine if the prompt suggests a utility operation should be performed.
+
+        Args:
+            prompt: The user prompt to analyze
+
+        Returns:
+            bool: True if a utility function should be called
+        """
+        utility_keywords = [
+            "current time",
+            "what time",
+            "time is",
+            "clock",
+            "now",
+            "count",
+            "character",
+            "length",
+            "how many",
+            "word count",
+            "email",
+            "validate",
+            "valid",
+            "check email",
+            "random",
+            "generate",
+            "random data",
+            "uuid",
+            "calculate",
+            "math",
+            "compute",
+            "add",
+            "subtract",
+            "multiply",
+            "divide",
+        ]
+
+        prompt_lower = prompt.lower()
+        return any(keyword in prompt_lower for keyword in utility_keywords)
+
+    def _generate_mock_utility_tool_calls(
+        self, prompt: str, utility_functions: List
+    ) -> List:
+        """
+        Generate mock utility tool calls based on the prompt.
+
+        Args:
+            prompt: The user prompt
+            utility_functions: Available utility functions
+
+        Returns:
+            List of mock tool calls
+        """
+        tool_calls = []
+        prompt_lower = prompt.lower()
+
+        # Determine which utility function to call based on prompt content
+        if any(word in prompt_lower for word in ["time", "clock", "now"]):
+            # Get current time
+            for func in utility_functions:
+                if hasattr(func, "name") and func.name == "get_current_time":
+                    function_call = FunctionCall(
+                        name="get_current_time",
+                        arguments='{"timezone": "UTC"}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(
+            word in prompt_lower
+            for word in ["count", "character", "length", "how many"]
+        ):
+            # Count characters
+            for func in utility_functions:
+                if hasattr(func, "name") and func.name == "count_text_characters":
+                    # Extract text from prompt for counting
+                    text_to_count = "sample text"
+                    if "count" in prompt_lower:
+                        # Try to extract quoted text or assume the prompt itself
+                        text_to_count = prompt
+
+                    function_call = FunctionCall(
+                        name="count_text_characters",
+                        arguments=f'{{"text": "{text_to_count}"}}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(
+            word in prompt_lower
+            for word in ["email", "validate", "valid", "check email"]
+        ):
+            # Validate email
+            for func in utility_functions:
+                if hasattr(func, "name") and func.name == "validate_email_format":
+                    function_call = FunctionCall(
+                        name="validate_email_format",
+                        arguments='{"email": "test@example.com"}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(word in prompt_lower for word in ["random", "generate", "uuid"]):
+            # Generate random data
+            for func in utility_functions:
+                if hasattr(func, "name") and func.name == "generate_random_data":
+                    function_call = FunctionCall(
+                        name="generate_random_data",
+                        arguments='{"data_type": "uuid", "count": 1}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        elif any(
+            word in prompt_lower
+            for word in [
+                "calculate",
+                "math",
+                "compute",
+                "add",
+                "subtract",
+                "multiply",
+                "divide",
+            ]
+        ):
+            # Perform calculation
+            for func in utility_functions:
+                if hasattr(func, "name") and func.name == "calculate_simple_math":
+                    # Extract numbers and operation from prompt
+                    function_call = FunctionCall(
+                        name="calculate_simple_math",
+                        arguments='{"expression": "2 + 2"}',
+                    )
+                    tool_call = ToolCall(
+                        id=f"call_{uuid.uuid4().hex[:8]}",
+                        type="function",
+                        function=function_call,
+                    )
+                    tool_calls.append(tool_call)
+                    break
+
+        return tool_calls
+
     async def query_with_tools(
         self,
         prompt: str,
@@ -486,12 +684,23 @@ class MockLLMService(LLMServiceBase):
         Returns:
             List[FunctionDefinition]: List of available function definitions
         """
-        # Return mock GitHub function definitions for testing
+        all_functions = []
+
+        # Add GitHub function definitions for testing
         from doc_ai_helper_backend.services.llm.github_functions import (
             get_github_function_definitions,
         )
 
-        return get_github_function_definitions()
+        all_functions.extend(get_github_function_definitions())
+
+        # Add utility functions
+        from doc_ai_helper_backend.services.llm.utility_functions import (
+            get_utility_functions,
+        )
+
+        all_functions.extend(get_utility_functions())
+
+        return all_functions
 
     async def execute_function_call(
         self,
@@ -541,6 +750,76 @@ class MockLLMService(LLMServiceBase):
                         "pull": True,
                     },
                 }
+
+        # Mock results for utility functions
+        elif "time" in function_call.name.lower():
+            return {
+                "success": True,
+                "result": {
+                    "current_time": "2025-06-24T10:30:00Z",
+                    "timezone": "UTC",
+                    "format": "ISO",
+                    "timestamp": 1719225000,
+                },
+            }
+        elif (
+            "count" in function_call.name.lower()
+            or "character" in function_call.name.lower()
+        ):
+            return {
+                "success": True,
+                "result": {
+                    "all_characters": 42,
+                    "no_spaces": 35,
+                    "words": 7,
+                    "lines": 1,
+                    "analysis": {
+                        "has_japanese": False,
+                        "has_numbers": True,
+                        "has_special_chars": False,
+                    },
+                },
+            }
+        elif (
+            "email" in function_call.name.lower()
+            or "validate" in function_call.name.lower()
+        ):
+            return {
+                "success": True,
+                "result": {
+                    "is_valid": True,
+                    "has_at_symbol": True,
+                    "has_domain": True,
+                    "local_part": "user",
+                    "domain_part": "example.com",
+                },
+            }
+        elif (
+            "random" in function_call.name.lower()
+            or "generate" in function_call.name.lower()
+        ):
+            return {
+                "success": True,
+                "result": {
+                    "generated_data": "AbC123XyZ",
+                    "data_type": "string",
+                    "length": 9,
+                    "actual_length": 9,
+                },
+            }
+        elif (
+            "math" in function_call.name.lower()
+            or "calculate" in function_call.name.lower()
+        ):
+            return {
+                "success": True,
+                "result": {
+                    "expression": "2+3*4",
+                    "result": 14,
+                    "result_type": "int",
+                    "is_integer": True,
+                },
+            }
 
         # Default mock response
         return {

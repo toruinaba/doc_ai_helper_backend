@@ -492,9 +492,26 @@ class OpenAIService(LLMServiceBase):
         Returns:
             List[FunctionDefinition]: List of available function definitions
         """
+        all_functions = []
+
+        # Add MCP adapter functions (if available)
         if self._mcp_adapter:
-            return self._mcp_adapter.get_available_functions()
-        return []
+            all_functions.extend(self._mcp_adapter.get_available_functions())
+        # Add GitHub functions
+        from doc_ai_helper_backend.services.llm.github_functions import (
+            get_github_function_definitions,
+        )
+
+        all_functions.extend(get_github_function_definitions())
+
+        # Add utility functions
+        from doc_ai_helper_backend.services.llm.utility_functions import (
+            get_utility_functions,
+        )
+
+        all_functions.extend(get_utility_functions())
+
+        return all_functions
 
     async def execute_function_call(
         self,

@@ -59,6 +59,13 @@ class LLMQueryRequest(BaseModel):
     conversation_history: Optional[List[MessageItem]] = Field(
         default=None, description="Previous messages in the conversation for context"
     )
+    enable_tools: bool = Field(
+        default=False, description="Enable automatic function calling/tool execution"
+    )
+    tool_choice: Optional[str] = Field(
+        default="auto",
+        description="Tool selection strategy: auto, none, required, or specific function name",
+    )
 
 
 class LLMUsage(BaseModel):
@@ -171,9 +178,9 @@ class LLMResponse(BaseModel):
         default=None,
         description="Tool calls requested by the LLM (for function calling)",
     )
-    function_call: Optional[FunctionCall] = Field(
+    tool_execution_results: Optional[List[Dict[str, Any]]] = Field(
         default=None,
-        description="Function call requested by the LLM (legacy format)",
+        description="Results of executed tool calls",
     )
 
 

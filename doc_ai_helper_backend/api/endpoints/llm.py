@@ -45,10 +45,15 @@ async def query_llm(
 
     Args:
         request: The query request containing prompt and options
-        llm_service: The LLM service to use (injected)    Returns:
+        llm_service: The LLM service to use (injected)
+
+    Returns:
         LLMResponse: The response from the LLM
     """
+
     try:
+        # Use the injected LLM service instead of creating a new one
+
         # Prepare options
         options = request.options or {}
         if request.model:
@@ -60,15 +65,67 @@ async def query_llm(
 
         # Process context documents if provided
         if request.context_documents:
-            options["context_documents"] = request.context_documents
+            options["context_documents"] = (
+                request.context_documents
+            )  # Check if tools/function calling is enabled
+        if request.enable_tools:
+            # Get available tools from the LLM service
+            available_tools = await llm_service.get_available_functions()
+            # Convert tool_choice string to ToolChoice object
+            tool_choice = None
+            if request.tool_choice:
+                from doc_ai_helper_backend.models.llm import ToolChoice
 
-        # Send query to LLM with conversation history
-        # LLMサービス層で会話履歴の最適化が行われる
-        response = await llm_service.query(
-            request.prompt,
-            conversation_history=request.conversation_history,
-            options=options,
-        )
+                if request.tool_choice in ["auto", "none", "required"]:
+                    tool_choice = ToolChoice(type=request.tool_choice)  # type: ignore
+                else:
+                    # Assume it's a specific function name
+                    tool_choice = ToolChoice(
+                        type="required", function=request.tool_choice
+                    )
+
+            # Send query with tools
+            response = await llm_service.query_with_tools(
+                prompt=request.prompt,
+                tools=available_tools,
+                conversation_history=request.conversation_history,
+                tool_choice=tool_choice,
+                options=options,
+            )
+            # Execute function calls if present
+            if response.tool_calls:
+                executed_results = []
+                for tool_call in response.tool_calls:
+                    try:
+                        result = await llm_service.execute_function_call(
+                            tool_call.function,
+                            {func.name: func for func in available_tools},
+                        )
+                        executed_results.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "function_name": tool_call.function.name,
+                                "result": result,
+                            }
+                        )
+                    except Exception as e:
+                        executed_results.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "function_name": tool_call.function.name,
+                                "error": str(e),
+                            }
+                        )
+
+                # Add execution results to response
+                response.tool_execution_results = executed_results
+        else:
+            # Send regular query to LLM with conversation history
+            response = await llm_service.query(
+                request.prompt,
+                conversation_history=request.conversation_history,
+                options=options,
+            )
 
         return response
 
@@ -202,9 +259,10 @@ async def stream_llm_response(
 
             # Process context documents if provided
             if request.context_documents:
-                options["context_documents"] = request.context_documents
-            # Stream query to LLM with conversation history
-            stream = llm_service.stream_query(
+                options["context_documents"] = (
+                    request.context_documents
+                )  # Stream query to LLM with conversation history
+            stream = await llm_service.stream_query(
                 request.prompt,
                 conversation_history=request.conversation_history,
                 options=options,

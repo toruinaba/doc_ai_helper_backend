@@ -41,6 +41,10 @@ class MCPConfig(BaseModel):
         default=True, description="Enable document analysis tools"
     )
 
+    enable_utility_tools: bool = Field(
+        default=True, description="Enable utility tools for testing and demonstration"
+    )
+
     # Security settings
     allowed_origins: List[str] = Field(
         default_factory=lambda: ["*"], description="Allowed origins for CORS"

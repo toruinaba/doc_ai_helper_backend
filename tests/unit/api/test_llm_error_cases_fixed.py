@@ -110,9 +110,6 @@ class TestLLMEndpointsErrorHandling:
         # エラー情報がSSEストリームに含まれていることを確認
         assert "error" in response.text
 
-    @pytest.mark.skip(
-        reason="ストリーミングテストでExceptionGroupエラーが発生するためスキップ"
-    )
     def test_streaming_with_invalid_provider(self, client):
         """ストリーミングで無効なプロバイダーのテスト"""
         response = client.post(

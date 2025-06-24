@@ -45,6 +45,9 @@ class DocumentAIHelperMCPServer:
         if self.config.enable_github_tools:
             self._register_github_tools()
 
+        if self.config.enable_utility_tools:
+            self._register_utility_tools()
+
         logger.info(f"MCP Server '{self.config.server_name}' initialized successfully")
 
     def _register_document_tools(self):
@@ -217,6 +220,45 @@ class DocumentAIHelperMCPServer:
             )
 
         logger.info("GitHub tools registered with FastMCP")
+
+    def _register_utility_tools(self):
+        """Register utility tools using FastMCP decorators."""
+        from .tools.utility_tools import (
+            get_current_time,
+            count_text_characters,
+            validate_email_format,
+            generate_random_data,
+            calculate_simple_math,
+        )
+
+        @self.app.tool("get_current_time")
+        async def get_time_tool(timezone: str = "UTC", format: str = "ISO") -> str:
+            """Get the current date and time in the specified timezone and format."""
+            return await get_current_time(timezone=timezone, format=format)
+
+        @self.app.tool("count_text_characters")
+        async def count_chars_tool(text: str, count_type: str = "all") -> str:
+            """Count characters in the provided text with various counting options."""
+            return await count_text_characters(text=text, count_type=count_type)
+
+        @self.app.tool("validate_email_format")
+        async def validate_email_tool(email: str) -> str:
+            """Validate if the provided string is a valid email format."""
+            return await validate_email_format(email=email)
+
+        @self.app.tool("generate_random_data")
+        async def generate_random_tool(
+            data_type: str = "string", length: int = 10
+        ) -> str:
+            """Generate random data for testing purposes."""
+            return await generate_random_data(data_type=data_type, length=length)
+
+        @self.app.tool("calculate_simple_math")
+        async def calculate_math_tool(expression: str) -> str:
+            """Calculate simple mathematical expressions safely."""
+            return await calculate_simple_math(expression=expression)
+
+        logger.info("Utility tools registered with FastMCP")
 
     async def list_tools_async(self) -> List[Dict[str, Any]]:
         """List all available tools asynchronously."""
