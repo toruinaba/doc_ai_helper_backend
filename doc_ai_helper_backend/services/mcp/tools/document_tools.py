@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def extract_document_context(
-    content: str,
+    document_content: str,
     repository: str = "",
     path: str = "",
     title: str = "",
@@ -22,7 +22,7 @@ async def extract_document_context(
     Extract structured context from document content.
 
     Args:
-        content: Document content text
+        document_content: Document content text
         repository: Repository identifier
         path: Document file path
         title: Document title (optional)
@@ -33,12 +33,12 @@ async def extract_document_context(
     """
     try:
         # Basic document analysis
-        word_count = len(content.split())
-        line_count = len(content.split("\n"))
+        word_count = len(document_content.split())
+        line_count = len(document_content.split("\n"))
 
         # Extract headings (simple markdown heading detection)
         headings = []
-        for line in content.split("\n"):
+        for line in document_content.split("\n"):
             if line.strip().startswith("#"):
                 level = len(line) - len(line.lstrip("#"))
                 heading_text = line.lstrip("#").strip()
@@ -46,13 +46,13 @@ async def extract_document_context(
                     headings.append({"level": level, "text": heading_text})
 
         # Basic structure analysis
-        has_code_blocks = "```" in content
-        has_links = "[" in content and "](" in content
-        has_images = "![" in content
+        has_code_blocks = "```" in document_content
+        has_links = "[" in document_content and "](" in document_content
+        has_images = "![" in document_content
 
         context = {
             "title": title or "Untitled Document",
-            "content": content,
+            "content": document_content,
             "path": path,
             "repository": repository,
             "metadata": metadata or {},
@@ -77,11 +77,11 @@ async def extract_document_context(
     except Exception as e:
         logger.error(f"Error extracting document context: {e}")
         import json
-
+        
         return json.dumps(
             {
                 "title": title,
-                "content": content,
+                "content": document_content,
                 "path": path,
                 "repository": repository,
                 "error": str(e),
@@ -173,32 +173,30 @@ async def analyze_document_structure(
 
 
 async def optimize_document_content(
-    content: str, optimization_type: str = "readability"
+    document_content: str, optimization_type: str = "readability"
 ) -> str:
     """
     Optimize document content for better readability or structure.
 
     Args:
-        content: Document content to optimize
-        optimization_type: Type of optimization (readability, structure, seo)
-
-    Returns:
+        document_content: Document content to optimize
+        optimization_type: Type of optimization (readability, structure, seo)    Returns:
         JSON string containing optimization suggestions
     """
     try:
         suggestions = []
 
         if optimization_type == "readability":
-            suggestions = analyze_readability(content)
+            suggestions = analyze_readability(document_content)
         elif optimization_type == "structure":
-            suggestions = analyze_structure_improvements(content)
+            suggestions = analyze_structure_improvements(document_content)
         elif optimization_type == "seo":
-            suggestions = analyze_seo_improvements(content)
+            suggestions = analyze_seo_improvements(document_content)
         else:
             suggestions = ["Unknown optimization type"]
 
         optimization_result = {
-            "original_content": content,
+            "original_content": document_content,
             "optimization_type": optimization_type,
             "suggestions": suggestions,
             "priority": "medium",  # Could be calculated based on suggestions

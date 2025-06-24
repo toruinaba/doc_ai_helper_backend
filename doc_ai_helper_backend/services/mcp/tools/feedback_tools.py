@@ -13,17 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 async def generate_feedback_from_conversation(
-    conversation_history: List[Dict[str, Any]], feedback_type: str = "general"
-) -> Dict[str, Any]:
+    conversation_history: List[Dict[str, Any]], 
+    document_context: str = "",
+    feedback_type: str = "general"
+) -> str:
     """
     Generate feedback based on conversation analysis.
 
     Args:
         conversation_history: List of conversation messages
+        document_context: Document context for analysis (optional)
         feedback_type: Type of feedback (general, comprehension, gaps, suggestions)
 
     Returns:
-        Dict containing feedback analysis
+        JSON string containing feedback analysis
     """
     try:
         # Analyze conversation patterns
@@ -47,35 +50,47 @@ async def generate_feedback_from_conversation(
                 "Consider adding more examples",
                 "Improve clarity of explanations",
                 "Add interactive elements",
-            ],
-            "priority_level": "medium",
+            ],            "priority_level": "medium",
         }
 
         logger.info(
             f"Generated feedback for conversation with {len(user_questions)} questions"
         )
-        return feedback
+        
+        # FastMCPではJSON文字列として返す
+        import json
+        return json.dumps(feedback, indent=2)
 
     except Exception as e:
         logger.error(f"Error generating feedback from conversation: {e}")
-        return {"error": str(e)}
+        import json
+        return json.dumps({"error": str(e)})
 
 
 async def create_improvement_proposal(
-    current_content: str, feedback_data: Dict[str, Any]
-) -> Dict[str, Any]:
+    current_content: str, 
+    feedback_data: str,
+    improvement_type: str = "general"
+) -> str:
     """
     Create a structured improvement proposal based on feedback.
 
     Args:
         current_content: Current content to improve
-        feedback_data: Feedback analysis results
-
-    Returns:
-        Dict containing structured improvement proposal
+        feedback_data: Feedback analysis results (JSON string)
+        improvement_type: Type of improvement (general, structure, content)    Returns:
+        JSON string containing structured improvement proposal
     """
     try:
+        # Parse feedback_data if it's a JSON string
+        import json
+        if isinstance(feedback_data, str):
+            parsed_feedback = json.loads(feedback_data)
+        else:
+            parsed_feedback = feedback_data
+            
         proposal = {
+            "improvement_type": improvement_type,
             "current_content_analysis": {
                 "length": len(current_content),
                 "sections": len(current_content.split("\n\n")),
@@ -92,14 +107,18 @@ async def create_improvement_proposal(
                 "completeness": "10-15%",
                 "user_satisfaction": "20-25%",
             },
+            "feedback_reference": parsed_feedback,
         }
 
         logger.info("Created improvement proposal")
-        return proposal
+        
+        # FastMCPではJSON文字列として返す
+        return json.dumps(proposal, indent=2)
 
     except Exception as e:
         logger.error(f"Error creating improvement proposal: {e}")
-        return {"error": str(e)}
+        import json
+        return json.dumps({"error": str(e)})
 
 
 async def analyze_conversation_patterns(

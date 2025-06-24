@@ -9,6 +9,16 @@ from typing import Optional, Dict, Any
 
 def pytest_configure(config):
     """統合テストの設定"""
+    # カスタムマーカーを登録
+    config.addinivalue_line("markers", "integration: integration tests")
+    config.addinivalue_line("markers", "mcp: MCP (Model Context Protocol) tests")
+    config.addinivalue_line("markers", "function_calling: Function calling tests")
+    config.addinivalue_line("markers", "tools: MCP tools tests")
+    config.addinivalue_line("markers", "e2e: End-to-end scenario tests")
+    config.addinivalue_line("markers", "performance: Performance tests")
+    config.addinivalue_line("markers", "slow: Slow running tests")
+    config.addinivalue_line("markers", "github: Tests requiring GitHub API access")
+
     # 必要な環境変数をチェック
     required_env_vars = {
         "OPENAI_API_KEY": "OpenAI API integration tests",

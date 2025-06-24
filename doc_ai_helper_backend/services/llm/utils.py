@@ -4,7 +4,7 @@ LLM utility functions.
 This module provides utility functions for working with LLM services.
 """
 
-from typing import Dict, Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, Any, List, Optional, Tuple, Union, TYPE_CHECKING
 import logging
 from datetime import datetime
 
@@ -24,7 +24,7 @@ DEFAULT_MAX_TOKENS = 8000
 
 
 def estimate_message_tokens(
-    message: MessageItem, encoding_name: str = "cl100k_base"
+    message: Union[MessageItem, str], encoding_name: str = "cl100k_base"
 ) -> int:
     """
     単一のメッセージのおおよそのトークン数を推定する。
@@ -36,6 +36,24 @@ def estimate_message_tokens(
     Returns:
         int: 推定トークン数
     """
+    # messageが文字列の場合の処理
+    if isinstance(message, str):
+        try:
+            import tiktoken
+            encoding = tiktoken.get_encoding(encoding_name)
+            return len(encoding.encode(message))
+        except ImportError:
+            logger.warning("tiktoken not available, using character approximation")
+            return len(message) // 4
+        except Exception as e:
+            logger.warning(f"Failed to estimate tokens: {str(e)}")
+            return len(message) // 4
+    
+    # messageがMessageItemオブジェクトでない場合の処理
+    if not hasattr(message, 'content'):
+        logger.warning(f"Invalid message object: {type(message)}")
+        return 0
+
     try:
         import tiktoken
 

@@ -257,9 +257,7 @@ class MockLLMService(LLMServiceBase):
 
         for pattern, response in self.response_patterns.items():
             if pattern in prompt_lower:
-                return response
-
-        # Default response for no pattern match
+                return response        # Default response for no pattern match
         if "?" in prompt:
             return "That's an interesting question. As a mock LLM, I'd provide a detailed answer here."
         elif len(prompt) < 20:
@@ -287,15 +285,20 @@ class MockLLMService(LLMServiceBase):
         # パターンに一致する応答があればそれを使用
         for pattern, response in self.response_patterns.items():
             if pattern.lower() in prompt.lower():
-                return f"{response} (会話履歴を考慮しています)"
+                return f"{response} (会話履歴を考慮しています)"        # historyが空または不正な場合のデフォルト処理
+        if not history or not isinstance(history, list):
+            return self._generate_response(prompt)
+
+        # 有効なMessageItemのみをフィルタ
+        valid_history = [msg for msg in history if hasattr(msg, 'role') and hasattr(msg, 'content')]
 
         # システムメッセージがあるかチェック
-        system_messages = [msg for msg in history if msg.role == MessageRole.SYSTEM]
+        system_messages = [msg for msg in valid_history if msg.role == MessageRole.SYSTEM]
         has_system_message = len(system_messages) > 0
 
         # 前回の質問を参照する場合
         if "前の質問" in prompt.lower() or "previous question" in prompt.lower():
-            for msg in reversed(history):
+            for msg in reversed(valid_history):
                 if msg.role == MessageRole.USER and msg.content != prompt:
                     return f"前の質問は「{msg.content}」でした。"
 
@@ -305,13 +308,13 @@ class MockLLMService(LLMServiceBase):
             or "previous answer" in prompt.lower()
             or "last response" in prompt.lower()
         ):
-            for msg in reversed(history):
+            for msg in reversed(valid_history):
                 if msg.role == MessageRole.ASSISTANT:
                     return f"前回の回答は「{msg.content}」でした。"
 
         # 会話の長さに基づく応答
-        if len(history) > 2:
-            base_response = f"会話の文脈を考慮した応答です。これまでに{len(history)}回のやり取りがありました。"
+        if len(valid_history) > 2:
+            base_response = f"会話の文脈を考慮した応答です。これまでに{len(valid_history)}回のやり取りがありました。"
             if has_system_message:
                 system_info = f" システム指示 [system] が設定されています: 「{system_messages[0].content[:30]}...」"
                 return f"{base_response}{system_info}\n実際のプロンプト: {prompt}"

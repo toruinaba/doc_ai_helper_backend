@@ -287,3 +287,52 @@ async def calculate_simple_math(expression: str) -> str:
         }
         logger.error(f"Error calculating expression '{expression}': {str(e)}")
         return json.dumps(error_result)
+
+
+# エイリアスを作成（テストとの互換性のため）
+calculate = calculate_simple_math
+
+
+async def format_text(text: str, style: str = "uppercase") -> str:
+    """
+    Format text according to the specified style.
+
+    Args:
+        text: Text to format
+        style: Formatting style (uppercase, lowercase, title, reverse)
+
+    Returns:
+        JSON string containing formatted text
+    """
+    try:
+        if style.lower() == "uppercase":
+            formatted_text = text.upper()
+        elif style.lower() == "lowercase":
+            formatted_text = text.lower()
+        elif style.lower() == "title":
+            formatted_text = text.title()
+        elif style.lower() == "reverse":
+            formatted_text = text[::-1]
+        else:
+            formatted_text = text
+
+        result = {
+            "success": True,
+            "original_text": text,
+            "formatted_text": formatted_text,
+            "style": style,
+        }
+
+        logger.info(f"Text formatted: '{text}' -> '{formatted_text}' (style: {style})")
+        return json.dumps(result, ensure_ascii=False)
+
+    except Exception as e:
+        error_result = {
+            "success": False,
+            "error": f"Failed to format text: {str(e)}",
+            "error_type": "formatting_error",
+            "original_text": text,
+            "style": style,
+        }
+        logger.error(f"Error formatting text '{text}': {str(e)}")
+        return json.dumps(error_result)
