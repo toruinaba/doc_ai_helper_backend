@@ -32,7 +32,7 @@ class DocumentAIHelperMCPServer:
     def _setup_server(self):
         """Set up the MCP server with tools and resources."""
         logger.info(f"Setting up MCP Server '{self.config.server_name}'")
-        
+
         # Register tools based on configuration
         if self.config.enable_document_tools:
             self._register_document_tools()
@@ -235,9 +235,7 @@ class DocumentAIHelperMCPServer:
         )
 
         @self.app.tool("get_current_time")
-        async def get_time_tool(
-            timezone: str = "UTC", format: str = "ISO"
-        ) -> str:
+        async def get_time_tool(timezone: str = "UTC", format: str = "ISO") -> str:
             """Get current time in specified timezone and format."""
             return await get_current_time(timezone=timezone, format=format)
 
@@ -317,55 +315,106 @@ class DocumentAIHelperMCPServer:
         try:
             # Direct tool invocation using function mapping
             if tool_name == "calculate_simple_math":
-                from doc_ai_helper_backend.services.mcp.tools.utility_tools import calculate_simple_math
+                from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
+                    calculate_simple_math,
+                )
+
                 return await calculate_simple_math(**kwargs)
             elif tool_name == "extract_document_context":
-                from doc_ai_helper_backend.services.mcp.tools.document_tools import extract_document_context
+                from doc_ai_helper_backend.services.mcp.tools.document_tools import (
+                    extract_document_context,
+                )
+
                 return await extract_document_context(**kwargs)
             elif tool_name == "analyze_document_structure":
-                from doc_ai_helper_backend.services.mcp.tools.document_tools import analyze_document_structure
+                from doc_ai_helper_backend.services.mcp.tools.document_tools import (
+                    analyze_document_structure,
+                )
+
                 return await analyze_document_structure(**kwargs)
             elif tool_name == "optimize_document_content":
-                from doc_ai_helper_backend.services.mcp.tools.document_tools import optimize_document_content
+                from doc_ai_helper_backend.services.mcp.tools.document_tools import (
+                    optimize_document_content,
+                )
+
                 return await optimize_document_content(**kwargs)
             elif tool_name == "generate_feedback_from_conversation":
-                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import generate_feedback_from_conversation
+                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import (
+                    generate_feedback_from_conversation,
+                )
+
                 return await generate_feedback_from_conversation(**kwargs)
             elif tool_name == "create_improvement_proposal":
-                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import create_improvement_proposal
+                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import (
+                    create_improvement_proposal,
+                )
+
                 return await create_improvement_proposal(**kwargs)
             elif tool_name == "analyze_conversation_patterns":
-                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import analyze_conversation_patterns
+                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import (
+                    analyze_conversation_patterns,
+                )
+
                 return await analyze_conversation_patterns(**kwargs)
             elif tool_name == "analyze_document_quality":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import analyze_document_quality
+                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import (
+                    analyze_document_quality,
+                )
+
                 return await analyze_document_quality(**kwargs)
             elif tool_name == "extract_document_topics":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import extract_document_topics
+                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import (
+                    extract_document_topics,
+                )
+
                 return await extract_document_topics(**kwargs)
             elif tool_name == "check_document_completeness":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import check_document_completeness
+                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import (
+                    check_document_completeness,
+                )
+
                 return await check_document_completeness(**kwargs)
             elif tool_name == "create_github_issue":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import create_github_issue
+                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
+                    create_github_issue,
+                )
+
                 return await create_github_issue(**kwargs)
             elif tool_name == "create_github_pull_request":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import create_github_pull_request
+                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
+                    create_github_pull_request,
+                )
+
                 return await create_github_pull_request(**kwargs)
             elif tool_name == "check_github_repository_permissions":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import check_github_repository_permissions
+                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
+                    check_github_repository_permissions,
+                )
+
                 return await check_github_repository_permissions(**kwargs)
             elif tool_name == "get_current_time":
-                from doc_ai_helper_backend.services.mcp.tools.utility_tools import get_current_time
+                from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
+                    get_current_time,
+                )
+
                 return await get_current_time(**kwargs)
             elif tool_name == "count_text_characters":
-                from doc_ai_helper_backend.services.mcp.tools.utility_tools import count_text_characters
+                from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
+                    count_text_characters,
+                )
+
                 return await count_text_characters(**kwargs)
             elif tool_name == "validate_email_format":
-                from doc_ai_helper_backend.services.mcp.tools.utility_tools import validate_email_format
+                from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
+                    validate_email_format,
+                )
+
                 return await validate_email_format(**kwargs)
             elif tool_name == "generate_random_data":
-                from doc_ai_helper_backend.services.mcp.tools.utility_tools import generate_random_data
+                from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
+                    generate_random_data,
+                )
+
                 return await generate_random_data(**kwargs)
             else:
                 raise ValueError(f"Unknown tool: {tool_name}")

@@ -78,7 +78,8 @@ class MCPFunctionAdapter:
             function=mcp_tool_wrapper,
             description=tool_info.get("description", f"MCP tool: {tool_name}"),
             parameters=tool_info.get(
-                "parameters", {"type": "object", "properties": {}, "required": []}            ),
+                "parameters", {"type": "object", "properties": {}, "required": []}
+            ),
         )
 
     def _get_tool_info(self, tool_name: str) -> Dict[str, Any]:
@@ -94,26 +95,36 @@ class MCPFunctionAdapter:
         # MCPツールの詳細情報を取得
         # FastMCPから実際のツール情報を取得する実装
         logger.debug(f"Getting tool info for: {tool_name}")
-        
+
         # FastMCPアプリの属性を確認
-        logger.debug(f"MCP server app has _tools: {hasattr(self.mcp_server.app, '_tools')}")
+        logger.debug(
+            f"MCP server app has _tools: {hasattr(self.mcp_server.app, '_tools')}"
+        )
         if hasattr(self.mcp_server.app, "_tools"):
-            logger.debug(f"Tool {tool_name} in _tools: {tool_name in self.mcp_server.app._tools}")
-            logger.debug(f"Available tools: {list(self.mcp_server.app._tools.keys()) if hasattr(self.mcp_server.app, '_tools') else 'No _tools'}")
-        
+            logger.debug(
+                f"Tool {tool_name} in _tools: {tool_name in self.mcp_server.app._tools}"
+            )
+            logger.debug(
+                f"Available tools: {list(self.mcp_server.app._tools.keys()) if hasattr(self.mcp_server.app, '_tools') else 'No _tools'}"
+            )
+
         if (
             hasattr(self.mcp_server.app, "_tools")
             and tool_name in self.mcp_server.app._tools
         ):
             tool_info = self.mcp_server.app._tools[tool_name]
-            logger.debug(f"Found tool info for {tool_name}, generating parameters schema")
+            logger.debug(
+                f"Found tool info for {tool_name}, generating parameters schema"
+            )
             parameters = self._generate_parameters_schema(tool_name)
             logger.debug(f"Generated parameters for {tool_name}: {parameters}")
             return {
                 "description": tool_info.get("description", f"MCP tool: {tool_name}"),
                 "parameters": parameters,
-            }        # デフォルトの情報（パラメータスキーマも生成）
-        logger.debug(f"Using default info for {tool_name}, generating parameters schema")
+            }  # デフォルトの情報（パラメータスキーマも生成）
+        logger.debug(
+            f"Using default info for {tool_name}, generating parameters schema"
+        )
         parameters = self._generate_parameters_schema(tool_name)
         logger.debug(f"Generated default parameters for {tool_name}: {parameters}")
         return {
@@ -277,7 +288,8 @@ class MCPFunctionAdapter:
                             "description": "Depth of analysis (basic, detailed, etc.)",
                             "default": "basic",
                         },
-                    },                    "required": ["conversation_history"],
+                    },
+                    "required": ["conversation_history"],
                 }
 
         elif "github" in tool_name:
@@ -352,7 +364,13 @@ class MCPFunctionAdapter:
                             "description": "GitHub Personal Access Token (optional)",
                         },
                     },
-                    "required": ["repository", "title", "description", "file_path", "file_content"],
+                    "required": [
+                        "repository",
+                        "title",
+                        "description",
+                        "file_path",
+                        "file_content",
+                    ],
                 }
             elif tool_name == "check_github_repository_permissions":
                 return {
@@ -473,22 +491,26 @@ class MCPFunctionAdapter:
             return {
                 "success": False,
                 "error": f"Function '{function_call.name}' not found",
-                "result": None,            }
+                "result": None,
+            }
 
         try:
             # 引数をパース
             arguments = json.loads(function_call.arguments)
-            logger.info(f"Executing function '{function_call.name}' with arguments: {arguments}")
+            logger.info(
+                f"Executing function '{function_call.name}' with arguments: {arguments}"
+            )
             logger.info(f"Function type: {type(function)}")
-            
+
             # 関数を実行
             import asyncio
+
             if asyncio.iscoroutinefunction(function):
                 result = await function(**arguments)
             else:
                 # 同期関数の場合
                 result = function(**arguments)
-            
+
             logger.info(f"Function execution result: {result}")
             return result
 
