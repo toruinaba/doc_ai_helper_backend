@@ -255,19 +255,19 @@ async def stream_llm_response(
         try:  # Prepare options
             options = request.options or {}
             if request.model:
-                options["model"] = request.model            # Process context documents if provided
+                options["model"] = (
+                    request.model
+                )  # Process context documents if provided
             if request.context_documents:
-                options["context_documents"] = (
-                    request.context_documents
-                )
-            
+                options["context_documents"] = request.context_documents
+
             # Create stream generator and iterate over it
             stream_generator = llm_service.stream_query(
                 request.prompt,
                 conversation_history=request.conversation_history,
                 options=options,
             )
-            
+
             async for text_chunk in stream_generator:
                 # Send each chunk as an SSE event
                 yield f"data: {json.dumps({'text': text_chunk})}\n\n"
