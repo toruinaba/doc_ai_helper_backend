@@ -81,10 +81,16 @@ class OpenAIService(LLMServiceBase):
             client_params["base_url"] = base_url
 
         self.sync_client = OpenAI(**client_params)
-        self.async_client = AsyncOpenAI(**client_params)
-
-        # Initialize MCP integration
-        self._mcp_adapter = None
+        self.async_client = AsyncOpenAI(**client_params)        # Initialize MCP integration
+        try:
+            from doc_ai_helper_backend.services.mcp.function_adapter import MCPFunctionAdapter
+            from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
+            mcp_server = DocumentAIHelperMCPServer()
+            self._mcp_adapter = MCPFunctionAdapter(mcp_server)
+        except ImportError as e:
+            logger.warning(f"MCP adapter not available: {e}")
+            self._mcp_adapter = None
+        
         self._function_call_manager = None
 
         # Load token encoder for the default model
@@ -228,7 +234,7 @@ class OpenAIService(LLMServiceBase):
         Returns:
             List[str]: List of template IDs
         """
-        return self.template_manager.get_template_ids()
+        return self.template_manager.list_templates()
 
     async def estimate_tokens(self, text: str) -> int:
         """
@@ -291,11 +297,10 @@ class OpenAIService(LLMServiceBase):
         if "context_documents" in options and options["context_documents"]:
             # In a real implementation, you would process these documents
             # through the MCP adapter and add them to the messages
-            pass
-
-        # Handle function calling - include tools if provided
+            pass        # Handle function calling - include tools if provided
+        # Support both legacy 'functions' parameter and new 'tools' parameter
         if "functions" in options and options["functions"]:
-            # Convert function definitions to OpenAI tools format
+            # Convert legacy functions format to tools format
             tools = []
             for func_def in options["functions"]:
                 if hasattr(func_def, "name"):
@@ -310,8 +315,42 @@ class OpenAIService(LLMServiceBase):
                     }
                     tools.append(tool)
                 elif isinstance(func_def, dict):
-                    # Already in correct format
-                    tools.append(func_def)
+                    # Convert from function definition format
+                    tool = {
+                        "type": "function",
+                        "function": func_def
+                    }
+                    tools.append(tool)
+            
+            if tools:
+                prepared_options["tools"] = tools
+                
+        elif "tools" in options and options["tools"]:
+            # Convert function definitions to OpenAI tools format
+            tools = []
+            for func_def in options["tools"]:
+                if hasattr(func_def, "name"):
+                    # Convert FunctionDefinition to OpenAI format
+                    tool = {
+                        "type": "function",
+                        "function": {
+                            "name": func_def.name,
+                            "description": func_def.description,
+                            "parameters": func_def.parameters,
+                        },
+                    }
+                    tools.append(tool)
+                elif isinstance(func_def, dict):
+                    # Already in correct format or convert if needed
+                    if "type" not in func_def:
+                        # Convert from function definition format
+                        tool = {
+                            "type": "function",
+                            "function": func_def
+                        }
+                        tools.append(tool)
+                    else:
+                        tools.append(func_def)
 
             if tools:
                 prepared_options["tools"] = tools
@@ -320,6 +359,7 @@ class OpenAIService(LLMServiceBase):
                     prepared_options["tool_choice"] = options[
                         "tool_choice"
                     ]  # Override default options with user-provided options
+        # Override model if specified in options
         for key, value in options.items():
             if key not in [
                 "model",
@@ -508,13 +548,51 @@ class OpenAIService(LLMServiceBase):
 
         Returns:
             LLMResponse: The response from the LLM, potentially including tool calls
-        """
-        # Prepare options with function definitions
+        """        # Prepare options with function definitions
         query_options = options or {}
-        query_options["functions"] = tools
+        
+        # Convert function definitions to tools format
+        if tools:
+            tools_format = []
+            for tool in tools:
+                if hasattr(tool, 'name'):
+                    # Convert FunctionDefinition object to tools format
+                    tool_def = {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description or "",
+                            "parameters": tool.parameters or {}
+                        }
+                    }
+                    tools_format.append(tool_def)
+                elif isinstance(tool, dict):
+                    # Already in tools format or needs conversion
+                    if "type" not in tool:
+                        # Convert from function definition format
+                        tool_def = {
+                            "type": "function",
+                            "function": tool
+                        }
+                        tools_format.append(tool_def)
+                    else:
+                        tools_format.append(tool)
+            
+            query_options["tools"] = tools_format
 
         if tool_choice:
-            query_options["tool_choice"] = tool_choice
+            # Convert ToolChoice object to OpenAI format
+            if hasattr(tool_choice, 'type'):
+                if tool_choice.type in ["auto", "none", "required"]:
+                    query_options["tool_choice"] = tool_choice.type
+                elif tool_choice.type == "required" and hasattr(tool_choice, 'function'):
+                    query_options["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": tool_choice.function}
+                    }
+            else:
+                # Assume it's already in correct format
+                query_options["tool_choice"] = tool_choice
 
         return await self.query(prompt, conversation_history, query_options)
 
@@ -526,23 +604,37 @@ class OpenAIService(LLMServiceBase):
             List[FunctionDefinition]: List of available function definitions
         """
         all_functions = []
+        function_names = set()  # 重複を防ぐための名前セット
 
-        # Add MCP adapter functions (if available)
+        # Add MCP adapter functions (if available) - 優先度最高
         if self._mcp_adapter:
-            all_functions.extend(self._mcp_adapter.get_available_functions())
-        # Add GitHub functions
+            mcp_functions = await self._mcp_adapter.get_available_functions()
+            for func in mcp_functions:
+                if hasattr(func, 'name') and func.name not in function_names:
+                    all_functions.append(func)
+                    function_names.add(func.name)
+        
+        # Add GitHub functions - MCPで定義されていない場合のみ
         from doc_ai_helper_backend.services.llm.github_functions import (
             get_github_function_definitions,
         )
 
-        all_functions.extend(get_github_function_definitions())
+        github_functions = get_github_function_definitions()
+        for func in github_functions:
+            if hasattr(func, 'name') and func.name not in function_names:
+                all_functions.append(func)
+                function_names.add(func.name)
 
-        # Add utility functions
+        # Add utility functions - MCPで定義されていない場合のみ
         from doc_ai_helper_backend.services.llm.utility_functions import (
             get_utility_functions,
         )
 
-        all_functions.extend(get_utility_functions())
+        utility_functions = get_utility_functions()
+        for func in utility_functions:
+            if hasattr(func, 'name') and func.name not in function_names:
+                all_functions.append(func)
+                function_names.add(func.name)
 
         return all_functions
 

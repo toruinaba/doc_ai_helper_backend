@@ -34,11 +34,17 @@ class MCPFunctionAdapter:
         """
         self.mcp_server = mcp_server
         self.function_registry = FunctionRegistry()
-        self._register_mcp_tools()
+        self._tools_registered = False
 
-    def _register_mcp_tools(self):
+    async def _ensure_tools_registered(self):
+        """Ensure MCP tools are registered (lazy initialization)."""
+        if not self._tools_registered:
+            await self._register_mcp_tools()
+            self._tools_registered = True
+
+    async def _register_mcp_tools(self):
         """Register MCP tools as function calling functions."""
-        available_tools = self.mcp_server.get_available_tools()
+        available_tools = await self.mcp_server.get_available_tools_async()
 
         for tool_name in available_tools:
             # MCPツールをFunction Calling関数として登録
@@ -72,8 +78,7 @@ class MCPFunctionAdapter:
             function=mcp_tool_wrapper,
             description=tool_info.get("description", f"MCP tool: {tool_name}"),
             parameters=tool_info.get(
-                "parameters", {"type": "object", "properties": {}, "required": []}
-            ),
+                "parameters", {"type": "object", "properties": {}, "required": []}            ),
         )
 
     def _get_tool_info(self, tool_name: str) -> Dict[str, Any]:
@@ -88,20 +93,32 @@ class MCPFunctionAdapter:
         """
         # MCPツールの詳細情報を取得
         # FastMCPから実際のツール情報を取得する実装
+        logger.debug(f"Getting tool info for: {tool_name}")
+        
+        # FastMCPアプリの属性を確認
+        logger.debug(f"MCP server app has _tools: {hasattr(self.mcp_server.app, '_tools')}")
+        if hasattr(self.mcp_server.app, "_tools"):
+            logger.debug(f"Tool {tool_name} in _tools: {tool_name in self.mcp_server.app._tools}")
+            logger.debug(f"Available tools: {list(self.mcp_server.app._tools.keys()) if hasattr(self.mcp_server.app, '_tools') else 'No _tools'}")
+        
         if (
             hasattr(self.mcp_server.app, "_tools")
             and tool_name in self.mcp_server.app._tools
         ):
             tool_info = self.mcp_server.app._tools[tool_name]
+            logger.debug(f"Found tool info for {tool_name}, generating parameters schema")
+            parameters = self._generate_parameters_schema(tool_name)
+            logger.debug(f"Generated parameters for {tool_name}: {parameters}")
             return {
                 "description": tool_info.get("description", f"MCP tool: {tool_name}"),
-                "parameters": self._generate_parameters_schema(tool_name),
-            }
-
-        # デフォルトの情報
+                "parameters": parameters,
+            }        # デフォルトの情報（パラメータスキーマも生成）
+        logger.debug(f"Using default info for {tool_name}, generating parameters schema")
+        parameters = self._generate_parameters_schema(tool_name)
+        logger.debug(f"Generated default parameters for {tool_name}: {parameters}")
         return {
             "description": f"MCP tool: {tool_name}",
-            "parameters": {"type": "object", "properties": {}, "required": []},
+            "parameters": parameters,
         }
 
     def _generate_parameters_schema(self, tool_name: str) -> Dict[str, Any]:
@@ -260,9 +277,172 @@ class MCPFunctionAdapter:
                             "description": "Depth of analysis (basic, detailed, etc.)",
                             "default": "basic",
                         },
-                    },
-                    "required": ["conversation_history"],
+                    },                    "required": ["conversation_history"],
                 }
+
+        elif "github" in tool_name:
+            if tool_name == "create_github_issue":
+                return {
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "type": "string",
+                            "description": "Repository in 'owner/repo' format",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Issue title",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Issue description/body",
+                        },
+                        "labels": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of label names to apply (optional)",
+                        },
+                        "assignees": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of GitHub usernames to assign (optional)",
+                        },
+                        "github_token": {
+                            "type": "string",
+                            "description": "GitHub Personal Access Token (optional)",
+                        },
+                    },
+                    "required": ["repository", "title", "description"],
+                }
+            elif tool_name == "create_github_pull_request":
+                return {
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "type": "string",
+                            "description": "Repository in 'owner/repo' format",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Pull request title",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Pull request description",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to modify",
+                        },
+                        "file_content": {
+                            "type": "string",
+                            "description": "New content for the file",
+                        },
+                        "branch_name": {
+                            "type": "string",
+                            "description": "Branch name (optional)",
+                        },
+                        "base_branch": {
+                            "type": "string",
+                            "description": "Base branch name",
+                            "default": "main",
+                        },
+                        "github_token": {
+                            "type": "string",
+                            "description": "GitHub Personal Access Token (optional)",
+                        },
+                    },
+                    "required": ["repository", "title", "description", "file_path", "file_content"],
+                }
+            elif tool_name == "check_github_repository_permissions":
+                return {
+                    "type": "object",
+                    "properties": {
+                        "repository": {
+                            "type": "string",
+                            "description": "Repository in 'owner/repo' format",
+                        },
+                        "github_token": {
+                            "type": "string",
+                            "description": "GitHub Personal Access Token (optional)",
+                        },
+                    },
+                    "required": ["repository"],
+                }
+
+        # ユーティリティツール
+        elif tool_name == "calculate_simple_math":
+            return {
+                "type": "object",
+                "properties": {
+                    "expression": {
+                        "type": "string",
+                        "description": "Mathematical expression to evaluate (e.g., '2+3*4')",
+                    },
+                },
+                "required": ["expression"],
+            }
+        elif tool_name == "get_current_time":
+            return {
+                "type": "object",
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone (e.g., 'UTC', 'JST')",
+                        "default": "UTC",
+                    },
+                    "format": {
+                        "type": "string",
+                        "description": "Time format (e.g., 'ISO', 'readable')",
+                        "default": "ISO",
+                    },
+                },
+                "required": [],
+            }
+        elif tool_name == "count_text_characters":
+            return {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Text to count characters in",
+                    },
+                    "count_type": {
+                        "type": "string",
+                        "description": "Type of counting (all, letters, words, etc.)",
+                        "default": "all",
+                    },
+                },
+                "required": ["text"],
+            }
+        elif tool_name == "validate_email_format":
+            return {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "Email address to validate",
+                    },
+                },
+                "required": ["email"],
+            }
+        elif tool_name == "generate_random_data":
+            return {
+                "type": "object",
+                "properties": {
+                    "data_type": {
+                        "type": "string",
+                        "description": "Type of data to generate (string, number, etc.)",
+                        "default": "string",
+                    },
+                    "length": {
+                        "type": "integer",
+                        "description": "Length of generated data",
+                        "default": 10,
+                    },
+                },
+                "required": [],
+            }
 
         # デフォルトスキーマ
         return {"type": "object", "properties": {}, "required": []}
@@ -293,15 +473,23 @@ class MCPFunctionAdapter:
             return {
                 "success": False,
                 "error": f"Function '{function_call.name}' not found",
-                "result": None,
-            }
+                "result": None,            }
 
         try:
             # 引数をパース
             arguments = json.loads(function_call.arguments)
-
+            logger.info(f"Executing function '{function_call.name}' with arguments: {arguments}")
+            logger.info(f"Function type: {type(function)}")
+            
             # 関数を実行
-            result = await function(**arguments)
+            import asyncio
+            if asyncio.iscoroutinefunction(function):
+                result = await function(**arguments)
+            else:
+                # 同期関数の場合
+                result = function(**arguments)
+            
+            logger.info(f"Function execution result: {result}")
             return result
 
         except json.JSONDecodeError as e:
@@ -314,11 +502,12 @@ class MCPFunctionAdapter:
             logger.error(f"Error executing function '{function_call.name}': {e}")
             return {"success": False, "error": str(e), "result": None}
 
-    def get_available_functions(self) -> List[FunctionDefinition]:
+    async def get_available_functions(self) -> List[FunctionDefinition]:
         """
         Get all available function definitions.
 
         Returns:
             List of function definitions
         """
+        await self._ensure_tools_registered()
         return self.function_registry.get_all_function_definitions()

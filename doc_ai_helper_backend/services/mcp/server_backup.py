@@ -4,7 +4,6 @@ FastMCP server for Document AI Helper.
 This module provides the main MCP server implementation using FastMCP.
 """
 
-import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -31,9 +30,9 @@ class DocumentAIHelperMCPServer:
 
     def _setup_server(self):
         """Set up the MCP server with tools and resources."""
-        logger.info(f"Setting up MCP Server '{self.config.server_name}'")
-        
-        # Register tools based on configuration
+        logger.info(
+            f"Setting up MCP Server '{self.config.server_name}'"
+        )  # Register tools based on configuration
         if self.config.enable_document_tools:
             self._register_document_tools()
 
@@ -49,39 +48,40 @@ class DocumentAIHelperMCPServer:
         if self.config.enable_utility_tools:
             self._register_utility_tools()
 
-        logger.info("MCP Server setup completed")
+        logger.info(f"MCP Server '{self.config.server_name}' initialized successfully")
 
     def _register_document_tools(self):
-        """Register document analysis tools using FastMCP decorators."""
+        """Register document processing tools using FastMCP decorators."""
         from .tools.document_tools import (
             extract_document_context,
             analyze_document_structure,
             optimize_document_content,
         )
 
+        # Register document tools with FastMCP
         @self.app.tool("extract_document_context")
         async def extract_context_tool(
-            document_content: str, context_type: str = "summary"
-        ) -> Dict[str, Any]:
-            """Extract structured context from document content."""
+            document_content: str, repository: str, path: str
+        ) -> str:
+            """Extract structured context from a document."""
             return await extract_document_context(
-                document_content=document_content, context_type=context_type
+                document_content=document_content, repository=repository, path=path
             )
 
         @self.app.tool("analyze_document_structure")
         async def analyze_structure_tool(
-            document_content: str, analysis_depth: str = "basic"
+            document_content: str, document_type: str = "markdown"
         ) -> Dict[str, Any]:
-            """Analyze document structure and organization."""
+            """Analyze the structure of a document."""
             return await analyze_document_structure(
-                document_content=document_content, analysis_depth=analysis_depth
+                document_content=document_content, document_type=document_type
             )
 
         @self.app.tool("optimize_document_content")
         async def optimize_content_tool(
             document_content: str, optimization_type: str = "readability"
-        ) -> Dict[str, Any]:
-            """Optimize document content for better readability and structure."""
+        ) -> str:
+            """Optimize document content for better structure and readability."""
             return await optimize_document_content(
                 document_content=document_content, optimization_type=optimization_type
             )
@@ -118,7 +118,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_patterns_tool(
             conversation_history: List[Dict[str, Any]], analysis_depth: str = "basic"
         ) -> Dict[str, Any]:
-            """Analyze conversation patterns and themes."""
+            """Analyze patterns in conversation history."""
             return await analyze_conversation_patterns(
                 conversation_history=conversation_history, analysis_depth=analysis_depth
             )
@@ -126,7 +126,7 @@ class DocumentAIHelperMCPServer:
         logger.info("Feedback tools registered with FastMCP")
 
     def _register_analysis_tools(self):
-        """Register text analysis tools using FastMCP decorators."""
+        """Register document analysis tools using FastMCP decorators."""
         from .tools.analysis_tools import (
             analyze_document_quality,
             extract_document_topics,
@@ -135,17 +135,17 @@ class DocumentAIHelperMCPServer:
 
         @self.app.tool("analyze_document_quality")
         async def analyze_quality_tool(
-            document_content: str, quality_criteria: str = "general"
+            document_content: str, quality_metrics: List[str] = None
         ) -> Dict[str, Any]:
-            """Analyze document quality against various criteria."""
+            """Analyze document quality based on various metrics."""
             return await analyze_document_quality(
-                document_content=document_content, quality_criteria=quality_criteria
+                document_content=document_content, quality_metrics=quality_metrics
             )
 
         @self.app.tool("extract_document_topics")
         async def extract_topics_tool(
             document_content: str, topic_count: int = 5
-        ) -> Dict[str, Any]:
+        ) -> List[Dict[str, Any]]:
             """Extract main topics from document content."""
             return await extract_document_topics(
                 document_content=document_content, topic_count=topic_count
@@ -153,12 +153,11 @@ class DocumentAIHelperMCPServer:
 
         @self.app.tool("check_document_completeness")
         async def check_completeness_tool(
-            document_content: str, completeness_criteria: str = "general"
+            document_content: str, template_type: str = "general"
         ) -> Dict[str, Any]:
-            """Check document completeness against criteria."""
+            """Check document completeness against template requirements."""
             return await check_document_completeness(
-                document_content=document_content,
-                completeness_criteria=completeness_criteria,
+                document_content=document_content, template_type=template_type
             )
 
         logger.info("Analysis tools registered with FastMCP")
@@ -180,7 +179,7 @@ class DocumentAIHelperMCPServer:
             assignees: Optional[List[str]] = None,
             github_token: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub issue."""
+            """Create a new issue in a GitHub repository."""
             return await create_github_issue(
                 repository=repository,
                 title=title,
@@ -195,31 +194,29 @@ class DocumentAIHelperMCPServer:
             repository: str,
             title: str,
             description: str,
-            file_path: str,
-            file_content: str,
-            branch_name: Optional[str] = None,
+            head_branch: str,
             base_branch: str = "main",
             github_token: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub pull request."""
+            """Create a new pull request in a GitHub repository."""
             return await create_github_pull_request(
                 repository=repository,
                 title=title,
                 description=description,
-                file_path=file_path,
-                file_content=file_content,
-                branch_name=branch_name,
+                head_branch=head_branch,
                 base_branch=base_branch,
                 github_token=github_token,
             )
 
         @self.app.tool("check_github_repository_permissions")
         async def check_permissions_tool(
-            repository: str, github_token: Optional[str] = None
+            repository: str,
+            github_token: Optional[str] = None,
         ) -> str:
             """Check permissions for a GitHub repository."""
             return await check_github_repository_permissions(
-                repository=repository, github_token=github_token
+                repository=repository,
+                github_token=github_token,
             )
 
         logger.info("GitHub tools registered with FastMCP")
@@ -235,13 +232,9 @@ class DocumentAIHelperMCPServer:
         )
 
         @self.app.tool("get_current_time")
-        async def get_time_tool(
-            timezone: str = "UTC", format: str = "ISO"
-        ) -> str:
-            """Get current time in specified timezone and format."""
-            return await get_current_time(timezone=timezone, format=format)
-
-        @self.app.tool("count_text_characters")
+        async def get_time_tool(timezone: str = "UTC", format: str = "ISO") -> str:
+            """Get the current date and time in the specified timezone and format."""
+            return await get_current_time(timezone=timezone, format=format)        @self.app.tool("count_text_characters")
         async def count_chars_tool(text: str, count_type: str = "all") -> str:
             """Count characters in the provided text with various counting options."""
             return await count_text_characters(text=text, count_type=count_type)
@@ -262,7 +255,7 @@ class DocumentAIHelperMCPServer:
         async def calculate_math_tool(expression: str) -> str:
             """Calculate simple mathematical expressions safely."""
             return await calculate_simple_math(expression=expression)
-
+        
         logger.info("Utility tools registered with FastMCP")
 
     async def list_tools_async(self) -> List[Dict[str, Any]]:
@@ -289,15 +282,19 @@ class DocumentAIHelperMCPServer:
     def list_tools(self) -> List[Dict[str, Any]]:
         """List all available tools (synchronous wrapper)."""
         try:
-            # Use asyncio to run async method in sync context
+            # シンプルな実装として、ツール名のリストから構築
+            import asyncio
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # If event loop is already running, return empty list as fallback
+                    # すでにイベントループが実行中の場合は別のアプローチを使用
                     return []
                 else:
                     return loop.run_until_complete(self.list_tools_async())
             except RuntimeError:
+                return []
+            except Exception as e:
+                logger.warning(f"Error listing tools: {e}")
                 return []
         except Exception as e:
             logger.warning(f"Failed to list tools: {e}")
@@ -315,7 +312,7 @@ class DocumentAIHelperMCPServer:
             Result of the tool execution
         """
         try:
-            # Direct tool invocation using function mapping
+            # ツール名から実際の関数を直接取得して実行
             if tool_name == "calculate_simple_math":
                 from doc_ai_helper_backend.services.mcp.tools.utility_tools import calculate_simple_math
                 return await calculate_simple_math(**kwargs)
@@ -331,30 +328,6 @@ class DocumentAIHelperMCPServer:
             elif tool_name == "generate_feedback_from_conversation":
                 from doc_ai_helper_backend.services.mcp.tools.feedback_tools import generate_feedback_from_conversation
                 return await generate_feedback_from_conversation(**kwargs)
-            elif tool_name == "create_improvement_proposal":
-                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import create_improvement_proposal
-                return await create_improvement_proposal(**kwargs)
-            elif tool_name == "analyze_conversation_patterns":
-                from doc_ai_helper_backend.services.mcp.tools.feedback_tools import analyze_conversation_patterns
-                return await analyze_conversation_patterns(**kwargs)
-            elif tool_name == "analyze_document_quality":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import analyze_document_quality
-                return await analyze_document_quality(**kwargs)
-            elif tool_name == "extract_document_topics":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import extract_document_topics
-                return await extract_document_topics(**kwargs)
-            elif tool_name == "check_document_completeness":
-                from doc_ai_helper_backend.services.mcp.tools.analysis_tools import check_document_completeness
-                return await check_document_completeness(**kwargs)
-            elif tool_name == "create_github_issue":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import create_github_issue
-                return await create_github_issue(**kwargs)
-            elif tool_name == "create_github_pull_request":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import create_github_pull_request
-                return await create_github_pull_request(**kwargs)
-            elif tool_name == "check_github_repository_permissions":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import check_github_repository_permissions
-                return await check_github_repository_permissions(**kwargs)
             elif tool_name == "get_current_time":
                 from doc_ai_helper_backend.services.mcp.tools.utility_tools import get_current_time
                 return await get_current_time(**kwargs)
@@ -368,11 +341,10 @@ class DocumentAIHelperMCPServer:
                 from doc_ai_helper_backend.services.mcp.tools.utility_tools import generate_random_data
                 return await generate_random_data(**kwargs)
             else:
-                raise ValueError(f"Unknown tool: {tool_name}")
-
+                raise Exception(f"Tool '{tool_name}' not found")
         except Exception as e:
-            logger.error(f"Error calling tool {tool_name}: {e}")
-            return {"error": f"Failed to execute tool {tool_name}: {str(e)}"}
+            logger.error(f"Error calling tool '{tool_name}': {e}")
+            raise Exception(f"Tool execution failed: {str(e)}")
 
     async def get_available_tools_async(self) -> List[str]:
         """Get list of available tool names asynchronously."""
@@ -386,34 +358,25 @@ class DocumentAIHelperMCPServer:
     def get_available_tools(self) -> List[str]:
         """Get list of available tool names (synchronous wrapper)."""
         try:
+            import asyncio
+
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # If event loop is already running, return empty list as fallback
                     return []
                 else:
                     return loop.run_until_complete(self.get_available_tools_async())
             except RuntimeError:
                 return []
         except Exception as e:
-            logger.warning(f"Failed to get available tools: {e}")
+            logger.warning(f"Error getting available tools: {e}")
             return []
 
-
-# Global server instance
-mcp_server = DocumentAIHelperMCPServer()
-
-
-def get_mcp_server() -> DocumentAIHelperMCPServer:
-    """Get the global MCP server instance."""
-    return mcp_server
+    @property
+    def fastmcp_app(self) -> FastMCP:
+        """Get the underlying FastMCP application."""
+        return self.app
 
 
-async def get_available_tools() -> List[str]:
-    """Get available tools from the MCP server."""
-    return await mcp_server.get_available_tools_async()
-
-
-async def call_mcp_tool(tool_name: str, **kwargs) -> Any:
-    """Call an MCP tool by name."""
-    return await mcp_server.call_tool(tool_name, **kwargs)
+# Create default server instance
+mcp_server = DocumentAIHelperMCPServer(default_mcp_config)
