@@ -93,6 +93,12 @@ async def query_llm(
                     conversation_history=request.conversation_history,
                     tool_choice=tool_choice,
                     options=options,
+                    repository_context=request.repository_context,
+                    document_metadata=request.document_metadata,
+                    document_content=request.document_content,
+                    system_prompt_template=request.system_prompt_template
+                    or "contextual_document_assistant_ja",
+                    include_document_in_system_prompt=request.include_document_in_system_prompt,
                 )
             else:
                 # Use legacy flow for backward compatibility
@@ -102,6 +108,12 @@ async def query_llm(
                     conversation_history=request.conversation_history,
                     tool_choice=tool_choice,
                     options=options,
+                    repository_context=request.repository_context,
+                    document_metadata=request.document_metadata,
+                    document_content=request.document_content,
+                    system_prompt_template=request.system_prompt_template
+                    or "contextual_document_assistant_ja",
+                    include_document_in_system_prompt=request.include_document_in_system_prompt,
                 )
                 # Execute function calls if present (legacy behavior)
                 if response.tool_calls:

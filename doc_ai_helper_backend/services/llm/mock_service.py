@@ -31,6 +31,7 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
+from doc_ai_helper_backend.services.llm.system_prompt_builder import SystemPromptBuilder
 from doc_ai_helper_backend.services.llm.utils import optimize_conversation_history
 
 
@@ -55,6 +56,7 @@ class MockLLMService(LLMServiceBase):
         self.response_delay = response_delay
         self.default_model = default_model
         self.template_manager = PromptTemplateManager()
+        self.system_prompt_builder = SystemPromptBuilder()
 
         # Predefined responses for different query patterns
         self.response_patterns = {
@@ -114,7 +116,25 @@ class MockLLMService(LLMServiceBase):
             raise LLMServiceException("Prompt cannot be empty")
 
         # Simulate processing delay
-        await self._simulate_delay()  # Determine which model to use
+        await self._simulate_delay()
+
+        # Generate system prompt if context is provided (for test verification)
+        system_prompt_used = None
+        if include_document_in_system_prompt and (
+            repository_context or document_metadata or document_content
+        ):
+            try:
+                system_prompt_used = self.system_prompt_builder.build_system_prompt(
+                    template_id=system_prompt_template,
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                )
+            except Exception as e:
+                # システムプロンプト生成に失敗してもテストを継続
+                system_prompt_used = f"Failed to generate system prompt: {str(e)}"
+
+        # Determine which model to use
         model = options.get(
             "model", self.default_model
         )  # Check if function calling is requested
@@ -182,10 +202,12 @@ class MockLLMService(LLMServiceBase):
             # Generate normal response
             if conversation_history:
                 content = self._generate_contextual_response(
-                    prompt, conversation_history
+                    prompt, conversation_history, system_prompt_used
                 )
             else:
-                content = self._generate_response(prompt)  # Calculate mock token usage
+                content = self._generate_response(
+                    prompt, system_prompt_used
+                )  # Calculate mock token usage
         prompt_tokens = len(prompt) // 4
         completion_tokens = len(content) // 4  # Create response
         response = LLMResponse(
@@ -288,16 +310,33 @@ class MockLLMService(LLMServiceBase):
         if self.response_delay > 0:
             await asyncio.sleep(self.response_delay)
 
-    def _generate_response(self, prompt: str) -> str:
+    def _generate_response(
+        self, prompt: str, system_prompt: Optional[str] = None
+    ) -> str:
         """
         Generate a response based on the prompt.
 
         Args:
             prompt: The input prompt
+            system_prompt: Optional system prompt for context
 
         Returns:
             str: A mock response
         """
+        # If system prompt is provided, include relevant information in response
+        if system_prompt:
+            # Extract repository/document context from system prompt for testing
+            if "microsoft/vscode" in system_prompt:
+                return f"I understand you're asking about Visual Studio Code (microsoft/vscode repository). {prompt}"
+            elif "test/minimal" in system_prompt:
+                return (
+                    f"I see you're working with the test/minimal repository. {prompt}"
+                )
+            elif "github.com" in system_prompt or "repository" in system_prompt.lower():
+                return (
+                    f"I received your question about this repository context. {prompt}"
+                )
+
         # Check for pattern matches
         prompt_lower = prompt.lower()
 
@@ -316,7 +355,10 @@ class MockLLMService(LLMServiceBase):
             )
 
     def _generate_contextual_response(
-        self, prompt: str, history: List[MessageItem]
+        self,
+        prompt: str,
+        history: List[MessageItem],
+        system_prompt: Optional[str] = None,
     ) -> str:
         """
         会話履歴を考慮した応答を生成する。
@@ -324,10 +366,20 @@ class MockLLMService(LLMServiceBase):
         Args:
             prompt: 現在のプロンプト
             history: 会話履歴
+            system_prompt: Optional system prompt for context
 
         Returns:
             str: 生成された応答
         """
+        # If system prompt is provided, include relevant information in response
+        if system_prompt:
+            if "microsoft/vscode" in system_prompt:
+                return f"Based on our conversation history and the Visual Studio Code context, I understand: {prompt}"
+            elif "test/minimal" in system_prompt:
+                return f"Considering our previous exchanges about the test/minimal repository: {prompt}"
+            elif "github.com" in system_prompt or "repository" in system_prompt.lower():
+                return f"Taking into account the repository context and our conversation: {prompt}"
+
         # パターンに一致する応答があればそれを使用
         for pattern, response in self.response_patterns.items():
             if pattern.lower() in prompt.lower():
@@ -394,11 +446,11 @@ class MockLLMService(LLMServiceBase):
             prompt: The prompt to send
             conversation_history: Previous messages in the conversation
             options: Additional options for the query
-            repository_context: Repository context for system prompt generation (ignored in mock)
-            document_metadata: Document metadata for context (ignored in mock)
-            document_content: Document content to include in system prompt (ignored in mock)
-            system_prompt_template: Template ID for system prompt generation (ignored in mock)
-            include_document_in_system_prompt: Whether to include document content (ignored in mock)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response
@@ -406,13 +458,29 @@ class MockLLMService(LLMServiceBase):
         if options is None:
             options = {}
 
+        # Generate system prompt if context is provided (for test verification)
+        system_prompt_used = None
+        if include_document_in_system_prompt and (
+            repository_context or document_metadata or document_content
+        ):
+            try:
+                system_prompt_used = self.system_prompt_builder.build_system_prompt(
+                    template_id=system_prompt_template,
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                )
+            except Exception as e:
+                # システムプロンプト生成に失敗してもテストを継続
+                system_prompt_used = f"Failed to generate system prompt: {str(e)}"
+
         # Get the full response based on conversation history
         if conversation_history:
             full_response = self._generate_contextual_response(
-                prompt, conversation_history
+                prompt, conversation_history, system_prompt_used
             )
         else:
-            full_response = self._generate_response(prompt)
+            full_response = self._generate_response(prompt, system_prompt_used)
 
         # Split into chunks of approximately 10-20 characters
         chunks = []
@@ -803,6 +871,11 @@ class MockLLMService(LLMServiceBase):
         conversation_history: Optional[List["MessageItem"]] = None,
         tool_choice: Optional["ToolChoice"] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the mock LLM with function calling tools.
@@ -824,7 +897,16 @@ class MockLLMService(LLMServiceBase):
         if tool_choice:
             query_options["tool_choice"] = tool_choice
 
-        return await self.query(prompt, conversation_history, query_options)
+        return await self.query(
+            prompt,
+            conversation_history,
+            query_options,
+            repository_context,
+            document_metadata,
+            document_content,
+            system_prompt_template,
+            include_document_in_system_prompt,
+        )
 
     async def get_available_functions(self) -> List["FunctionDefinition"]:
         """
@@ -983,6 +1065,11 @@ class MockLLMService(LLMServiceBase):
         conversation_history: Optional[List[MessageItem]] = None,
         tool_choice: Optional[ToolChoice] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Mock implementation of query with tools and followup.
@@ -993,7 +1080,16 @@ class MockLLMService(LLMServiceBase):
 
         # First, get initial response with tools
         initial_response = await self.query_with_tools(
-            prompt, tools, conversation_history, tool_choice, options
+            prompt,
+            tools,
+            conversation_history,
+            tool_choice,
+            options,
+            repository_context,
+            document_metadata,
+            document_content,
+            system_prompt_template,
+            include_document_in_system_prompt,
         )
 
         # If no tool calls, return as-is

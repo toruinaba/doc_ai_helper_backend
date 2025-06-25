@@ -677,6 +677,11 @@ class OpenAIService(LLMServiceBase):
         conversation_history: Optional[List["MessageItem"]] = None,
         tool_choice: Optional["ToolChoice"] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the LLM with function calling tools.
@@ -735,7 +740,16 @@ class OpenAIService(LLMServiceBase):
                 # Assume it's already in correct format
                 query_options["tool_choice"] = tool_choice
 
-        return await self.query(prompt, conversation_history, query_options)
+        return await self.query(
+            prompt,
+            conversation_history,
+            query_options,
+            repository_context,
+            document_metadata,
+            document_content,
+            system_prompt_template,
+            include_document_in_system_prompt,
+        )
 
     async def query_with_tools_and_followup(
         self,
@@ -744,6 +758,11 @@ class OpenAIService(LLMServiceBase):
         conversation_history: Optional[List["MessageItem"]] = None,
         tool_choice: Optional["ToolChoice"] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> "LLMResponse":
         """
         Send a query to the LLM with function calling tools and handle the complete flow.
@@ -770,7 +789,16 @@ class OpenAIService(LLMServiceBase):
         # Step 1: Initial query with tools
         logger.info("Step 1: Sending initial query with tools")
         initial_response = await self.query_with_tools(
-            prompt, tools, conversation_history, tool_choice, options
+            prompt,
+            tools,
+            conversation_history,
+            tool_choice,
+            options,
+            repository_context,
+            document_metadata,
+            document_content,
+            system_prompt_template,
+            include_document_in_system_prompt,
         )
 
         # If no tool calls, return the response as-is

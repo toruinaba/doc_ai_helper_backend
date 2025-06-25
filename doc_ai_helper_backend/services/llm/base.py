@@ -146,6 +146,11 @@ class LLMServiceBase(ABC):
         conversation_history: Optional[List[MessageItem]] = None,
         tool_choice: Optional[ToolChoice] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the LLM with function calling tools.
@@ -156,6 +161,11 @@ class LLMServiceBase(ABC):
             conversation_history: Previous messages in the conversation for context
             tool_choice: Strategy for tool selection (auto, none, required, or specific function)
             options: Additional options for the query (model, temperature, etc.)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             LLMResponse: The response from the LLM, potentially including tool calls
@@ -198,6 +208,11 @@ class LLMServiceBase(ABC):
         conversation_history: Optional[List[MessageItem]] = None,
         tool_choice: Optional[ToolChoice] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the LLM with function calling tools and handle the complete flow.
@@ -213,6 +228,11 @@ class LLMServiceBase(ABC):
             conversation_history: Previous messages in the conversation for context
             tool_choice: Strategy for tool selection
             options: Additional options for the query
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             LLMResponse: The final response from the LLM after tool execution
