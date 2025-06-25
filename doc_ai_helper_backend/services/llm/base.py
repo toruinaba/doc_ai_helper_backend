@@ -162,3 +162,32 @@ class LLMServiceBase(ABC):
             List[FunctionDefinition]: List of available function definitions
         """
         pass
+
+    @abstractmethod
+    async def query_with_tools_and_followup(
+        self,
+        prompt: str,
+        tools: List[FunctionDefinition],
+        conversation_history: Optional[List[MessageItem]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
+        """
+        Send a query to the LLM with function calling tools and handle the complete flow.
+
+        This method implements the complete Function Calling flow:
+        1. Send initial query with tools
+        2. If LLM calls tools, execute them
+        3. Send tool results back to LLM for final response
+
+        Args:
+            prompt: The prompt to send to the LLM
+            tools: List of available function definitions
+            conversation_history: Previous messages in the conversation for context
+            tool_choice: Strategy for tool selection
+            options: Additional options for the query
+
+        Returns:
+            LLMResponse: The final response from the LLM after tool execution
+        """
+        pass

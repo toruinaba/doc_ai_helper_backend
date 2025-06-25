@@ -8,6 +8,7 @@ It can be used with OpenAI directly or with a LiteLLM proxy server.
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List, Tuple, AsyncGenerator
+import json
 
 import tiktoken
 from openai import OpenAI, AsyncOpenAI
@@ -280,20 +281,28 @@ class OpenAIService(LLMServiceBase):
         # Handle messages - use provided messages if available, otherwise create from conversation history and prompt
         if "messages" in options:
             prepared_options["messages"] = options["messages"]
+            logger.info(
+                f"Using provided messages ({len(options['messages'])} messages)"
+            )
         else:
             # If conversation history exists, format it for OpenAI
             if conversation_history:
                 messages = format_conversation_for_provider(
                     conversation_history, provider="openai"
                 )
-                # Add current prompt as the latest user message
-                messages.append({"role": "user", "content": prompt})
+                # Add current prompt as the latest user message (only if prompt is not empty)
+                if prompt.strip():
+                    messages.append({"role": "user", "content": prompt})
                 prepared_options["messages"] = messages
             else:
-                # No conversation history, just use the prompt
-                prepared_options["messages"] = [
-                    {"role": "user", "content": prompt}
-                ]  # If a model was specified, use it
+                # No conversation history, just use the prompt (only if prompt is not empty)
+                if prompt.strip():
+                    prepared_options["messages"] = [{"role": "user", "content": prompt}]
+                else:
+                    # No prompt and no conversation history - this might be an error
+                    logger.warning(
+                        "Empty prompt and no conversation history provided"
+                    )  # If a model was specified, use it
         if "model" in options:
             prepared_options["model"] = options["model"]
 
@@ -399,7 +408,7 @@ class OpenAIService(LLMServiceBase):
 
     async def _call_openai_api(self, options: Dict[str, Any]) -> ChatCompletion:
         """
-        Call the OpenAI API with the prepared options.
+        Call the OpenAI API (or LiteLLM proxy) with the prepared options.
 
         Args:
             options: Prepared options for the API call
@@ -411,10 +420,54 @@ class OpenAIService(LLMServiceBase):
         messages = options.pop("messages")
         model = options.pop("model")
 
+        # Debug: Log API call details for LiteLLM/Bedrock debugging
+        logger.info(f"Calling API with model: {model}")
+        logger.info(
+            f"Base URL: {self.async_client.base_url if hasattr(self.async_client, 'base_url') else 'default'}"
+        )
+        logger.info(f"Messages count: {len(messages)}")
+        logger.info(f"Has tools: {'tools' in options}")
+        if "tools" in options:
+            logger.info(f"Tools count: {len(options['tools'])}")
+
+        # Log last few messages for debugging
+        for i, msg in enumerate(messages[-3:]):  # Last 3 messages
+            role = msg.get("role", "unknown")
+            content_preview = (
+                str(msg.get("content", ""))[:100] if msg.get("content") else "None"
+            )
+            logger.info(f"Message {len(messages)-3+i}: {role} - {content_preview}...")
+            if "tool_calls" in msg:
+                logger.info(f"  Has tool_calls: {len(msg['tool_calls'])}")
+            if role == "tool":
+                logger.info(f"  Tool call ID: {msg.get('tool_call_id', 'missing')}")
+
         # Make the API call
         response = await self.async_client.chat.completions.create(
             model=model, messages=messages, **options
         )
+
+        # Debug: Log the raw response for LiteLLM/Bedrock debugging
+        logger.info(f"API Response model: {response.model}")
+        logger.info(f"API Response choices count: {len(response.choices)}")
+        if response.choices:
+            choice = response.choices[0]
+            logger.info(f"First choice finish_reason: {choice.finish_reason}")
+            logger.info(
+                f"First choice content length: {len(choice.message.content) if choice.message.content else 0}"
+            )
+            logger.info(
+                f"First choice content preview: {choice.message.content[:100] if choice.message.content else 'None'}..."
+            )
+            logger.info(
+                f"First choice has tool_calls: {bool(choice.message.tool_calls)}"
+            )
+            if choice.message.tool_calls:
+                logger.info(f"Tool calls count: {len(choice.message.tool_calls)}")
+                for i, tc in enumerate(choice.message.tool_calls):
+                    logger.info(
+                        f"Tool call {i}: {tc.function.name} with args: {tc.function.arguments[:100]}..."
+                    )
 
         return response
 
@@ -593,6 +646,191 @@ class OpenAIService(LLMServiceBase):
                 query_options["tool_choice"] = tool_choice
 
         return await self.query(prompt, conversation_history, query_options)
+
+    async def query_with_tools_and_followup(
+        self,
+        prompt: str,
+        tools: List["FunctionDefinition"],
+        conversation_history: Optional[List["MessageItem"]] = None,
+        tool_choice: Optional["ToolChoice"] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> "LLMResponse":
+        """
+        Send a query to the LLM with function calling tools and handle the complete flow.
+
+        This method implements the complete Function Calling flow:
+        1. Send initial query with tools
+        2. If LLM calls tools, execute them
+        3. Send tool results back to LLM for final response
+
+        Args:
+            prompt: The prompt to send to the LLM
+            tools: List of available function definitions
+            conversation_history: Previous messages in the conversation for context
+            tool_choice: Strategy for tool selection
+            options: Additional options for the query
+
+        Returns:
+            LLMResponse: The final response from the LLM after tool execution
+        """
+        logger.info(
+            f"Starting query with tools and followup. Prompt: {prompt[:100]}..."
+        )
+
+        # Step 1: Initial query with tools
+        logger.info("Step 1: Sending initial query with tools")
+        initial_response = await self.query_with_tools(
+            prompt, tools, conversation_history, tool_choice, options
+        )
+
+        # If no tool calls, return the response as-is
+        if not initial_response.tool_calls:
+            logger.info("No tool calls detected, returning initial response")
+            return initial_response
+
+        logger.info(f"Step 2: Detected {len(initial_response.tool_calls)} tool calls")
+        logger.info(f"Initial response content: {initial_response.content[:200]}...")
+
+        # Step 2: Execute tool calls
+        tool_results = []
+        for tool_call in initial_response.tool_calls:
+            try:
+                logger.info(f"Executing tool call: {tool_call.function.name}")
+                result = await self.execute_function_call(
+                    tool_call.function,
+                    {func.name: func for func in tools},
+                )
+                tool_results.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "function_name": tool_call.function.name,
+                        "result": result,
+                    }
+                )
+                logger.info(
+                    f"Tool call executed successfully: {tool_call.function.name}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error executing tool call {tool_call.function.name}: {e}"
+                )
+                tool_results.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "function_name": tool_call.function.name,
+                        "error": str(e),
+                    }
+                )
+
+        # Step 3: Build conversation history with tool results
+        # Create the conversation history for the followup query
+        followup_messages = []
+
+        # Add original conversation history if exists
+        if conversation_history:
+            followup_messages.extend(
+                format_conversation_for_provider(
+                    conversation_history, provider="openai"
+                )
+            )
+
+        # Add the original user prompt
+        followup_messages.append({"role": "user", "content": prompt})
+
+        # Add the assistant's response with tool calls
+        assistant_message = {
+            "role": "assistant",
+            "content": initial_response.content or "",
+        }
+
+        # Add tool calls to the assistant message
+        if initial_response.tool_calls:
+            assistant_message["tool_calls"] = []
+            for tool_call in initial_response.tool_calls:
+                assistant_message["tool_calls"].append(
+                    {
+                        "id": tool_call.id,
+                        "type": "function",
+                        "function": {
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments,
+                        },
+                    }
+                )
+
+        followup_messages.append(assistant_message)
+
+        # Add tool results as tool messages
+        for tool_result in tool_results:
+            tool_message = {
+                "role": "tool",
+                "tool_call_id": tool_result["tool_call_id"],
+                "content": json.dumps(
+                    tool_result.get("result", {"error": tool_result.get("error")})
+                ),
+            }
+            followup_messages.append(tool_message)
+            logger.info(
+                f"Added tool result message: tool_call_id={tool_result['tool_call_id']}, content_length={len(tool_message['content'])}"
+            )
+
+        # Step 4: Send followup query to get final response
+        logger.info(
+            f"Sending followup query with tool results. Messages count: {len(followup_messages)}"
+        )
+        logger.info(
+            f"Last message role: {followup_messages[-1]['role'] if followup_messages else 'N/A'}"
+        )
+
+        followup_options = (options or {}).copy()
+        followup_options["messages"] = followup_messages
+        # Remove tools from followup options to prevent tool calling in the final response
+        followup_options.pop("tools", None)
+        followup_options.pop("tool_choice", None)
+        followup_options.pop("functions", None)
+
+        # Debug: Log the complete message structure
+        for i, msg in enumerate(followup_messages):
+            logger.info(f"Message {i}: {msg['role']} - {str(msg)[:200]}...")
+
+        logger.info(f"Followup options keys: {list(followup_options.keys())}")
+
+        # Add explicit instruction for the followup query
+        followup_messages.append(
+            {
+                "role": "user",
+                "content": "Based on the tool execution results above, please provide a complete and natural response that includes the actual calculated values. Don't just mention that you'll use the tool - provide the final answer with the specific numeric results.",
+            }
+        )
+
+        final_response = await self.query(
+            prompt="",  # Empty prompt since we're using the messages directly
+            conversation_history=None,  # Already included in messages
+            options=followup_options,
+        )
+
+        # Debug: Log the final response details
+        logger.info(
+            f"Final response content: {final_response.content[:200] if final_response.content else 'NO CONTENT'}..."
+        )
+        logger.info(f"Final response model: {final_response.model}")
+        logger.info(
+            f"Final response content length: {len(final_response.content) if final_response.content else 0}"
+        )
+        logger.info(f"Final response has tool calls: {bool(final_response.tool_calls)}")
+
+        # Check if we got a meaningful response
+        if final_response.content and len(final_response.content.strip()) > 0:
+            logger.info("Followup query succeeded with meaningful content")
+        else:
+            logger.warning("Followup query returned empty or minimal content")
+
+        # Preserve tool execution results in the final response for debugging
+        final_response.tool_execution_results = tool_results
+        final_response.original_tool_calls = initial_response.tool_calls
+
+        logger.info("Complete Function Calling flow finished successfully")
+        return final_response
 
     async def get_available_functions(self) -> List["FunctionDefinition"]:
         """

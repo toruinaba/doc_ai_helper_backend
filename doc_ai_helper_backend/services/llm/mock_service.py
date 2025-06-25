@@ -104,6 +104,7 @@ class MockLLMService(LLMServiceBase):
         functions = options.get("functions", [])
         github_functions = []
         utility_functions = []
+        analysis_functions = []
         if functions:
             github_functions = [
                 f
@@ -116,7 +117,24 @@ class MockLLMService(LLMServiceBase):
                 if hasattr(f, "name")
                 and any(
                     keyword in f.name.lower()
-                    for keyword in ["time", "count", "email", "random", "calculate"]
+                    for keyword in [
+                        "time",
+                        "count",
+                        "email",
+                        "random",
+                        "calculate",
+                        "math",
+                        "compute",
+                    ]
+                )
+            ]
+            analysis_functions = [
+                f
+                for f in functions
+                if hasattr(f, "name")
+                and any(
+                    keyword in f.name.lower()
+                    for keyword in ["analyze", "analysis", "text", "document"]
                 )
             ]
 
@@ -127,6 +145,17 @@ class MockLLMService(LLMServiceBase):
             tool_calls = self._generate_mock_github_tool_calls(prompt, github_functions)
             content = "I'll help you with that GitHub operation."
         elif utility_functions and self._should_call_utility_function(prompt):
+            # Simulate utility function calling
+            tool_calls = self._generate_mock_utility_tool_calls(
+                prompt, utility_functions
+            )
+            content = "I'll help you with that utility operation."
+        elif analysis_functions and self._should_call_analysis_function(prompt):
+            # Simulate analysis function calling
+            tool_calls = self._generate_mock_analysis_tool_calls(
+                prompt, analysis_functions
+            )
+            content = "I'll help you with that analysis operation."
             # Simulate utility function calling
             tool_calls = self._generate_mock_utility_tool_calls(
                 prompt, utility_functions
@@ -636,20 +665,106 @@ class MockLLMService(LLMServiceBase):
                 "divide",
             ]
         ):
-            # Perform calculation
+            # Perform calculation - look for any calculation-related function
             for func in utility_functions:
-                if hasattr(func, "name") and func.name == "calculate_simple_math":
-                    # Extract numbers and operation from prompt
+                if hasattr(func, "name") and any(
+                    calc_word in func.name.lower()
+                    for calc_word in ["calculate", "math", "compute"]
+                ):
+                    # Extract expression from prompt if possible
+                    import re
+
+                    # Look for mathematical expressions in the prompt
+                    expression_match = re.search(r"(\d+(?:\s*[+\-*/]\s*\d+)+)", prompt)
+                    expression = (
+                        expression_match.group(1) if expression_match else "2 + 2"
+                    )
+
                     function_call = FunctionCall(
-                        name="calculate_simple_math",
-                        arguments='{"expression": "2 + 2"}',
+                        name=func.name,
+                        arguments=json.dumps({"expression": expression}),
                     )
                     tool_call = ToolCall(
                         id=f"call_{uuid.uuid4().hex[:8]}",
-                        type="function",
                         function=function_call,
                     )
                     tool_calls.append(tool_call)
+                    break
+
+        return tool_calls
+
+    def _should_call_analysis_function(self, prompt: str) -> bool:
+        """
+        Determine if the prompt suggests an analysis operation should be performed.
+
+        Args:
+            prompt: The user prompt to analyze
+
+        Returns:
+            bool: True if an analysis function should be called
+        """
+        analysis_keywords = [
+            "analyze",
+            "analysis",
+            "examine",
+            "review",
+            "study",
+            "evaluate",
+            "assess",
+            "text",
+            "document",
+            "content",
+            "structure",
+        ]
+
+        prompt_lower = prompt.lower()
+        return any(keyword in prompt_lower for keyword in analysis_keywords)
+
+    def _generate_mock_analysis_tool_calls(
+        self, prompt: str, analysis_functions: List
+    ) -> List:
+        """
+        Generate mock analysis tool calls based on the prompt.
+
+        Args:
+            prompt: The user prompt
+            analysis_functions: Available analysis functions
+
+        Returns:
+            List of mock tool calls
+        """
+        tool_calls = []
+        prompt_lower = prompt.lower()
+
+        # Determine which analysis function to call based on prompt content
+        for func in analysis_functions:
+            if hasattr(func, "name"):
+                if any(
+                    keyword in func.name.lower()
+                    for keyword in ["analyze", "analysis", "text", "document"]
+                ) and any(
+                    keyword in prompt_lower
+                    for keyword in ["analyze", "analysis", "text", "document"]
+                ):
+                    tool_call_id = f"call_{uuid.uuid4().hex[:8]}"
+                    arguments = {"text": "Sample text for analysis"}
+                    if "this text" in prompt_lower:
+                        # Extract text from prompt if available
+                        import re
+
+                        match = re.search(r"['\"](.+?)['\"]", prompt)
+                        if match:
+                            arguments["text"] = match.group(1)
+
+                    tool_calls.append(
+                        ToolCall(
+                            id=tool_call_id,
+                            function=FunctionCall(
+                                name=func.name,
+                                arguments=json.dumps(arguments),
+                            ),
+                        )
+                    )
                     break
 
         return tool_calls
@@ -833,3 +948,109 @@ class MockLLMService(LLMServiceBase):
             "success": True,
             "result": f"Mock execution of {function_call.name}",
         }
+
+    async def query_with_tools_and_followup(
+        self,
+        prompt: str,
+        tools: List[FunctionDefinition],
+        conversation_history: Optional[List[MessageItem]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
+        """
+        Mock implementation of query with tools and followup.
+
+        This method simulates the complete Function Calling flow for testing.
+        """
+        await asyncio.sleep(self.response_delay)
+
+        # First, get initial response with tools
+        initial_response = await self.query_with_tools(
+            prompt, tools, conversation_history, tool_choice, options
+        )
+
+        # If no tool calls, return as-is
+        if not initial_response.tool_calls:
+            return initial_response
+
+        # Simulate tool execution
+        tool_results = []
+        for tool_call in initial_response.tool_calls:
+            try:
+                result = await self.execute_function_call(
+                    tool_call.function, {tool.name: tool for tool in tools}
+                )
+                tool_results.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "function_name": tool_call.function.name,
+                        "result": result,
+                    }
+                )
+            except Exception as e:
+                # Handle tool execution errors gracefully
+                tool_results.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "function_name": tool_call.function.name,
+                        "error": str(e),
+                    }
+                )
+
+        # Create final response based on the tools used
+        final_content = self._generate_followup_response(prompt, tool_results)
+
+        return LLMResponse(
+            content=final_content,
+            model=self.default_model,
+            provider="mock",
+            usage=LLMUsage(
+                prompt_tokens=100,
+                completion_tokens=150,
+                total_tokens=250,
+            ),
+            tool_execution_results=tool_results,
+            original_tool_calls=initial_response.tool_calls,
+        )
+
+    def _generate_followup_response(
+        self, prompt: str, tool_results: List[Dict[str, Any]]
+    ) -> str:
+        """Generate a realistic followup response based on tool execution results."""
+
+        if not tool_results:
+            return f"I understand your request: '{prompt}'"
+
+        response_parts = ["Based on the tools I used, here are the results:\n"]
+
+        for tool_result in tool_results:
+            function_name = tool_result.get("function_name", "unknown")
+            result_data = tool_result.get("result", {})
+
+            if "error" in tool_result:
+                response_parts.append(
+                    f"- {function_name}: Error occurred - {tool_result['error']}"
+                )
+            elif (
+                "calculate" in function_name.lower() or "math" in function_name.lower()
+            ):
+                if isinstance(result_data, dict) and "result" in result_data:
+                    response_parts.append(
+                        f"- Calculation result: {result_data['result']}"
+                    )
+                else:
+                    response_parts.append(f"- Calculation completed: {result_data}")
+            elif "analyze" in function_name.lower():
+                response_parts.append(f"- Analysis completed successfully")
+            elif "format" in function_name.lower():
+                if isinstance(result_data, dict) and "formatted_text" in result_data:
+                    response_parts.append(
+                        f"- Formatted text: {result_data['formatted_text']}"
+                    )
+                else:
+                    response_parts.append(f"- Text formatting completed")
+            else:
+                response_parts.append(f"- {function_name}: Executed successfully")
+
+        response_parts.append(f"\nThis completes your request: '{prompt}'")
+        return "\n".join(response_parts)

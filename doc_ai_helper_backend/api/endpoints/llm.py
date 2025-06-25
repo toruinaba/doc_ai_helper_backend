@@ -84,41 +84,52 @@ async def query_llm(
                         type="required", function=request.tool_choice
                     )
 
-            # Send query with tools
-            response = await llm_service.query_with_tools(
-                prompt=request.prompt,
-                tools=available_tools,
-                conversation_history=request.conversation_history,
-                tool_choice=tool_choice,
-                options=options,
-            )
-            # Execute function calls if present
-            if response.tool_calls:
-                executed_results = []
-                for tool_call in response.tool_calls:
-                    try:
-                        result = await llm_service.execute_function_call(
-                            tool_call.function,
-                            {func.name: func for func in available_tools},
-                        )
-                        executed_results.append(
-                            {
-                                "tool_call_id": tool_call.id,
-                                "function_name": tool_call.function.name,
-                                "result": result,
-                            }
-                        )
-                    except Exception as e:
-                        executed_results.append(
-                            {
-                                "tool_call_id": tool_call.id,
-                                "function_name": tool_call.function.name,
-                                "error": str(e),
-                            }
-                        )
+            # Send query with tools using the complete flow or legacy flow
+            if request.complete_tool_flow:
+                # Use new complete flow (default)
+                response = await llm_service.query_with_tools_and_followup(
+                    prompt=request.prompt,
+                    tools=available_tools,
+                    conversation_history=request.conversation_history,
+                    tool_choice=tool_choice,
+                    options=options,
+                )
+            else:
+                # Use legacy flow for backward compatibility
+                response = await llm_service.query_with_tools(
+                    prompt=request.prompt,
+                    tools=available_tools,
+                    conversation_history=request.conversation_history,
+                    tool_choice=tool_choice,
+                    options=options,
+                )
+                # Execute function calls if present (legacy behavior)
+                if response.tool_calls:
+                    executed_results = []
+                    for tool_call in response.tool_calls:
+                        try:
+                            result = await llm_service.execute_function_call(
+                                tool_call.function,
+                                {func.name: func for func in available_tools},
+                            )
+                            executed_results.append(
+                                {
+                                    "tool_call_id": tool_call.id,
+                                    "function_name": tool_call.function.name,
+                                    "result": result,
+                                }
+                            )
+                        except Exception as e:
+                            executed_results.append(
+                                {
+                                    "tool_call_id": tool_call.id,
+                                    "function_name": tool_call.function.name,
+                                    "error": str(e),
+                                }
+                            )
 
-                # Add execution results to response
-                response.tool_execution_results = executed_results
+                    # Add execution results to response
+                    response.tool_execution_results = executed_results
         else:
             # Send regular query to LLM with conversation history
             response = await llm_service.query(
@@ -262,7 +273,7 @@ async def stream_llm_response(
                 options["context_documents"] = request.context_documents
 
             # Create stream generator and iterate over it
-            stream_generator = llm_service.stream_query(
+            stream_generator = await llm_service.stream_query(
                 request.prompt,
                 conversation_history=request.conversation_history,
                 options=options,

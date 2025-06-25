@@ -66,6 +66,10 @@ class LLMQueryRequest(BaseModel):
         default="auto",
         description="Tool selection strategy: auto, none, required, or specific function name",
     )
+    complete_tool_flow: bool = Field(
+        default=True,
+        description="If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)",
+    )
 
 
 class LLMUsage(BaseModel):
@@ -181,6 +185,10 @@ class LLMResponse(BaseModel):
     tool_execution_results: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description="Results of executed tool calls",
+    )
+    original_tool_calls: Optional[List[ToolCall]] = Field(
+        default=None,
+        description="Original tool calls from the initial LLM response (for debugging)",
     )
 
 
