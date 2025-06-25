@@ -9,7 +9,14 @@ import time
 import os
 import uuid
 import asyncio
-from typing import Dict, Any, Optional, List, AsyncGenerator
+from typing import Dict, Any, Optional, List, AsyncGenerator, TYPE_CHECKING
+
+# Forward references for repository context models
+if TYPE_CHECKING:
+    from doc_ai_helper_backend.models.repository_context import (
+        RepositoryContext,
+        DocumentMetadata,
+    )
 
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
@@ -63,6 +70,11 @@ class MockLLMService(LLMServiceBase):
         prompt: str,
         conversation_history: Optional[List[MessageItem]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the mock LLM.
@@ -71,6 +83,11 @@ class MockLLMService(LLMServiceBase):
             prompt: The prompt to send
             conversation_history: Previous messages in the conversation
             options: Additional options for the query
+            repository_context: Repository context for system prompt generation (ignored in mock)
+            document_metadata: Document metadata for context (ignored in mock)
+            document_content: Document content to include in system prompt (ignored in mock)
+            system_prompt_template: Template ID for system prompt generation (ignored in mock)
+            include_document_in_system_prompt: Whether to include document content (ignored in mock)
 
         Returns:
             LLMResponse: A mock response
@@ -364,6 +381,11 @@ class MockLLMService(LLMServiceBase):
         prompt: str,
         conversation_history: Optional[List[MessageItem]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the mock LLM.
@@ -372,6 +394,11 @@ class MockLLMService(LLMServiceBase):
             prompt: The prompt to send
             conversation_history: Previous messages in the conversation
             options: Additional options for the query
+            repository_context: Repository context for system prompt generation (ignored in mock)
+            document_metadata: Document metadata for context (ignored in mock)
+            document_content: Document content to include in system prompt (ignored in mock)
+            system_prompt_template: Template ID for system prompt generation (ignored in mock)
+            include_document_in_system_prompt: Whether to include document content (ignored in mock)
 
         Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response

@@ -5,9 +5,13 @@ This module contains Pydantic models for LLM services.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional, Union, Literal
+from typing import Dict, Any, List, Optional, Union, Literal, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
+
+# Forward references for repository context models
+if TYPE_CHECKING:
+    from .repository_context import RepositoryContext, DocumentMetadata
 
 
 class MessageRole(str, Enum):
@@ -69,6 +73,24 @@ class LLMQueryRequest(BaseModel):
     complete_tool_flow: bool = Field(
         default=True,
         description="If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)",
+    )
+
+    # Repository context fields - New functionality for document-aware LLM queries
+    repository_context: Optional["RepositoryContext"] = Field(
+        default=None, description="Repository context from current document view"
+    )
+    document_metadata: Optional["DocumentMetadata"] = Field(
+        default=None, description="Metadata of currently displayed document"
+    )
+    document_content: Optional[str] = Field(
+        default=None, description="Current document content for system prompt inclusion"
+    )
+    include_document_in_system_prompt: bool = Field(
+        default=True, description="Whether to include document content in system prompt"
+    )
+    system_prompt_template: Optional[str] = Field(
+        default="contextual_document_assistant_ja",
+        description="Template ID for system prompt generation",
     )
 
 
@@ -265,3 +287,19 @@ class LLMStreamResponse(BaseModel):
     error: Optional[str] = Field(
         default=None, description="Error message if something went wrong"
     )
+
+
+# Update forward references for repository context models
+def update_forward_refs():
+    """Update forward references after all models are imported."""
+    try:
+        from .repository_context import RepositoryContext, DocumentMetadata
+
+        LLMQueryRequest.model_rebuild()
+    except ImportError:
+        # Repository context models not yet available
+        pass
+
+
+# Call update function to resolve forward references
+update_forward_refs()

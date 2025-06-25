@@ -5,7 +5,14 @@ This module provides the base abstract class for LLM services.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, AsyncGenerator
+from typing import Dict, Any, Optional, List, AsyncGenerator, TYPE_CHECKING
+
+# Forward references for repository context models
+if TYPE_CHECKING:
+    from doc_ai_helper_backend.models.repository_context import (
+        RepositoryContext,
+        DocumentMetadata,
+    )
 
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
@@ -34,6 +41,11 @@ class LLMServiceBase(ABC):
         prompt: str,
         conversation_history: Optional[List[MessageItem]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the LLM.
@@ -42,6 +54,11 @@ class LLMServiceBase(ABC):
             prompt: The prompt to send to the LLM
             conversation_history: Previous messages in the conversation for context
             options: Additional options for the query (model, temperature, etc.)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             LLMResponse: The response from the LLM
@@ -97,6 +114,11 @@ class LLMServiceBase(ABC):
         prompt: str,
         conversation_history: Optional[List[MessageItem]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the LLM.
@@ -105,6 +127,11 @@ class LLMServiceBase(ABC):
             prompt: The prompt to send to the LLM
             conversation_history: Previous messages in the conversation for context
             options: Additional options for the query (model, temperature, etc.)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response
@@ -191,3 +218,36 @@ class LLMServiceBase(ABC):
             LLMResponse: The final response from the LLM after tool execution
         """
         pass
+
+    def build_system_prompt_with_context(
+        self,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        template_id: str = "contextual_document_assistant_ja",
+    ) -> Optional[str]:
+        """
+        Build system prompt with repository and document context.
+
+        This method provides a default implementation that can be overridden
+        by specific LLM service implementations.
+
+        Args:
+            repository_context: Repository context information
+            document_metadata: Document metadata
+            document_content: Document content to include in prompt
+            template_id: Template identifier for prompt generation
+
+        Returns:
+            Generated system prompt or None if context is insufficient
+        """
+        # Default implementation - can be overridden by subclasses
+        if not repository_context:
+            return None
+
+        # Basic template without specialized prompt builder
+        return f"""あなたは {repository_context.owner}/{repository_context.repo} リポジトリを扱うアシスタントです。
+
+現在作業中のリポジトリ: {repository_context.owner}/{repository_context.repo}
+
+GitHubツールを使用する際は、特に指定がない限り自動的に "{repository_context.owner}/{repository_context.repo}" リポジトリを使用してください。"""

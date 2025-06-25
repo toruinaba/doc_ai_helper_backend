@@ -131,11 +131,17 @@ async def query_llm(
                     # Add execution results to response
                     response.tool_execution_results = executed_results
         else:
-            # Send regular query to LLM with conversation history
+            # Send regular query to LLM with conversation history and repository context
             response = await llm_service.query(
                 request.prompt,
                 conversation_history=request.conversation_history,
                 options=options,
+                repository_context=request.repository_context,
+                document_metadata=request.document_metadata,
+                document_content=request.document_content,
+                system_prompt_template=request.system_prompt_template
+                or "contextual_document_assistant_ja",
+                include_document_in_system_prompt=request.include_document_in_system_prompt,
             )
 
         return response
@@ -402,6 +408,12 @@ async def stream_llm_response(
                     request.prompt,
                     conversation_history=request.conversation_history,
                     options=options,
+                    repository_context=request.repository_context,
+                    document_metadata=request.document_metadata,
+                    document_content=request.document_content,
+                    system_prompt_template=request.system_prompt_template
+                    or "contextual_document_assistant_ja",
+                    include_document_in_system_prompt=request.include_document_in_system_prompt,
                 ):
                     # Send each chunk as an SSE event
                     yield json.dumps({"text": text_chunk})

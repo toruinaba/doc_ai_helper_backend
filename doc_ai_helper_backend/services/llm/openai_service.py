@@ -7,12 +7,19 @@ It can be used with OpenAI directly or with a LiteLLM proxy server.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Tuple, AsyncGenerator
+from typing import Dict, Any, Optional, List, Tuple, AsyncGenerator, TYPE_CHECKING
 import json
 
 import tiktoken
 from openai import OpenAI, AsyncOpenAI
 from openai.types.chat import ChatCompletion
+
+# Forward references for repository context models
+if TYPE_CHECKING:
+    from doc_ai_helper_backend.models.repository_context import (
+        RepositoryContext,
+        DocumentMetadata,
+    )
 
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
@@ -76,6 +83,13 @@ class OpenAIService(LLMServiceBase):
         # Initialize cache service
         self.cache_service = LLMCacheService()
 
+        # Initialize system prompt builder
+        from doc_ai_helper_backend.services.llm.system_prompt_builder import (
+            JapaneseSystemPromptBuilder,
+        )
+
+        self.system_prompt_builder = JapaneseSystemPromptBuilder()
+
         # Initialize OpenAI clients
         client_params = {"api_key": api_key}
         if base_url:
@@ -116,6 +130,11 @@ class OpenAIService(LLMServiceBase):
         prompt: str,
         conversation_history: Optional[List["MessageItem"]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
         Send a query to the LLM.
@@ -124,14 +143,45 @@ class OpenAIService(LLMServiceBase):
             prompt: The prompt to send to the LLM
             conversation_history: Previous messages in the conversation
             options: Additional options for the query (model, temperature, etc.)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             LLMResponse: The response from the LLM
         """
         options = options or {}
 
+        # Generate system prompt with context if repository context is provided
+        system_prompt = None
+        if repository_context and include_document_in_system_prompt:
+            try:
+                system_prompt = self.system_prompt_builder.build_system_prompt(
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                    template_id=system_prompt_template,
+                )
+                logger.info(
+                    f"Generated system prompt with template: {system_prompt_template}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to generate system prompt: {e}, falling back to base implementation"
+                )
+                system_prompt = self.build_system_prompt_with_context(
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                    template_id=system_prompt_template,
+                )
+
         # Prepare query options
-        query_options = self._prepare_options(prompt, options, conversation_history)
+        query_options = self._prepare_options(
+            prompt, options, conversation_history, system_prompt=system_prompt
+        )
         model = query_options.get("model", self.default_model)
 
         # Check if cache should be bypassed
@@ -259,6 +309,7 @@ class OpenAIService(LLMServiceBase):
         prompt: str,
         options: Dict[str, Any],
         conversation_history: Optional[List["MessageItem"]] = None,
+        system_prompt: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare options for the OpenAI API call.
@@ -267,6 +318,7 @@ class OpenAIService(LLMServiceBase):
             prompt: The prompt text
             options: User-provided options
             conversation_history: Previous messages in the conversation
+            system_prompt: System prompt to include as first message
 
         Returns:
             Dict[str, Any]: Prepared options for the API call
@@ -285,24 +337,25 @@ class OpenAIService(LLMServiceBase):
                 f"Using provided messages ({len(options['messages'])} messages)"
             )
         else:
+            messages = []
+
+            # Add system prompt as first message if provided
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+                logger.info("Added system prompt to messages")
+
             # If conversation history exists, format it for OpenAI
             if conversation_history:
-                messages = format_conversation_for_provider(
+                history_messages = format_conversation_for_provider(
                     conversation_history, provider="openai"
                 )
-                # Add current prompt as the latest user message (only if prompt is not empty)
-                if prompt.strip():
-                    messages.append({"role": "user", "content": prompt})
-                prepared_options["messages"] = messages
-            else:
-                # No conversation history, just use the prompt (only if prompt is not empty)
-                if prompt.strip():
-                    prepared_options["messages"] = [{"role": "user", "content": prompt}]
-                else:
-                    # No prompt and no conversation history - this might be an error
-                    logger.warning(
-                        "Empty prompt and no conversation history provided"
-                    )  # If a model was specified, use it
+                messages.extend(history_messages)
+
+            # Add current prompt as the latest user message (only if prompt is not empty)
+            if prompt.strip():
+                messages.append({"role": "user", "content": prompt})
+
+            prepared_options["messages"] = messages  # If a model was specified, use it
         if "model" in options:
             prepared_options["model"] = options["model"]
 
@@ -531,6 +584,11 @@ class OpenAIService(LLMServiceBase):
         prompt: str,
         conversation_history: Optional[List["MessageItem"]] = None,
         options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a query to the LLM.
@@ -539,12 +597,44 @@ class OpenAIService(LLMServiceBase):
             prompt: The prompt to send to the LLM
             conversation_history: Previous messages in the conversation
             options: Additional options for the query (model, temperature, etc.)
+            repository_context: Repository context for system prompt generation
+            document_metadata: Document metadata for context
+            document_content: Document content to include in system prompt
+            system_prompt_template: Template ID for system prompt generation
+            include_document_in_system_prompt: Whether to include document content
 
         Returns:
             AsyncGenerator[str, None]: An async generator that yields chunks of the response
         """
         options = options or {}
-        query_options = self._prepare_options(prompt, options, conversation_history)
+
+        # Generate system prompt with context if repository context is provided
+        system_prompt = None
+        if repository_context and include_document_in_system_prompt:
+            try:
+                system_prompt = self.system_prompt_builder.build_system_prompt(
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                    template_id=system_prompt_template,
+                )
+                logger.info(
+                    f"Generated system prompt with template: {system_prompt_template}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to generate system prompt: {e}, falling back to base implementation"
+                )
+                system_prompt = self.build_system_prompt_with_context(
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content,
+                    template_id=system_prompt_template,
+                )
+
+        query_options = self._prepare_options(
+            prompt, options, conversation_history, system_prompt=system_prompt
+        )
         model = query_options.get("model", self.default_model)
 
         try:
