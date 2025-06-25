@@ -245,7 +245,7 @@ async def stream_llm_response(
     llm_service: LLMServiceBase = Depends(get_llm_service),
 ):
     """
-    Stream a response from an LLM.
+    Stream a response from an LLM with optional Function Calling support.
 
     Args:
         request: The query request containing prompt and options
@@ -263,33 +263,156 @@ async def stream_llm_response(
         )
 
     async def event_generator():
-        try:  # Prepare options
+        try:
+            # Prepare options
             options = request.options or {}
             if request.model:
-                options["model"] = (
-                    request.model
-                )  # Process context documents if provided
+                options["model"] = request.model
+
+            # Set cache control flag
+            if request.disable_cache:
+                options["disable_cache"] = True
+
+            # Process context documents if provided
             if request.context_documents:
                 options["context_documents"] = request.context_documents
 
-            # Create stream generator and iterate over it
-            stream_generator = await llm_service.stream_query(
-                request.prompt,
-                conversation_history=request.conversation_history,
-                options=options,
-            )
+            # Check if tools/function calling is enabled
+            if request.enable_tools:
+                # Get available tools from the LLM service
+                available_tools = await llm_service.get_available_functions()
 
-            async for text_chunk in stream_generator:
-                # Send each chunk as an SSE event
-                yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+                # Convert tool_choice string to ToolChoice object
+                tool_choice = None
+                if request.tool_choice:
+                    from doc_ai_helper_backend.models.llm import ToolChoice
+
+                    if request.tool_choice in ["auto", "none", "required"]:
+                        tool_choice = ToolChoice(type=request.tool_choice)  # type: ignore
+                    else:
+                        # Assume it's a specific function name
+                        tool_choice = ToolChoice(
+                            type="required", function=request.tool_choice
+                        )
+
+                # For streaming with Function Calling, we need to handle it differently
+                if request.complete_tool_flow:
+                    # Use complete flow with streaming
+                    yield json.dumps(
+                        {
+                            "status": "tools_processing",
+                            "message": "Analyzing request and selecting tools...",
+                        }
+                    )
+
+                    # Execute tools first, then stream the final response
+                    response = await llm_service.query_with_tools_and_followup(
+                        prompt=request.prompt,
+                        tools=available_tools,
+                        conversation_history=request.conversation_history,
+                        tool_choice=tool_choice,
+                        options=options,
+                    )
+
+                    # Stream the final response content
+                    if hasattr(response, "content") and response.content:
+                        # Send tool execution info
+                        if (
+                            hasattr(response, "tool_execution_results")
+                            and response.tool_execution_results
+                        ):
+                            tool_info = {
+                                "tools_executed": len(response.tool_execution_results),
+                                "tool_names": [
+                                    r.get("function_name", "unknown")
+                                    for r in response.tool_execution_results
+                                ],
+                            }
+                            yield json.dumps(
+                                {"status": "tools_completed", "tool_info": tool_info}
+                            )
+
+                        # Stream the content word by word for a smooth experience
+                        words = response.content.split()
+                        for i, word in enumerate(words):
+                            chunk = word + (" " if i < len(words) - 1 else "")
+                            yield json.dumps({"text": chunk})
+                            # Small delay for smooth streaming effect
+                            import asyncio
+
+                            await asyncio.sleep(0.02)
+
+                else:
+                    # Legacy flow - execute tools and return results
+                    yield json.dumps(
+                        {"status": "tools_processing", "message": "Executing tools..."}
+                    )
+
+                    response = await llm_service.query_with_tools(
+                        prompt=request.prompt,
+                        tools=available_tools,
+                        conversation_history=request.conversation_history,
+                        tool_choice=tool_choice,
+                        options=options,
+                    )
+
+                    # Execute function calls if present
+                    if response.tool_calls:
+                        executed_results = []
+                        for tool_call in response.tool_calls:
+                            try:
+                                result = await llm_service.execute_function_call(
+                                    tool_call.function,
+                                    {func.name: func for func in available_tools},
+                                )
+                                executed_results.append(
+                                    {
+                                        "tool_call_id": tool_call.id,
+                                        "function_name": tool_call.function.name,
+                                        "result": result,
+                                    }
+                                )
+                                # Send progress update
+                                yield json.dumps(
+                                    {
+                                        "status": "tool_executed",
+                                        "tool_name": tool_call.function.name,
+                                    }
+                                )
+                            except Exception as e:
+                                executed_results.append(
+                                    {
+                                        "tool_call_id": tool_call.id,
+                                        "function_name": tool_call.function.name,
+                                        "error": str(e),
+                                    }
+                                )
+
+                        # Send tool execution results
+                        yield json.dumps({"tool_execution_results": executed_results})
+
+                    # Send any content from the initial response
+                    if hasattr(response, "content") and response.content:
+                        yield json.dumps({"text": response.content})
+
+            else:
+                # Regular streaming without tools
+                # stream_queryメソッドを呼び出してAsyncGeneratorを取得
+                async for text_chunk in llm_service.stream_query(
+                    request.prompt,
+                    conversation_history=request.conversation_history,
+                    options=options,
+                ):
+                    # Send each chunk as an SSE event
+                    yield json.dumps({"text": text_chunk})
 
             # Signal completion
-            yield f"data: {json.dumps({'done': True})}\n\n"
+            yield json.dumps({"done": True})
 
         except Exception as e:
             # Send error as an event
             error_msg = str(e)
-            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+            yield json.dumps({"error": error_msg})
 
     # Return an SSE response
     return EventSourceResponse(event_generator())
