@@ -692,10 +692,32 @@ class OpenAIService(LLMServiceBase):
             conversation_history: Previous messages in the conversation for context
             tool_choice: Strategy for tool selection
             options: Additional options for the query
+            repository_context: Repository context for secure tools
+            document_metadata: Document metadata for context
+            document_content: Document content for context
+            system_prompt_template: Template ID for system prompt
+            include_document_in_system_prompt: Whether to include document in system prompt
 
         Returns:
             LLMResponse: The response from the LLM, potentially including tool calls
-        """  # Prepare options with function definitions
+        """
+        # Set repository context for MCP adapter if available
+        if self._mcp_adapter and repository_context:
+            # Convert RepositoryContext to dict for MCP adapter
+            repo_context_dict = {
+                "service": repository_context.service,
+                "owner": repository_context.owner,
+                "repo": repository_context.repo,
+                "ref": repository_context.ref,
+                "current_path": repository_context.current_path,
+                "base_url": repository_context.base_url,
+            }
+            self._mcp_adapter.set_repository_context(repo_context_dict)
+            logger.info(
+                f"Repository context set for secure tools: {repository_context.repository_full_name}"
+            )
+
+        # Prepare options with function definitions
         query_options = options or {}
 
         # Convert function definitions to tools format

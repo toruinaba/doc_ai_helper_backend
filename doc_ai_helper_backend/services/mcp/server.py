@@ -164,62 +164,52 @@ class DocumentAIHelperMCPServer:
         logger.info("Analysis tools registered with FastMCP")
 
     def _register_github_tools(self):
-        """Register GitHub integration tools using FastMCP decorators."""
+        """Register secure GitHub integration tools using FastMCP decorators."""
         from .tools.github_tools import (
             create_github_issue,
             create_github_pull_request,
-            check_github_repository_permissions,
         )
 
         @self.app.tool("create_github_issue")
         async def create_issue_tool(
-            repository: str,
             title: str,
             description: str,
             labels: Optional[List[str]] = None,
             assignees: Optional[List[str]] = None,
             github_token: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub issue."""
+            """Create a new GitHub issue in the current repository context."""
+            # Get repository context from current session
+            repository_context = getattr(self, "_current_repository_context", None)
+
             return await create_github_issue(
-                repository=repository,
                 title=title,
                 description=description,
                 labels=labels,
                 assignees=assignees,
                 github_token=github_token,
+                repository_context=repository_context,
             )
 
         @self.app.tool("create_github_pull_request")
         async def create_pr_tool(
-            repository: str,
             title: str,
             description: str,
-            file_path: str,
-            file_content: str,
-            branch_name: Optional[str] = None,
+            head_branch: str,
             base_branch: str = "main",
             github_token: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub pull request."""
+            """Create a new GitHub pull request in the current repository context."""
+            # Get repository context from current session
+            repository_context = getattr(self, "_current_repository_context", None)
+
             return await create_github_pull_request(
-                repository=repository,
                 title=title,
                 description=description,
-                file_path=file_path,
-                file_content=file_content,
-                branch_name=branch_name,
+                head_branch=head_branch,
                 base_branch=base_branch,
                 github_token=github_token,
-            )
-
-        @self.app.tool("check_github_repository_permissions")
-        async def check_permissions_tool(
-            repository: str, github_token: Optional[str] = None
-        ) -> str:
-            """Check permissions for a GitHub repository."""
-            return await check_github_repository_permissions(
-                repository=repository, github_token=github_token
+                repository_context=repository_context,
             )
 
         logger.info("GitHub tools registered with FastMCP")
@@ -262,6 +252,21 @@ class DocumentAIHelperMCPServer:
             return await calculate_simple_math(expression=expression)
 
         logger.info("Utility tools registered with FastMCP")
+
+    def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
+        """
+        Set the current repository context for secure tools.
+
+        Args:
+            repository_context: Repository context from LLM request
+        """
+        self._current_repository_context = repository_context
+        if repository_context:
+            owner = repository_context.get("owner")
+            repo = repository_context.get("repo")
+            logger.info(f"Repository context set: {owner}/{repo}")
+        else:
+            logger.info("Repository context cleared")
 
     async def list_tools_async(self) -> List[Dict[str, Any]]:
         """List all available tools asynchronously."""

@@ -297,10 +297,6 @@ class MCPFunctionAdapter:
                 return {
                     "type": "object",
                     "properties": {
-                        "repository": {
-                            "type": "string",
-                            "description": "Repository in 'owner/repo' format",
-                        },
                         "title": {
                             "type": "string",
                             "description": "Issue title",
@@ -324,16 +320,12 @@ class MCPFunctionAdapter:
                             "description": "GitHub Personal Access Token (optional)",
                         },
                     },
-                    "required": ["repository", "title", "description"],
+                    "required": ["title", "description"],
                 }
             elif tool_name == "create_github_pull_request":
                 return {
                     "type": "object",
                     "properties": {
-                        "repository": {
-                            "type": "string",
-                            "description": "Repository in 'owner/repo' format",
-                        },
                         "title": {
                             "type": "string",
                             "description": "Pull request title",
@@ -342,17 +334,9 @@ class MCPFunctionAdapter:
                             "type": "string",
                             "description": "Pull request description",
                         },
-                        "file_path": {
+                        "head_branch": {
                             "type": "string",
-                            "description": "Path to the file to modify",
-                        },
-                        "file_content": {
-                            "type": "string",
-                            "description": "New content for the file",
-                        },
-                        "branch_name": {
-                            "type": "string",
-                            "description": "Branch name (optional)",
+                            "description": "Source branch name",
                         },
                         "base_branch": {
                             "type": "string",
@@ -364,13 +348,7 @@ class MCPFunctionAdapter:
                             "description": "GitHub Personal Access Token (optional)",
                         },
                     },
-                    "required": [
-                        "repository",
-                        "title",
-                        "description",
-                        "file_path",
-                        "file_content",
-                    ],
+                    "required": ["title", "description", "head_branch"],
                 }
             elif tool_name == "check_github_repository_permissions":
                 return {
@@ -386,6 +364,35 @@ class MCPFunctionAdapter:
                         },
                     },
                     "required": ["repository"],
+                }
+            elif tool_name == "create_github_issue_secure":
+                return {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Issue title",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Issue description/body",
+                        },
+                        "labels": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of label names (optional)",
+                        },
+                        "assignees": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of GitHub usernames to assign (optional)",
+                        },
+                        "github_token": {
+                            "type": "string",
+                            "description": "GitHub Personal Access Token (optional)",
+                        },
+                    },
+                    "required": ["title", "description"],
                 }
 
         # ユーティリティツール
@@ -533,3 +540,16 @@ class MCPFunctionAdapter:
         """
         await self._ensure_tools_registered()
         return self.function_registry.get_all_function_definitions()
+
+    def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
+        """
+        Set repository context for secure tools.
+
+        Args:
+            repository_context: Repository context dictionary
+        """
+        if hasattr(self.mcp_server, "set_repository_context"):
+            self.mcp_server.set_repository_context(repository_context)
+            logger.info("Repository context updated in MCP server")
+        else:
+            logger.warning("MCP server does not support repository context setting")
