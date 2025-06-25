@@ -5,7 +5,7 @@ This module contains Pydantic models for repository and document context
 used in LLM queries with document-aware functionality.
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -57,7 +57,8 @@ class RepositoryContext(BaseModel):
         default=None, description="Base URL for the repository"
     )
 
-    @validator("owner", "repo")
+    @field_validator("owner", "repo")
+    @classmethod
     def validate_name_format(cls, v):
         """Validate owner and repo name format."""
         if not v or not isinstance(v, str):
@@ -71,7 +72,8 @@ class RepositoryContext(BaseModel):
 
         return v
 
-    @validator("current_path")
+    @field_validator("current_path")
+    @classmethod
     def validate_path_format(cls, v):
         """Validate path format."""
         if v is not None:
@@ -146,7 +148,8 @@ class DocumentMetadata(BaseModel):
         default=None, description="Primary language of the document (ja, en, etc.)"
     )
 
-    @validator("type", pre=True)
+    @field_validator("type", mode="before")
+    @classmethod
     def normalize_document_type(cls, v):
         """Normalize document type from file extension or content type."""
         if isinstance(v, str):
