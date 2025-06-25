@@ -448,6 +448,433 @@ class DocumentAIHelperMCPServer:
             logger.warning(f"Failed to get available tools: {e}")
             return []
 
+    async def get_tools_info_async(self) -> List[Dict[str, Any]]:
+        """Get detailed information about all available tools."""
+        try:
+            # Get tools from FastMCP
+            tools = await self.app.get_tools()
+
+            tools_info = []
+            for tool_name, tool_func in tools.items():
+                tool_info = {
+                    "name": tool_name,
+                    "description": self._get_tool_description(tool_name),
+                    "parameters": self._get_tool_parameters(tool_name),
+                    "category": self._get_tool_category(tool_name),
+                    "enabled": True,
+                }
+                tools_info.append(tool_info)
+
+            return tools_info
+        except Exception as e:
+            logger.error(f"Error getting tools info: {e}")
+            return []
+
+    def _get_tool_description(self, tool_name: str) -> Optional[str]:
+        """Get description for a tool."""
+        descriptions = {
+            # Document tools
+            "analyze_document_structure": "Analyze the structure and organization of a document",
+            "extract_document_keywords": "Extract keywords and key phrases from document content",
+            "check_document_links": "Check and validate links within a document",
+            "summarize_document_sections": "Generate summaries for different sections of a document",
+            # Feedback tools
+            "collect_user_feedback": "Collect and store user feedback about documents or features",
+            "generate_feedback_from_conversation": "Generate structured feedback based on conversation history",
+            "create_improvement_proposal": "Create improvement proposals based on feedback data",
+            "analyze_conversation_patterns": "Analyze patterns and themes in conversation history",
+            # Analysis tools
+            "analyze_document_quality": "Analyze document quality against various criteria",
+            "extract_document_topics": "Extract main topics and themes from document content",
+            "check_document_completeness": "Check document completeness against specified criteria",
+            # GitHub tools
+            "create_github_issue": "Create a new GitHub issue in a repository",
+            "create_github_pull_request": "Create a new pull request in a GitHub repository",
+            "check_github_repository_permissions": "Check permissions for a GitHub repository",
+            # Utility tools
+            "get_current_time": "Get current date and time in specified format",
+            "count_text_characters": "Count characters, words, and lines in text",
+            "validate_email_format": "Validate email address format",
+            "generate_random_data": "Generate random data for testing purposes",
+        }
+        return descriptions.get(tool_name)
+
+    def _get_tool_parameters(self, tool_name: str) -> List[Dict[str, Any]]:
+        """Get parameters for a tool."""
+        parameters_map = {
+            # Document tools
+            "analyze_document_structure": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Content of the document to analyze",
+                },
+                {
+                    "name": "analysis_type",
+                    "type": "str",
+                    "required": False,
+                    "default": "basic",
+                    "description": "Type of analysis to perform",
+                },
+            ],
+            "extract_document_keywords": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Content to extract keywords from",
+                },
+                {
+                    "name": "keyword_count",
+                    "type": "int",
+                    "required": False,
+                    "default": 10,
+                    "description": "Maximum number of keywords to extract",
+                },
+            ],
+            "check_document_links": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Document content to check links in",
+                },
+                {
+                    "name": "base_url",
+                    "type": "str",
+                    "required": False,
+                    "description": "Base URL for relative link checking",
+                },
+            ],
+            "summarize_document_sections": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Content to summarize",
+                },
+                {
+                    "name": "section_type",
+                    "type": "str",
+                    "required": False,
+                    "default": "auto",
+                    "description": "Type of sections to identify",
+                },
+            ],
+            # Feedback tools
+            "collect_user_feedback": [
+                {
+                    "name": "feedback_text",
+                    "type": "str",
+                    "required": True,
+                    "description": "User feedback text",
+                },
+                {
+                    "name": "feedback_type",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "Type of feedback",
+                },
+                {
+                    "name": "rating",
+                    "type": "int",
+                    "required": False,
+                    "description": "Numerical rating if applicable",
+                },
+            ],
+            "generate_feedback_from_conversation": [
+                {
+                    "name": "conversation_history",
+                    "type": "List[Dict[str, Any]]",
+                    "required": True,
+                    "description": "Conversation history to analyze",
+                },
+                {
+                    "name": "feedback_type",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "Type of feedback to generate",
+                },
+            ],
+            "create_improvement_proposal": [
+                {
+                    "name": "current_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Current content to improve",
+                },
+                {
+                    "name": "feedback_data",
+                    "type": "Dict[str, Any]",
+                    "required": True,
+                    "description": "Feedback data for improvement",
+                },
+            ],
+            "analyze_conversation_patterns": [
+                {
+                    "name": "conversation_history",
+                    "type": "List[Dict[str, Any]]",
+                    "required": True,
+                    "description": "Conversation history to analyze",
+                },
+                {
+                    "name": "analysis_depth",
+                    "type": "str",
+                    "required": False,
+                    "default": "basic",
+                    "description": "Depth of pattern analysis",
+                },
+            ],
+            # Analysis tools
+            "analyze_document_quality": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Document content to analyze",
+                },
+                {
+                    "name": "quality_criteria",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "Quality criteria to apply",
+                },
+            ],
+            "extract_document_topics": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Document content to extract topics from",
+                },
+                {
+                    "name": "topic_count",
+                    "type": "int",
+                    "required": False,
+                    "default": 5,
+                    "description": "Number of topics to extract",
+                },
+            ],
+            "check_document_completeness": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "Document content to check",
+                },
+                {
+                    "name": "completeness_criteria",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "Completeness criteria to apply",
+                },
+            ],
+            # GitHub tools
+            "create_github_issue": [
+                {
+                    "name": "repository",
+                    "type": "str",
+                    "required": True,
+                    "description": "Repository in format 'owner/repo'",
+                },
+                {
+                    "name": "title",
+                    "type": "str",
+                    "required": True,
+                    "description": "Issue title",
+                },
+                {
+                    "name": "description",
+                    "type": "str",
+                    "required": True,
+                    "description": "Issue description",
+                },
+                {
+                    "name": "labels",
+                    "type": "List[str]",
+                    "required": False,
+                    "description": "Labels to apply to the issue",
+                },
+                {
+                    "name": "assignees",
+                    "type": "List[str]",
+                    "required": False,
+                    "description": "Users to assign to the issue",
+                },
+                {
+                    "name": "github_token",
+                    "type": "str",
+                    "required": False,
+                    "description": "GitHub access token",
+                },
+            ],
+            "create_github_pull_request": [
+                {
+                    "name": "repository",
+                    "type": "str",
+                    "required": True,
+                    "description": "Repository in format 'owner/repo'",
+                },
+                {
+                    "name": "title",
+                    "type": "str",
+                    "required": True,
+                    "description": "Pull request title",
+                },
+                {
+                    "name": "description",
+                    "type": "str",
+                    "required": True,
+                    "description": "Pull request description",
+                },
+                {
+                    "name": "file_path",
+                    "type": "str",
+                    "required": True,
+                    "description": "Path to the file to modify",
+                },
+                {
+                    "name": "file_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "New file content",
+                },
+                {
+                    "name": "branch_name",
+                    "type": "str",
+                    "required": False,
+                    "description": "Branch name for the PR",
+                },
+                {
+                    "name": "base_branch",
+                    "type": "str",
+                    "required": False,
+                    "default": "main",
+                    "description": "Base branch for the PR",
+                },
+                {
+                    "name": "github_token",
+                    "type": "str",
+                    "required": False,
+                    "description": "GitHub access token",
+                },
+            ],
+            "check_github_repository_permissions": [
+                {
+                    "name": "repository",
+                    "type": "str",
+                    "required": True,
+                    "description": "Repository in format 'owner/repo'",
+                },
+                {
+                    "name": "github_token",
+                    "type": "str",
+                    "required": False,
+                    "description": "GitHub access token",
+                },
+            ],
+            # Utility tools
+            "get_current_time": [
+                {
+                    "name": "format",
+                    "type": "str",
+                    "required": False,
+                    "default": "iso",
+                    "description": "Time format (iso, readable, timestamp)",
+                },
+                {
+                    "name": "timezone",
+                    "type": "str",
+                    "required": False,
+                    "description": "Timezone for the time",
+                },
+            ],
+            "count_text_characters": [
+                {
+                    "name": "text",
+                    "type": "str",
+                    "required": True,
+                    "description": "Text to count characters in",
+                }
+            ],
+            "validate_email_format": [
+                {
+                    "name": "email",
+                    "type": "str",
+                    "required": True,
+                    "description": "Email address to validate",
+                }
+            ],
+            "generate_random_data": [
+                {
+                    "name": "data_type",
+                    "type": "str",
+                    "required": True,
+                    "description": "Type of random data to generate",
+                },
+                {
+                    "name": "count",
+                    "type": "int",
+                    "required": False,
+                    "default": 1,
+                    "description": "Number of items to generate",
+                },
+                {
+                    "name": "options",
+                    "type": "Dict[str, Any]",
+                    "required": False,
+                    "description": "Additional options for data generation",
+                },
+            ],
+        }
+        return parameters_map.get(tool_name, [])
+
+    def _get_tool_category(self, tool_name: str) -> str:
+        """Get category for a tool."""
+        if (
+            tool_name.startswith("analyze_document")
+            or tool_name.startswith("extract_document")
+            or tool_name.startswith("check_document")
+            or tool_name.startswith("summarize_document")
+        ):
+            return "document"
+        elif (
+            "feedback" in tool_name
+            or "conversation" in tool_name
+            or "improvement" in tool_name
+        ):
+            return "feedback"
+        elif (
+            tool_name.startswith("analyze_")
+            or tool_name.startswith("extract_")
+            or tool_name.startswith("check_")
+        ):
+            return "analysis"
+        elif "github" in tool_name:
+            return "github"
+        else:
+            return "utility"
+
+    async def get_server_info_async(self) -> Dict[str, Any]:
+        """Get MCP server information."""
+        return {
+            "name": self.config.server_name,
+            "version": "1.0.0",
+            "description": "Document AI Helper MCP Server",
+            "enabled_features": {
+                "document_tools": self.config.enable_document_tools,
+                "feedback_tools": self.config.enable_feedback_tools,
+                "analysis_tools": self.config.enable_analysis_tools,
+                "github_tools": self.config.enable_github_tools,
+                "utility_tools": self.config.enable_utility_tools,
+            },
+        }
+
 
 # Global server instance
 mcp_server = DocumentAIHelperMCPServer()
@@ -461,6 +888,16 @@ def get_mcp_server() -> DocumentAIHelperMCPServer:
 async def get_available_tools() -> List[str]:
     """Get available tools from the MCP server."""
     return await mcp_server.get_available_tools_async()
+
+
+async def get_tools_info() -> List[Dict[str, Any]]:
+    """Get detailed information about available tools from the MCP server."""
+    return await mcp_server.get_tools_info_async()
+
+
+async def get_server_info() -> Dict[str, Any]:
+    """Get MCP server information."""
+    return await mcp_server.get_server_info_async()
 
 
 async def call_mcp_tool(tool_name: str, **kwargs) -> Any:

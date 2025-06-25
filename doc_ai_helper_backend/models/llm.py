@@ -289,6 +289,47 @@ class LLMStreamResponse(BaseModel):
     )
 
 
+class ToolParameter(BaseModel):
+    """
+    Parameter definition for an MCP tool.
+    """
+
+    name: str = Field(..., description="Parameter name")
+    type: str = Field(..., description="Parameter type")
+    description: Optional[str] = Field(None, description="Parameter description")
+    required: bool = Field(False, description="Whether the parameter is required")
+    default: Optional[Any] = Field(None, description="Default value if any")
+
+
+class MCPToolInfo(BaseModel):
+    """
+    Information about an MCP tool.
+    """
+
+    name: str = Field(..., description="Tool name")
+    description: Optional[str] = Field(None, description="Tool description")
+    parameters: List[ToolParameter] = Field(
+        default_factory=list, description="Tool parameters"
+    )
+    category: Optional[str] = Field(
+        None, description="Tool category (document, feedback, analysis, etc.)"
+    )
+    enabled: bool = Field(True, description="Whether the tool is enabled")
+
+
+class MCPToolsResponse(BaseModel):
+    """
+    Response model for MCP tools list.
+    """
+
+    tools: List[MCPToolInfo] = Field(..., description="List of available MCP tools")
+    total_count: int = Field(..., description="Total number of available tools")
+    categories: List[str] = Field(..., description="Available tool categories")
+    server_info: Dict[str, Any] = Field(
+        default_factory=dict, description="MCP server information"
+    )
+
+
 # Update forward references for repository context models
 def update_forward_refs():
     """Update forward references after all models are imported."""

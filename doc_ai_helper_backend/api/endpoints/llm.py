@@ -15,6 +15,9 @@ from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     PromptTemplate,
     LLMStreamChunk,
+    MCPToolsResponse,
+    MCPToolInfo,
+    ToolParameter,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.core.exceptions import (
@@ -440,3 +443,127 @@ async def stream_llm_response(
 
     # Return an SSE response
     return EventSourceResponse(event_generator())
+
+
+@router.get(
+    "/tools",
+    response_model=MCPToolsResponse,
+    summary="Get available MCP tools",
+    description="Get a list of all available MCP tools with their descriptions and parameters",
+)
+async def get_mcp_tools():
+    """
+    Get information about all available MCP tools.
+
+    Returns:
+        MCPToolsResponse: Information about available tools
+    """
+    try:
+        from doc_ai_helper_backend.services.mcp.server import (
+            get_tools_info,
+            get_server_info,
+        )
+
+        # Get detailed tool information
+        tools_info = await get_tools_info()
+        server_info = await get_server_info()
+
+        # Convert to MCPToolInfo objects
+        mcp_tools = []
+        categories = set()
+
+        for tool_info in tools_info:
+            # Convert parameters
+            parameters = [
+                ToolParameter(
+                    name=param["name"],
+                    type=param["type"],
+                    description=param.get("description", ""),
+                    required=param.get("required", False),
+                    default=param.get("default"),
+                )
+                for param in tool_info.get("parameters", [])
+            ]
+
+            # Create MCPToolInfo
+            mcp_tool = MCPToolInfo(
+                name=tool_info["name"],
+                description=tool_info.get("description"),
+                parameters=parameters,
+                category=tool_info.get("category", "other"),
+                enabled=tool_info.get("enabled", True),
+            )
+
+            mcp_tools.append(mcp_tool)
+            categories.add(tool_info.get("category", "other"))
+
+        return MCPToolsResponse(
+            tools=mcp_tools,
+            total_count=len(mcp_tools),
+            categories=sorted(list(categories)),
+            server_info=server_info,
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting MCP tools: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get MCP tools: {str(e)}"
+        )
+
+
+@router.get(
+    "/tools/{tool_name}",
+    response_model=MCPToolInfo,
+    summary="Get specific MCP tool information",
+    description="Get detailed information about a specific MCP tool",
+)
+async def get_mcp_tool(
+    tool_name: str = Path(..., description="Name of the tool to get information about")
+):
+    """
+    Get information about a specific MCP tool.
+
+    Args:
+        tool_name: Name of the tool
+
+    Returns:
+        MCPToolInfo: Information about the specified tool
+    """
+    try:
+        from doc_ai_helper_backend.services.mcp.server import get_tools_info
+
+        tools_info = await get_tools_info()
+
+        # Find the specific tool
+        tool_info = next(
+            (tool for tool in tools_info if tool["name"] == tool_name), None
+        )
+
+        if not tool_info:
+            raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+
+        # Convert parameters
+        parameters = [
+            ToolParameter(
+                name=param["name"],
+                type=param["type"],
+                description=param.get("description", ""),
+                required=param.get("required", False),
+                default=param.get("default"),
+            )
+            for param in tool_info.get("parameters", [])
+        ]
+
+        return MCPToolInfo(
+            name=tool_info["name"],
+            description=tool_info.get("description"),
+            parameters=parameters,
+            category=tool_info.get("category", "other"),
+            enabled=tool_info.get("enabled", True),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting MCP tool '{tool_name}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get MCP tool: {str(e)}")
