@@ -493,9 +493,9 @@ class DocumentAIHelperMCPServer:
             "extract_document_topics": "Extract main topics and themes from document content",
             "check_document_completeness": "Check document completeness against specified criteria",
             # GitHub tools
-            "create_github_issue": "Create a new GitHub issue in a repository",
-            "create_github_pull_request": "Create a new pull request in a GitHub repository",
-            "check_github_repository_permissions": "Check permissions for a GitHub repository",
+            "create_github_issue": "現在表示中のドキュメントのリポジトリにGitHub Issueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
+            "create_github_pull_request": "現在表示中のドキュメントのリポジトリにGitHubプルリクエストを作成します。コード変更、ドキュメント更新などの提案に使用できます。",
+            "check_github_repository_permissions": "現在表示中のドキュメントのGitHubリポジトリの権限を確認します。読み取り、書き込み、Issue作成などの権限状況を確認できます。",
             # Utility tools
             "get_current_time": "Get current date and time in specified format",
             "count_text_characters": "Count characters, words, and lines in text",
@@ -682,40 +682,34 @@ class DocumentAIHelperMCPServer:
             # GitHub tools
             "create_github_issue": [
                 {
-                    "name": "repository",
-                    "type": "str",
-                    "required": True,
-                    "description": "Repository in format 'owner/repo'",
-                },
-                {
                     "name": "title",
                     "type": "str",
                     "required": True,
-                    "description": "Issue title",
+                    "description": "Issueのタイトル（簡潔で分かりやすい日本語で記述）",
                 },
                 {
                     "name": "description",
                     "type": "str",
                     "required": True,
-                    "description": "Issue description",
+                    "description": "Issueの詳細説明（問題の内容、再現手順、期待される結果などを日本語で記述）",
                 },
                 {
                     "name": "labels",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Labels to apply to the issue",
+                    "description": "Issueに適用するラベルのリスト（例：['バグ', '改善提案', 'ドキュメント']）",
                 },
                 {
                     "name": "assignees",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Users to assign to the issue",
+                    "description": "Issueを担当するGitHubユーザー名のリスト",
                 },
                 {
                     "name": "github_token",
                     "type": "str",
                     "required": False,
-                    "description": "GitHub access token",
+                    "description": "GitHub Personal Access Token（オプション、環境変数から自動取得）",
                 },
             ],
             "create_github_pull_request": [

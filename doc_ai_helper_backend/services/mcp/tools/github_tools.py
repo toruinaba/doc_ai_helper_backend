@@ -64,22 +64,24 @@ async def create_github_issue(
     repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
-    Create a new issue in the current repository context.
+    現在のリポジトリコンテキストに新しいGitHub Issueを作成します。
 
     Args:
-        title: Issue title
-        description: Issue description/body
-        labels: List of label names to apply (optional)
-        assignees: List of GitHub usernames to assign (optional)
-        github_token: GitHub Personal Access Token (optional, uses env var if not provided)
-        repository_context: Current repository context (auto-injected)
+        title: Issueのタイトル（簡潔で分かりやすい日本語で記述）
+        description: Issueの詳細説明（問題の内容、再現手順、期待される結果などを日本語で記述）
+        labels: 適用するラベル名のリスト（オプション）例：['バグ', '改善提案', 'ドキュメント']
+        assignees: アサインするGitHubユーザー名のリスト（オプション）
+        github_token: GitHub Personal Access Token（オプション、環境変数から自動取得）
+        repository_context: 現在のリポジトリコンテキスト（自動注入）
 
     Returns:
-        JSON string containing the created issue information including URL and number
+        作成されたIssue情報（URLと番号を含む）のJSON文字列（日本語）
     """
+    repo_ctx = None
+    repository = "不明"
+
     try:
         # Parse repository context
-        repo_ctx = None
         if repository_context:
             repo_ctx = RepositoryContext(**repository_context)
 
@@ -87,9 +89,11 @@ async def create_github_issue(
             return json.dumps(
                 {
                     "success": False,
-                    "error": "No repository context provided. Please ensure you're viewing a document.",
+                    "error": "リポジトリコンテキストが提供されていません。ドキュメントを表示していることを確認してください。",
                     "error_type": "context_required",
-                }
+                },
+                ensure_ascii=False,
+                indent=2,
             )
 
         repository = repo_ctx.repository_full_name
@@ -108,9 +112,11 @@ async def create_github_issue(
             return json.dumps(
                 {
                     "success": False,
-                    "error": f"Issues are disabled for repository: {repository}",
+                    "error": f"リポジトリ '{repository}' でIssue機能が無効になっています",
                     "error_type": "permission_error",
-                }
+                },
+                ensure_ascii=False,
+                indent=2,
             )
 
         # Create the issue
@@ -126,7 +132,8 @@ async def create_github_issue(
         # Extract relevant information
         result = {
             "success": True,
-            "issue": {
+            "message": f"Issue #{issue_data.get('number')} を正常に作成しました",
+            "issue_info": {
                 "number": issue_data.get("number"),
                 "url": issue_data.get("html_url"),
                 "api_url": issue_data.get("url"),
@@ -140,14 +147,14 @@ async def create_github_issue(
                 ],
                 "created_at": issue_data.get("created_at"),
                 "repository": repository,
-                "context_validated": True,
+                "context_verified": True,
             },
         }
 
         logger.info(
             f"Successfully created issue #{issue_data.get('number')} in context repository {repository}"
         )
-        return json.dumps(result, indent=2)
+        return json.dumps(result, ensure_ascii=False, indent=2)
 
     except RepositoryAccessError as e:
         logger.error(f"Repository access denied: {str(e)}")
@@ -156,27 +163,35 @@ async def create_github_issue(
                 "success": False,
                 "error": str(e),
                 "error_type": "access_denied",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except GitHubRepositoryNotFoundError as e:
-        logger.error(f"Repository not found: {repository}")
+        repo_name = repo_ctx.repository_full_name if repo_ctx else "不明"
+        logger.error(f"Repository not found: {repo_name}")
         return json.dumps(
             {
                 "success": False,
-                "error": f"Repository not found: {repository}",
+                "error": f"リポジトリが見つかりません: {repo_name}",
                 "error_type": "repository_not_found",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except GitHubPermissionError as e:
-        logger.error(f"Permission denied for repository: {repository}")
+        repo_name = repo_ctx.repository_full_name if repo_ctx else "不明"
+        logger.error(f"Permission denied for repository: {repo_name}")
         return json.dumps(
             {
                 "success": False,
-                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error": f"リポジトリ '{repo_name}' へのアクセス権限がありません。アクセス権を確認してください。",
                 "error_type": "permission_denied",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except Exception as e:
@@ -184,9 +199,11 @@ async def create_github_issue(
         return json.dumps(
             {
                 "success": False,
-                "error": f"Unexpected error: {str(e)}",
+                "error": f"予期しないエラー: {str(e)}",
                 "error_type": "unexpected_error",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
 
@@ -199,19 +216,22 @@ async def create_github_pull_request(
     repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
-    Create a new pull request in the current repository context.
+    現在のリポジトリコンテキストに新しいプルリクエストを作成します。
 
     Args:
-        title: Pull request title
-        description: Pull request description/body
-        head_branch: Source branch name
-        base_branch: Target branch name (default: "main")
-        github_token: GitHub Personal Access Token (optional, uses env var if not provided)
-        repository_context: Current repository context (auto-injected)
+        title: プルリクエストのタイトル（簡潔で分かりやすい日本語で記述）
+        description: プルリクエストの詳細説明（変更内容、理由、テスト方法などを日本語で記述）
+        head_branch: ソースブランチ名（変更がある側のブランチ）
+        base_branch: ターゲットブランチ名（マージ先のブランチ、デフォルト: "main"）
+        github_token: GitHub Personal Access Token（オプション、環境変数から自動取得）
+        repository_context: 現在のリポジトリコンテキスト（自動注入）
 
     Returns:
-        JSON string containing the created pull request information including URL and number
+        作成されたプルリクエスト情報（URLと番号を含む）のJSON文字列（日本語）
     """
+    repo_ctx = None
+    repository = "不明"
+
     try:
         # Parse repository context
         repo_ctx = None
@@ -222,9 +242,11 @@ async def create_github_pull_request(
             return json.dumps(
                 {
                     "success": False,
-                    "error": "No repository context provided. Please ensure you're viewing a document.",
+                    "error": "リポジトリコンテキストが提供されていません。ドキュメントを表示していることを確認してください。",
                     "error_type": "context_required",
-                }
+                },
+                ensure_ascii=False,
+                indent=2,
             )
 
         repository = repo_ctx.repository_full_name
@@ -243,9 +265,11 @@ async def create_github_pull_request(
             return json.dumps(
                 {
                     "success": False,
-                    "error": f"Pull requests are disabled for repository: {repository}",
+                    "error": f"リポジトリ '{repository}' でPull Request機能が無効になっています",
                     "error_type": "permission_error",
-                }
+                },
+                ensure_ascii=False,
+                indent=2,
             )
 
         # Create the pull request
@@ -261,6 +285,7 @@ async def create_github_pull_request(
         # Extract relevant information
         result = {
             "success": True,
+            "message": f"Pull Request #{pr_data.get('number')} を正常に作成しました",
             "pull_request": {
                 "number": pr_data.get("number"),
                 "url": pr_data.get("html_url"),
@@ -322,9 +347,11 @@ async def create_github_pull_request(
         return json.dumps(
             {
                 "success": False,
-                "error": f"Unexpected error: {str(e)}",
+                "error": f"予期しないエラー: {str(e)}",
                 "error_type": "unexpected_error",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
 
@@ -333,14 +360,14 @@ async def check_github_repository_permissions(
     repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
-    Check permissions for the current repository context.
+    現在のリポジトリコンテキストの権限を確認します。
 
     Args:
-        github_token: GitHub Personal Access Token (optional, uses env var if not provided)
-        repository_context: Current repository context (auto-injected)
+        github_token: GitHub Personal Access Token（オプション、環境変数から自動取得）
+        repository_context: 現在のリポジトリコンテキスト（自動注入）
 
     Returns:
-        JSON string containing the repository permissions information
+        リポジトリ権限情報のJSON文字列（日本語）
     """
     try:
         # Parse repository context
@@ -389,7 +416,9 @@ async def check_github_repository_permissions(
                 "success": False,
                 "error": str(e),
                 "error_type": "access_denied",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except GitHubRepositoryNotFoundError as e:
@@ -397,9 +426,11 @@ async def check_github_repository_permissions(
         return json.dumps(
             {
                 "success": False,
-                "error": f"Repository not found: {repository}",
+                "error": f"リポジトリが見つかりません: {repository}",
                 "error_type": "repository_not_found",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except GitHubPermissionError as e:
@@ -407,9 +438,119 @@ async def check_github_repository_permissions(
         return json.dumps(
             {
                 "success": False,
-                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error": f"リポジトリ '{repository}' へのアクセス権限がありません。アクセス権を確認してください。",
                 "error_type": "permission_denied",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error creating GitHub pull request: {str(e)}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"予期しないエラー: {str(e)}",
+                "error_type": "unexpected_error",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+async def check_github_repository_permissions(
+    github_token: Optional[str] = None,
+    repository_context: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    現在のリポジトリコンテキストの権限を確認します。
+
+    Args:
+        github_token: GitHub Personal Access Token（オプション、環境変数から自動取得）
+        repository_context: 現在のリポジトリコンテキスト（自動注入）
+
+    Returns:
+        リポジトリ権限情報のJSON文字列（日本語）
+    """
+    repo_ctx = None
+    repository = "不明"
+
+    try:
+        # Parse repository context
+        if repository_context:
+            repo_ctx = RepositoryContext(**repository_context)
+
+        if not repo_ctx:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "リポジトリコンテキストが提供されていません。ドキュメントを表示していることを確認してください。",
+                    "error_type": "context_required",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        repository = repo_ctx.repository_full_name
+
+        # Validate repository access (always passes for same repository)
+        _validate_repository_access(repository, repo_ctx)
+
+        # Initialize GitHub client
+        client = GitHubClient(token=github_token)
+
+        # Check repository permissions
+        logger.info(f"Checking permissions for context repository: {repository}")
+        permissions = await client.check_repository_permissions(repository)
+
+        # Extract relevant information
+        result = {
+            "success": True,
+            "message": f"リポジトリ '{repository}' の権限を正常に取得しました",
+            "repository": repository,
+            "permissions": permissions,
+            "context_validated": True,
+        }
+
+        logger.info(
+            f"Successfully retrieved permissions for context repository {repository}"
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+    except RepositoryAccessError as e:
+        logger.error(f"Repository access denied: {str(e)}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "error_type": "access_denied",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except GitHubRepositoryNotFoundError as e:
+        logger.error(f"Repository not found: {repository}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"リポジトリが見つかりません: {repository}",
+                "error_type": "repository_not_found",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except GitHubPermissionError as e:
+        logger.error(f"Permission denied for repository: {repository}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"リポジトリ '{repository}' へのアクセス権限がありません。アクセス権を確認してください。",
+                "error_type": "permission_denied",
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
     except Exception as e:
@@ -419,7 +560,9 @@ async def check_github_repository_permissions(
         return json.dumps(
             {
                 "success": False,
-                "error": f"Unexpected error: {str(e)}",
+                "error": f"予期しないエラー: {str(e)}",
                 "error_type": "unexpected_error",
-            }
+            },
+            ensure_ascii=False,
+            indent=2,
         )
