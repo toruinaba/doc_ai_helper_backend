@@ -4,6 +4,7 @@ Test GitHub MCP tools integration.
 """
 
 import asyncio
+import os
 import sys
 
 sys.path.append(".")
@@ -18,11 +19,19 @@ async def test_github_mcp_tools():
     print("🔍 Testing GitHub MCP Tools Integration")
     print("=" * 50)
 
+    # Check if GitHub token is available
+    github_token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_ACCESS_TOKEN")
+    if github_token:
+        print(f"✅ GitHub token found: {github_token[:8]}***")
+    else:
+        print("⚠️  No GitHub token found in environment variables")
+        print("   Set GITHUB_TOKEN environment variable for full functionality")
+
     # List available tools to see if GitHub tools are included
     tools = await server.get_available_tools_async()
     github_tools = [tool for tool in tools if "github" in tool.lower()]
 
-    print(f"📋 Available GitHub tools: {len(github_tools)}")
+    print(f"\n📋 Available GitHub tools: {len(github_tools)}")
     for tool in github_tools:
         print(f"  - {tool}")
 
@@ -30,12 +39,23 @@ async def test_github_mcp_tools():
         print("❌ No GitHub tools found in MCP server")
         return
 
+    # Create a mock repository context for testing
+    repository_context = {
+        "service": "github",
+        "owner": "octocat",
+        "repo": "Hello-World",
+        "repository_full_name": "octocat/Hello-World",
+        "current_path": "README.md",
+        "base_url": "https://github.com/octocat/Hello-World",
+    }
+
     # Test GitHub repository permissions check (safe operation)
     print("\n🔐 Testing GitHub repository permissions check...")
     try:
         result = await server.call_tool(
             "check_github_repository_permissions",
-            repository="octocat/Hello-World",  # public repo for testing
+            github_token=github_token,
+            repository_context=repository_context,
         )
         print(f"✅ Permissions check result: {result}")
     except Exception as e:
@@ -48,9 +68,10 @@ async def test_github_mcp_tools():
     try:
         result = await server.call_tool(
             "create_github_issue",
-            repository="octocat/Hello-World",
             title="Test Issue from MCP",
             description="This is a test issue created via MCP tools",
+            github_token=github_token,
+            repository_context=repository_context,
         )
         print(f"📝 Issue creation result: {result}")
     except Exception as e:

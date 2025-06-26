@@ -22,20 +22,20 @@ logger = logging.getLogger(__name__)
 
 class RepositoryAccessError(Exception):
     """Raised when trying to access a repository not in the current context."""
+
     pass
 
 
 def _validate_repository_access(
-    requested_repository: str, 
-    repository_context: Optional[RepositoryContext]
+    requested_repository: str, repository_context: Optional[RepositoryContext]
 ) -> None:
     """
     Validate that the requested repository matches the current context.
-    
+
     Args:
         requested_repository: Repository in "owner/repo" format
         repository_context: Current repository context
-        
+
     Raises:
         RepositoryAccessError: If repository access is not allowed
     """
@@ -43,15 +43,15 @@ def _validate_repository_access(
         # If no context provided, allow any repository (backward compatibility)
         logger.warning("No repository context provided, allowing unrestricted access")
         return
-    
+
     current_repository = repository_context.repository_full_name
-    
+
     if requested_repository != current_repository:
         raise RepositoryAccessError(
             f"Access denied: Requested repository '{requested_repository}' "
             f"does not match current context '{current_repository}'"
         )
-    
+
     logger.info(f"Repository access validated: {requested_repository}")
 
 
@@ -82,33 +82,37 @@ async def create_github_issue(
         repo_ctx = None
         if repository_context:
             repo_ctx = RepositoryContext(**repository_context)
-        
+
         if not repo_ctx:
-            return json.dumps({
-                "success": False,
-                "error": "No repository context provided. Please ensure you're viewing a document.",
-                "error_type": "context_required",
-            })
-        
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "No repository context provided. Please ensure you're viewing a document.",
+                    "error_type": "context_required",
+                }
+            )
+
         repository = repo_ctx.repository_full_name
-        
+
         # Validate repository access (always passes for same repository)
         _validate_repository_access(repository, repo_ctx)
-        
+
         # Initialize GitHub client
         client = GitHubClient(token=github_token)
-        
+
         # Check repository permissions
         logger.info(f"Creating issue in context repository: {repository}")
         permissions = await client.check_repository_permissions(repository)
-        
+
         if not permissions.get("issues", False):
-            return json.dumps({
-                "success": False,
-                "error": f"Issues are disabled for repository: {repository}",
-                "error_type": "permission_error",
-            })
-        
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"Issues are disabled for repository: {repository}",
+                    "error_type": "permission_error",
+                }
+            )
+
         # Create the issue
         logger.info(f"Creating issue in {repository}: {title}")
         issue_data = await client.create_issue(
@@ -118,7 +122,7 @@ async def create_github_issue(
             labels=labels or [],
             assignees=assignees or [],
         )
-        
+
         # Extract relevant information
         result = {
             "success": True,
@@ -139,43 +143,51 @@ async def create_github_issue(
                 "context_validated": True,
             },
         }
-        
+
         logger.info(
             f"Successfully created issue #{issue_data.get('number')} in context repository {repository}"
         )
         return json.dumps(result, indent=2)
-        
+
     except RepositoryAccessError as e:
         logger.error(f"Repository access denied: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "error_type": "access_denied",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "error_type": "access_denied",
+            }
+        )
+
     except GitHubRepositoryNotFoundError as e:
         logger.error(f"Repository not found: {repository}")
-        return json.dumps({
-            "success": False,
-            "error": f"Repository not found: {repository}",
-            "error_type": "repository_not_found",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Repository not found: {repository}",
+                "error_type": "repository_not_found",
+            }
+        )
+
     except GitHubPermissionError as e:
         logger.error(f"Permission denied for repository: {repository}")
-        return json.dumps({
-            "success": False,
-            "error": f"Permission denied for repository: {repository}. Check your access rights.",
-            "error_type": "permission_denied",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error_type": "permission_denied",
+            }
+        )
+
     except Exception as e:
         logger.error(f"Unexpected error creating GitHub issue: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": f"Unexpected error: {str(e)}",
-            "error_type": "unexpected_error",
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": "unexpected_error",
+            }
+        )
 
 
 async def create_github_pull_request(
@@ -205,33 +217,37 @@ async def create_github_pull_request(
         repo_ctx = None
         if repository_context:
             repo_ctx = RepositoryContext(**repository_context)
-        
+
         if not repo_ctx:
-            return json.dumps({
-                "success": False,
-                "error": "No repository context provided. Please ensure you're viewing a document.",
-                "error_type": "context_required",
-            })
-        
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "No repository context provided. Please ensure you're viewing a document.",
+                    "error_type": "context_required",
+                }
+            )
+
         repository = repo_ctx.repository_full_name
-        
+
         # Validate repository access (always passes for same repository)
         _validate_repository_access(repository, repo_ctx)
-        
+
         # Initialize GitHub client
         client = GitHubClient(token=github_token)
-        
+
         # Check repository permissions
         logger.info(f"Creating pull request in context repository: {repository}")
         permissions = await client.check_repository_permissions(repository)
-        
+
         if not permissions.get("pull_requests", False):
-            return json.dumps({
-                "success": False,
-                "error": f"Pull requests are disabled for repository: {repository}",
-                "error_type": "permission_error",
-            })
-        
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"Pull requests are disabled for repository: {repository}",
+                    "error_type": "permission_error",
+                }
+            )
+
         # Create the pull request
         logger.info(f"Creating pull request in {repository}: {title}")
         pr_data = await client.create_pull_request(
@@ -241,7 +257,7 @@ async def create_github_pull_request(
             head_branch=head_branch,
             base_branch=base_branch,
         )
-        
+
         # Extract relevant information
         result = {
             "success": True,
@@ -265,40 +281,145 @@ async def create_github_pull_request(
                 "context_validated": True,
             },
         }
-        
+
         logger.info(
             f"Successfully created pull request #{pr_data.get('number')} in context repository {repository}"
         )
         return json.dumps(result, indent=2)
-        
+
     except RepositoryAccessError as e:
         logger.error(f"Repository access denied: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-            "error_type": "access_denied",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "error_type": "access_denied",
+            }
+        )
+
     except GitHubRepositoryNotFoundError as e:
         logger.error(f"Repository not found: {repository}")
-        return json.dumps({
-            "success": False,
-            "error": f"Repository not found: {repository}",
-            "error_type": "repository_not_found",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Repository not found: {repository}",
+                "error_type": "repository_not_found",
+            }
+        )
+
     except GitHubPermissionError as e:
         logger.error(f"Permission denied for repository: {repository}")
-        return json.dumps({
-            "success": False,
-            "error": f"Permission denied for repository: {repository}. Check your access rights.",
-            "error_type": "permission_denied",
-        })
-        
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error_type": "permission_denied",
+            }
+        )
+
     except Exception as e:
         logger.error(f"Unexpected error creating GitHub pull request: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": f"Unexpected error: {str(e)}",
-            "error_type": "unexpected_error",
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": "unexpected_error",
+            }
+        )
+
+
+async def check_github_repository_permissions(
+    github_token: Optional[str] = None,
+    repository_context: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Check permissions for the current repository context.
+
+    Args:
+        github_token: GitHub Personal Access Token (optional, uses env var if not provided)
+        repository_context: Current repository context (auto-injected)
+
+    Returns:
+        JSON string containing the repository permissions information
+    """
+    try:
+        # Parse repository context
+        repo_ctx = None
+        if repository_context:
+            repo_ctx = RepositoryContext(**repository_context)
+
+        if not repo_ctx:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "No repository context provided. Please ensure you're viewing a document.",
+                    "error_type": "context_required",
+                }
+            )
+
+        repository = repo_ctx.repository_full_name
+
+        # Validate repository access (always passes for same repository)
+        _validate_repository_access(repository, repo_ctx)
+
+        # Initialize GitHub client
+        client = GitHubClient(token=github_token)
+
+        # Check repository permissions
+        logger.info(f"Checking permissions for context repository: {repository}")
+        permissions = await client.check_repository_permissions(repository)
+
+        # Extract relevant information
+        result = {
+            "success": True,
+            "repository": repository,
+            "permissions": permissions,
+            "context_validated": True,
+        }
+
+        logger.info(
+            f"Successfully retrieved permissions for context repository {repository}"
+        )
+        return json.dumps(result, indent=2)
+
+    except RepositoryAccessError as e:
+        logger.error(f"Repository access denied: {str(e)}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": str(e),
+                "error_type": "access_denied",
+            }
+        )
+
+    except GitHubRepositoryNotFoundError as e:
+        logger.error(f"Repository not found: {repository}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Repository not found: {repository}",
+                "error_type": "repository_not_found",
+            }
+        )
+
+    except GitHubPermissionError as e:
+        logger.error(f"Permission denied for repository: {repository}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Permission denied for repository: {repository}. Check your access rights.",
+                "error_type": "permission_denied",
+            }
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Unexpected error checking GitHub repository permissions: {str(e)}"
+        )
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": "unexpected_error",
+            }
+        )
