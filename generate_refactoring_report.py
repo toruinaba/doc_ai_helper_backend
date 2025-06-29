@@ -8,9 +8,9 @@ from pathlib import Path
 
 def generate_summary_report():
     """リファクタリング完了報告書を生成"""
-    
+
     project_root = Path(__file__).parent
-    
+
     report = f"""
 # 📋 テストファイルリファクタリング完了報告
 
@@ -109,12 +109,12 @@ python -m pytest -m "api and function_calling"  # API & Function Calling
 **リファクタリング実行者**: GitHub Copilot  
 **完了日**: 2025年6月29日
 """
-    
+
     # 報告書をファイルに出力
     report_file = project_root / "TEST_REFACTORING_REPORT.md"
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(report)
-    
+
     print("✅ テストファイルリファクタリング完了報告書を作成しました:")
     print(f"   📄 {report_file}")
     print("\n📋 主な成果:")
