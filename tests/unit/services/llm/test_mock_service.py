@@ -1,8 +1,8 @@
 """
-Test for MockLLMService with conversation history support.
+Test for MockLLMService with conversation history and repository context support.
 
 This module contains unit tests for the MockLLMService implementation
-with a focus on conversation history processing capabilities.
+with a focus on conversation history processing and repository context capabilities.
 """
 
 import pytest
@@ -10,6 +10,12 @@ import asyncio
 from typing import List
 
 from doc_ai_helper_backend.models.llm import MessageItem, MessageRole, LLMResponse
+from doc_ai_helper_backend.models.repository_context import (
+    RepositoryContext,
+    DocumentMetadata,
+    GitService,
+    DocumentType,
+)
 from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
 
 
@@ -157,3 +163,207 @@ async def test_mock_service_edge_cases():
     # エラーパターン
     response = await service.query("error", conversation_history=long_history)
     assert "error" in response.content.lower() or "エラー" in response.content
+
+
+@pytest.mark.asyncio
+async def test_mock_service_with_repository_context():
+    """リポジトリコンテキストを使ったクエリのテスト"""
+    service = MockLLMService(response_delay=0.01)
+
+    # リポジトリコンテキストを作成
+    repo_context = RepositoryContext(
+        service=GitService.GITHUB,
+        owner="microsoft",
+        repo="vscode",
+        ref="main",
+        current_path="README.md",
+    )
+
+    # ドキュメントメタデータを作成
+    doc_metadata = DocumentMetadata(
+        title="Visual Studio Code",
+        type=DocumentType.MARKDOWN,
+        filename="README.md",
+        file_size=2048,
+    )
+
+    # ドキュメントコンテンツ
+    doc_content = """# Visual Studio Code
+A powerful code editor for developers.
+"""
+
+    # コンテキスト付きクエリ
+    response = await service.query(
+        prompt="このファイルについて教えてください",
+        repository_context=repo_context,
+        document_metadata=doc_metadata,
+        document_content=doc_content,
+        system_prompt_template="contextual_document_assistant_ja",
+        include_document_in_system_prompt=True,
+    )
+
+    assert isinstance(response, LLMResponse)
+    assert response.content
+    assert response.provider == "mock"
+
+    # MockLLMServiceでは新しいパラメータは無視されるが、
+    # エラーなく動作することを確認
+    assert response.usage.prompt_tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_mock_service_with_context_and_history():
+    """コンテキストと会話履歴の組み合わせテスト"""
+    service = MockLLMService(response_delay=0.01)
+
+    # 会話履歴
+    history = [
+        MessageItem(role=MessageRole.USER, content="Hello"),
+        MessageItem(role=MessageRole.ASSISTANT, content="Hi there!"),
+    ]
+
+    # リポジトリコンテキスト
+    repo_context = RepositoryContext(
+        service=GitService.GITLAB, owner="group", repo="project", ref="develop"
+    )
+
+    # ドキュメントメタデータ
+    doc_metadata = DocumentMetadata(
+        title="API Documentation", type=DocumentType.MARKDOWN, filename="api.md"
+    )
+
+    # 全てのパラメータを指定してクエリ
+    response = await service.query(
+        prompt="APIの使い方を教えてください",
+        conversation_history=history,
+        repository_context=repo_context,
+        document_metadata=doc_metadata,
+        document_content="# API Documentation\nThis is the API guide.",
+        system_prompt_template="contextual_document_assistant_ja",
+        include_document_in_system_prompt=True,
+        options={"model": "custom-model"},
+    )
+
+    assert isinstance(response, LLMResponse)
+    assert response.content
+    assert response.model == "custom-model"  # オプションが反映される
+    assert response.provider == "mock"
+
+
+@pytest.mark.asyncio
+async def test_mock_service_stream_query_with_context():
+    """ストリーミングクエリでのコンテキストテスト"""
+    service = MockLLMService(response_delay=0.01)
+
+    # コンテキスト準備
+    repo_context = RepositoryContext(
+        service=GitService.GITHUB, owner="test", repo="example", ref="main"
+    )
+
+    doc_metadata = DocumentMetadata(
+        title="Example Document", type=DocumentType.PYTHON, filename="main.py"
+    )
+
+    # ストリーミングクエリ
+    chunks = []
+    async for chunk in service.stream_query(
+        prompt="コードの説明をお願いします",
+        repository_context=repo_context,
+        document_metadata=doc_metadata,
+        document_content="print('Hello, World!')",
+        system_prompt_template="contextual_document_assistant_ja",
+    ):
+        chunks.append(chunk)
+
+    # ストリーミング結果の確認
+    assert len(chunks) > 0
+    full_content = "".join(chunks)
+    assert len(full_content) > 0
+
+
+@pytest.mark.asyncio
+async def test_mock_service_context_parameter_combinations():
+    """コンテキストパラメータの様々な組み合わせテスト"""
+    service = MockLLMService(response_delay=0.01)
+
+    # 1. repository_context のみ
+    repo_context = RepositoryContext(
+        service=GitService.BITBUCKET, owner="team", repo="project", ref="main"
+    )
+
+    response = await service.query(
+        prompt="リポジトリについて教えて", repository_context=repo_context
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 2. document_metadata のみ
+    doc_metadata = DocumentMetadata(
+        title="Test Doc", type=DocumentType.HTML, filename="index.html"
+    )
+
+    response = await service.query(
+        prompt="ドキュメントについて教えて", document_metadata=doc_metadata
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 3. document_content のみ
+    response = await service.query(
+        prompt="内容について教えて", document_content="This is a test document."
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 4. include_document_in_system_prompt = False
+    response = await service.query(
+        prompt="システムプロンプトなし",
+        repository_context=repo_context,
+        document_metadata=doc_metadata,
+        document_content="Content",
+        include_document_in_system_prompt=False,
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 5. カスタムテンプレート
+    response = await service.query(
+        prompt="カスタムテンプレート",
+        repository_context=repo_context,
+        system_prompt_template="custom_template",
+    )
+    assert isinstance(response, LLMResponse)
+
+
+@pytest.mark.asyncio
+async def test_mock_service_context_edge_cases():
+    """コンテキスト機能のエッジケーステスト"""
+    service = MockLLMService(response_delay=0.01)
+
+    # 空の値でのテスト
+    response = await service.query(
+        prompt="空のコンテキスト",
+        repository_context=None,
+        document_metadata=None,
+        document_content="",
+        system_prompt_template="",
+        include_document_in_system_prompt=True,
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 非常に長いコンテンツ
+    long_content = "A" * 10000
+    response = await service.query(
+        prompt="長いコンテンツ", document_content=long_content
+    )
+    assert isinstance(response, LLMResponse)
+
+    # 特殊文字を含むコンテキスト
+    repo_context = RepositoryContext(
+        service=GitService.GITHUB,
+        owner="test-user",
+        repo="special.repo-name_123",
+        ref="feature/new-api",
+        current_path="docs/API Reference.md",
+    )
+
+    response = await service.query(
+        prompt="特殊文字テスト", repository_context=repo_context
+    )
+    assert isinstance(response, LLMResponse)

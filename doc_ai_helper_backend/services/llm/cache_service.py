@@ -41,16 +41,53 @@ class LLMCacheService:
 
         Returns:
             str: A hash key for the cache
-        """
-        # Create a deterministic representation of the input
+        """  # Create a deterministic representation of the input
         key_data = {
             "prompt": prompt,
-            "options": {k: v for k, v in sorted(options.items()) if k != "stream"},
+            "options": self._serialize_options(options),
         }
 
         # Convert to JSON and hash
         serialized = json.dumps(key_data, sort_keys=True)
         return hashlib.md5(serialized.encode()).hexdigest()
+
+    def _serialize_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Serialize options for cache key generation.
+
+        Args:
+            options: The query options
+
+        Returns:
+            Dict with serializable values
+        """
+        serialized = {}
+        for k, v in sorted(options.items()):
+            if k == "stream":
+                continue  # Skip stream option for caching
+            elif k == "functions" and isinstance(v, list):
+                # Serialize function definitions
+                serialized[k] = [
+                    {
+                        "name": func.name if hasattr(func, "name") else str(func),
+                        "description": (
+                            func.description if hasattr(func, "description") else ""
+                        ),
+                        "parameters": (
+                            func.parameters if hasattr(func, "parameters") else {}
+                        ),
+                    }
+                    for func in v
+                ]
+            elif hasattr(v, "dict"):
+                # Pydantic model
+                serialized[k] = v.dict()
+            elif hasattr(v, "__dict__"):
+                # Regular object with attributes
+                serialized[k] = str(v)
+            else:
+                serialized[k] = v
+        return serialized
 
     def get(self, key: str) -> Optional[LLMResponse]:
         """

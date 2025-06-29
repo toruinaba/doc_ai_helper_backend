@@ -1,6 +1,5 @@
 import os
 import pytest
-from unittest.mock import patch
 import time
 import json
 from typing import Dict, Any
@@ -17,37 +16,47 @@ from doc_ai_helper_backend.models.llm import (
 )
 
 
-class TestOpenAIServiceIntegration:
-    """OpenAIServiceの統合テスト"""
+def pytest_configure(config):
+    """統合テストの設定"""
+    # 必要な環境変数をチェック
+    required_env_vars = {
+        "OPENAI_API_KEY": "OpenAI API integration tests",
+    }
+
+    missing_vars = []
+    for var, description in required_env_vars.items():
+        if not os.getenv(var):
+            missing_vars.append(f"{var} (for {description})")
+
+    if missing_vars:
+        pytest.skip(
+            f"Integration tests skipped. Missing environment variables: {', '.join(missing_vars)}"
+        )
+
+
+class TestOpenAIServiceRealAPI:
+    """OpenAI実API統合テスト（実際のAPIキーが必要）"""
 
     @pytest.fixture
     def openai_service(self):
-        """OpenAIServiceのインスタンスを取得する"""
-        # テストモードが設定されていなければ、実際のAPIを使用する
-        test_mode = os.environ.get("TEST_MODE", "mock")
+        """実際のOpenAIサービスのインスタンスを取得する"""
+        # 環境変数からAPIキーを取得
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            pytest.skip("OPENAI_API_KEY environment variable not set")
 
-        if test_mode == "mock":
-            # モックモードの場合はモックサービスを使用
-            service = LLMServiceFactory.create("mock")
-        else:
-            # 実際のOpenAI APIを使用
-            # 環境変数からAPIキーを取得
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                pytest.skip("OPENAI_API_KEY environment variable not set")
+        # 環境変数からベースURLを取得（LiteLLMなどのプロキシサーバー対応）
+        base_url = os.environ.get("OPENAI_BASE_URL")
 
-            # 環境変数からベースURLを取得（LiteLLMなどのプロキシサーバー対応）
-            base_url = os.environ.get("OPENAI_BASE_URL")
+        # 環境変数からモデル名を取得（カスタムモデル対応）
+        model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
 
-            # 環境変数からモデル名を取得（カスタムモデル対応）
-            model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+        # OpenAIサービスを作成（ベースURLが指定されている場合は設定）
+        kwargs = {"api_key": api_key, "default_model": model}
+        if base_url:
+            kwargs["base_url"] = base_url
 
-            # OpenAIサービスを作成（ベースURLが指定されている場合は設定）
-            kwargs = {"api_key": api_key, "default_model": model}
-            if base_url:
-                kwargs["base_url"] = base_url
-
-            service = LLMServiceFactory.create("openai", **kwargs)
+        service = LLMServiceFactory.create("openai", **kwargs)
 
         # テスト用にキャッシュをクリア
         if hasattr(service, "cache_service"):
@@ -79,10 +88,9 @@ class TestOpenAIServiceIntegration:
         # 使用したモデルが含まれていることを確認
         assert response.model is not None
 
-        # モックモードでない場合、設定したモデルと一致することを確認
-        if os.environ.get("TEST_MODE") != "mock":
-            expected_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
-            assert response.model == expected_model
+        # 設定したモデルと一致することを確認
+        expected_model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+        assert response.model == expected_model
 
     @pytest.mark.asyncio
     async def test_query_with_system_instruction(self, openai_service: LLMServiceBase):

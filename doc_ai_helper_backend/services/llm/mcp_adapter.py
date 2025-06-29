@@ -1,12 +1,16 @@
 """
 Model Context Protocol (MCP) adapter.
 
+⚠️  DEPRECATED: This module is deprecated and will be removed in future versions.
+Use the new FastMCP-based implementation in doc_ai_helper_backend.services.mcp instead.
+
 This module provides utilities to convert documents to MCP format and
 optimize context for LLM queries.
 """
 
 from typing import Dict, Any, List, Optional
 import json
+import warnings
 
 from doc_ai_helper_backend.models.document import DocumentResponse
 
@@ -15,14 +19,28 @@ class MCPAdapter:
     """
     Model Context Protocol (MCP) adapter.
 
+    ⚠️  DEPRECATED: This class is deprecated. Use the new FastMCP server implementation instead.
+    See doc_ai_helper_backend.services.mcp for the new implementation.
+
     This class provides methods to convert documents to MCP format and optimize
     context for LLM queries.
     """
+
+    def __init__(self):
+        """Initialize MCPAdapter with deprecation warning."""
+        warnings.warn(
+            "MCPAdapter is deprecated and will be removed in future versions. "
+            "Use doc_ai_helper_backend.services.mcp instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     @staticmethod
     def convert_document_to_context(document: DocumentResponse) -> Dict[str, Any]:
         """
         Convert a document to MCP context format.
+
+        ⚠️  DEPRECATED: Use doc_ai_helper_backend.services.mcp.call_tool('extract_document_context', ...) instead.
 
         Args:
             document: The document to convert
@@ -30,6 +48,12 @@ class MCPAdapter:
         Returns:
             Dict[str, Any]: The document in MCP context format
         """
+        warnings.warn(
+            "convert_document_to_context is deprecated. "
+            "Use the new MCP server tools instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Basic document context
         context = {
             "type": "document",
@@ -74,6 +98,8 @@ class MCPAdapter:
         """
         Optimize a list of contexts to fit within token limit.
 
+        ⚠️  DEPRECATED: Use the new MCP server tools for context optimization instead.
+
         This method applies various strategies to reduce context size while
         preserving the most important information.
 
@@ -85,6 +111,12 @@ class MCPAdapter:
         Returns:
             List[Dict[str, Any]]: Optimized context list
         """
+        warnings.warn(
+            "optimize_context is deprecated. "
+            "Use the new MCP server tools for context optimization instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not contexts:
             return []
 
