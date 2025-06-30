@@ -14,13 +14,27 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "True"
 os.environ["SECRET_KEY"] = "test-secret-key"
+# Force mock LLM service for unit tests
+os.environ["DEFAULT_LLM_PROVIDER"] = "mock"
 
 # Import main app
 from doc_ai_helper_backend.main import app
+from doc_ai_helper_backend.api.dependencies import get_llm_service
+from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+
+
+def get_test_llm_service():
+    """テスト用のモックLLMサービスを返す"""
+    return MockLLMService(response_delay=0.0)
 
 
 # Create test client fixture
 @pytest.fixture
 def client():
     """Create a test client."""
-    return TestClient(app)
+    # テスト用に依存関係をオーバーライド
+    app.dependency_overrides[get_llm_service] = get_test_llm_service
+    test_client = TestClient(app)
+    yield test_client
+    # テスト後にオーバーライドをクリア
+    app.dependency_overrides.clear()

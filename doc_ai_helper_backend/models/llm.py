@@ -5,9 +5,13 @@ This module contains Pydantic models for LLM services.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, Literal, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
+
+# Forward references for repository context models
+if TYPE_CHECKING:
+    from .repository_context import RepositoryContext, DocumentMetadata
 
 
 class MessageRole(str, Enum):
@@ -59,6 +63,35 @@ class LLMQueryRequest(BaseModel):
     conversation_history: Optional[List[MessageItem]] = Field(
         default=None, description="Previous messages in the conversation for context"
     )
+    enable_tools: bool = Field(
+        default=False, description="Enable automatic function calling/tool execution"
+    )
+    tool_choice: Optional[str] = Field(
+        default="auto",
+        description="Tool selection strategy: auto, none, required, or specific function name",
+    )
+    complete_tool_flow: bool = Field(
+        default=True,
+        description="If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)",
+    )
+
+    # Repository context fields - New functionality for document-aware LLM queries
+    repository_context: Optional["RepositoryContext"] = Field(
+        default=None, description="Repository context from current document view"
+    )
+    document_metadata: Optional["DocumentMetadata"] = Field(
+        default=None, description="Metadata of currently displayed document"
+    )
+    document_content: Optional[str] = Field(
+        default=None, description="Current document content for system prompt inclusion"
+    )
+    include_document_in_system_prompt: bool = Field(
+        default=True, description="Whether to include document content in system prompt"
+    )
+    system_prompt_template: Optional[str] = Field(
+        default="contextual_document_assistant_ja",
+        description="Template ID for system prompt generation",
+    )
 
 
 class LLMUsage(BaseModel):
@@ -71,6 +104,78 @@ class LLMUsage(BaseModel):
         default=0, description="Number of tokens in the completion"
     )
     total_tokens: int = Field(default=0, description="Total number of tokens used")
+
+
+# Function Calling関連のモデル
+
+
+class FunctionParameter(BaseModel):
+    """
+    Function parameter definition for function calling.
+    """
+
+    type: str = Field(
+        ..., description="Parameter type (string, number, boolean, object, array)"
+    )
+    description: Optional[str] = Field(
+        default=None, description="Parameter description"
+    )
+    enum: Optional[List[str]] = Field(
+        default=None, description="Allowed values for the parameter"
+    )
+    items: Optional[Dict[str, Any]] = Field(
+        default=None, description="Item type for array parameters"
+    )
+    properties: Optional[Dict[str, "FunctionParameter"]] = Field(
+        default=None, description="Properties for object parameters"
+    )
+    required: Optional[List[str]] = Field(
+        default=None, description="Required properties for object parameters"
+    )
+
+
+class FunctionDefinition(BaseModel):
+    """
+    Function definition for function calling.
+    """
+
+    name: str = Field(..., description="Function name")
+    description: Optional[str] = Field(default=None, description="Function description")
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Function parameters schema"
+    )
+
+
+class FunctionCall(BaseModel):
+    """
+    Function call details from LLM response.
+    """
+
+    name: str = Field(..., description="Function name to call")
+    arguments: str = Field(..., description="Function arguments as JSON string")
+
+
+class ToolCall(BaseModel):
+    """
+    Tool call details from LLM response.
+    """
+
+    id: str = Field(..., description="Tool call ID")
+    type: Literal["function"] = Field(default="function", description="Tool call type")
+    function: FunctionCall = Field(..., description="Function call details")
+
+
+class ToolChoice(BaseModel):
+    """
+    Tool choice strategy for function calling.
+    """
+
+    type: Literal["auto", "none", "required"] = Field(
+        ..., description="Tool choice strategy"
+    )
+    function: Optional[str] = Field(
+        default=None, description="Specific function name for forced calls"
+    )
 
 
 class LLMResponse(BaseModel):
@@ -94,6 +199,18 @@ class LLMResponse(BaseModel):
     history_optimization_info: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Information about how the conversation history was optimized",
+    )
+    tool_calls: Optional[List[ToolCall]] = Field(
+        default=None,
+        description="Tool calls requested by the LLM (for function calling)",
+    )
+    tool_execution_results: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Results of executed tool calls",
+    )
+    original_tool_calls: Optional[List[ToolCall]] = Field(
+        default=None,
+        description="Original tool calls from the initial LLM response (for debugging)",
     )
 
 
@@ -170,3 +287,60 @@ class LLMStreamResponse(BaseModel):
     error: Optional[str] = Field(
         default=None, description="Error message if something went wrong"
     )
+
+
+class ToolParameter(BaseModel):
+    """
+    Parameter definition for an MCP tool.
+    """
+
+    name: str = Field(..., description="Parameter name")
+    type: str = Field(..., description="Parameter type")
+    description: Optional[str] = Field(None, description="Parameter description")
+    required: bool = Field(False, description="Whether the parameter is required")
+    default: Optional[Any] = Field(None, description="Default value if any")
+
+
+class MCPToolInfo(BaseModel):
+    """
+    Information about an MCP tool.
+    """
+
+    name: str = Field(..., description="Tool name")
+    description: Optional[str] = Field(None, description="Tool description")
+    parameters: List[ToolParameter] = Field(
+        default_factory=list, description="Tool parameters"
+    )
+    category: Optional[str] = Field(
+        None, description="Tool category (document, feedback, analysis, etc.)"
+    )
+    enabled: bool = Field(True, description="Whether the tool is enabled")
+
+
+class MCPToolsResponse(BaseModel):
+    """
+    Response model for MCP tools list.
+    """
+
+    tools: List[MCPToolInfo] = Field(..., description="List of available MCP tools")
+    total_count: int = Field(..., description="Total number of available tools")
+    categories: List[str] = Field(..., description="Available tool categories")
+    server_info: Dict[str, Any] = Field(
+        default_factory=dict, description="MCP server information"
+    )
+
+
+# Update forward references for repository context models
+def update_forward_refs():
+    """Update forward references after all models are imported."""
+    try:
+        from .repository_context import RepositoryContext, DocumentMetadata
+
+        LLMQueryRequest.model_rebuild()
+    except ImportError:
+        # Repository context models not yet available
+        pass
+
+
+# Call update function to resolve forward references
+update_forward_refs()

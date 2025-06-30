@@ -36,7 +36,7 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - 検索機能の実装 [🔄計画中]
    - パフォーマンスとセキュリティの最適化 [🔄計画中]
 
-3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
+5. **Quartoサポート（フェーズ5）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -112,6 +112,12 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
    - JSONファイルからテンプレートを読み込み
    - 変数置換によるテンプレートのフォーマット
    - 必須変数の検証
+
+7. **会話履歴管理（`conversation_history.py`）**
+   - LLM問い合わせの会話履歴を管理
+   - セッション単位での会話フローの保持
+   - 過去のコンテキストを考慮した問い合わせ処理
+   - 履歴データの構造化と効率的なアクセス
 
 #### 実装状況
 
@@ -345,6 +351,12 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
 - データベース層はモックで実装（APIの仕様が定まりつつある段階）
 - Quarto対応は将来の拡張として位置付け
 
+**テスト戦略**:
+- 単体テストとAPIテスト: Mockサービスを活用した外部依存なしテスト
+- 統合テスト: 実際の外部API（GitHub、OpenAI等）を使用したテスト
+- 明確な分離により、開発効率と信頼性を両立
+- MCPサーバー・ツール・Function Callingのユニットテスト（29件全てPASSED）
+
 ### 開発ステップ
 1. **基本API定義の完了** [✅完了]
    - RESTful APIのエンドポイント定義
@@ -397,7 +409,6 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
    - HTMLメタデータ抽出とリンク解析機能
    - API拡張（HTML取得、関連ファイル情報の提供）
 
-8. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
 8. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
    - Quartoプロジェクト検出機能の追加
    - ソースファイルと出力ファイルの関連付けエンドポイント
@@ -593,6 +604,13 @@ http://localhost:8000/docs
 - `GET /api/v1/llm/templates` - プロンプトテンプレート一覧の取得
 - `POST /api/v1/llm/format-prompt` - プロンプトテンプレートのフォーマット
 
+### 会話履歴管理エンドポイント
+- `POST /api/v1/llm/conversations` - 新しい会話セッションの作成
+- `GET /api/v1/llm/conversations/{conversation_id}` - 会話履歴の取得
+- `POST /api/v1/llm/conversations/{conversation_id}/messages` - 会話への新しいメッセージ追加
+- `DELETE /api/v1/llm/conversations/{conversation_id}` - 会話セッションの削除
+- `GET /api/v1/llm/conversations` - 会話セッション一覧の取得
+
 ### リポジトリ管理エンドポイント（計画中）
 - `GET /api/v1/repositories` - リポジトリ一覧の取得
 - `POST /api/v1/repositories` - リポジトリの登録
@@ -611,6 +629,38 @@ http://localhost:8000/docs
 
 ```bash
 pytest
+```
+
+### テスト戦略
+
+このプロジェクトでは、2層のテスト戦略を採用しています：
+
+1. **単体テストとAPIテスト** (`tests/unit/` および `tests/api/`)
+   - 外部依存関係を排除したテスト
+   - Mockサービスを活用した高速テスト
+   - 開発中の継続的な実行に適している
+
+2. **統合テスト** (`tests/integration/`)
+   - 実際の外部API（GitHub、OpenAI等）を使用
+   - 実際の動作の検証
+   - 環境変数による設定が必要
+   - CI/CDでの実行またはリリース前の手動実行
+
+#### 統合テスト実行の要件
+
+統合テストの実行には以下の環境変数が必要です：
+
+```bash
+# GitHub統合テスト
+export GITHUB_TOKEN="your_github_token"
+
+# OpenAI統合テスト  
+export OPENAI_API_KEY="your_openai_api_key"
+```
+
+統合テストのみを実行する場合：
+```bash
+pytest tests/integration/
 ```
 
 ## ブランチ戦略
@@ -736,6 +786,30 @@ class DocumentReference(BaseModel):
     path: str                   # ドキュメントパス
     ref: Optional[str] = None   # ブランチまたはタグ
     content: Optional[str] = None  # 直接コンテンツを提供する場合
+
+# 会話履歴関連モデル
+class ConversationMessage(BaseModel):
+    role: str                   # メッセージの役割（user, assistant, system）
+    content: str                # メッセージ内容
+    timestamp: datetime         # メッセージ作成時刻
+    metadata: Optional[Dict[str, Any]] = None  # 追加メタデータ
+
+class Conversation(BaseModel):
+    id: str                     # 会話ID
+    title: Optional[str] = None # 会話タイトル
+    created_at: datetime        # 作成時刻
+    updated_at: datetime        # 最終更新時刻
+    messages: List[ConversationMessage]  # メッセージ履歴
+    metadata: Optional[Dict[str, Any]] = None  # 追加メタデータ
+
+class ConversationCreateRequest(BaseModel):
+    title: Optional[str] = None # 初期タイトル
+    initial_message: Optional[str] = None  # 初期メッセージ
+
+class ConversationResponse(BaseModel):
+    conversation: Conversation  # 会話データ
+    message_count: int          # メッセージ数
+    last_activity: datetime     # 最終活動時刻
 ```
 
 ## ユースケース
@@ -749,9 +823,10 @@ class DocumentReference(BaseModel):
 
 2. **LLMコンテキストの提供** [現在の主要ターゲット]
    - Markdownファイルの取得
-   - バックエンド経由のLLM問い合わせ（OpenAI、将来的にOllamaなど）
+   - バックエンド経由のLLM問い合わせ（OpenAI）
    - ストリーミングレスポンスによるリアルタイム表示
    - メタデータと併せたコンテキスト提供
+   - 会話履歴管理による継続的な対話サポート
 
 3. **HTMLドキュメントの表示** [将来的に拡張]
    - QuartoでビルドされたリポジトリからのHTML取得
@@ -774,17 +849,19 @@ class DocumentReference(BaseModel):
    - バックエンド側: フロントマター解析、メタデータ提供
    - フロントエンド側: タイトル、説明、タグなどの表示
 
-4. **LLM連携** [✅部分的に完了]
+4. **LLM連携** [✅完了]
    - バックエンド側: 
-     - LLM APIへのプロキシ（OpenAI、将来的にOllama） [✅完了]
+     - LLM APIへのプロキシ（OpenAI） [✅完了]
      - コンテキスト最適化とMCPサポート [✅基本実装完了]
      - ストリーミングレスポンスのサポート [✅完了]
      - SSE（Server-Sent Events）エンドポイント [✅完了]
      - テンプレート管理とレスポンスキャッシュ [✅完了]
+     - 会話履歴管理機能 [✅完了]
    - フロントエンド側: 
      - ユーザーインターフェース [🔄進行中]
      - ストリーミングレスポンスの表示 [✅完了]
      - SSEクライアント実装 [✅完了]
+     - 会話履歴の表示と管理 [🔄進行中]
 
 5. **ファイル関連付け** [将来的に拡張]
    - バックエンド側: ソースファイルと出力ファイルのマッピング提供
@@ -817,3 +894,96 @@ Markdownドキュメント処理機能は完全に実装されています。以
 - `LinkTransformer`: リンクの検出と変換を担当
 - `parse_frontmatter`: フロントマーターの解析を担当
 - `DocumentProcessorFactory`: ドキュメントタイプに応じたプロセッサーを生成
+
+## 進捗サマリー（2025年6月22日現在）
+
+### フェーズ2完了 - MCP/Function Calling/分析エンジン実装完了
+- ✅ **MCPサーバー（FastMCPベース）**: 完全実装・テスト済み
+- ✅ **Function Calling/ツール実行機能**: 完全実装・テスト済み
+- ✅ **フィードバック分析エンジン**: 完全実装・テスト済み
+- ✅ **MCPツール群**: document_tools/feedback_tools/analysis_tools全て実装済み
+- ✅ **ユニットテスト**: 29件全てPASSED（tests/unit/services/mcp_tests/配下）
+
+### 主要実装コンポーネント
+- **MCPサーバー**: `doc_ai_helper_backend/services/mcp/server.py`
+- **Function Registry**: `doc_ai_helper_backend/services/llm/function_manager.py`
+- **MCPアダプター**: `doc_ai_helper_backend/services/mcp/function_adapter.py`
+- **ツール群**: 
+  - document_tools: ドキュメント解析・最適化
+  - feedback_tools: フィードバック収集・分析
+  - analysis_tools: テキスト分析・感情分析
+- **設定管理**: `doc_ai_helper_backend/services/mcp/config.py`
+
+### 完了した実装項目（フェーズ1-2）
+- ✅ Markdownドキュメント取得・処理（フロントマター解析、リンク変換）
+- ✅ LLMサービス基本アーキテクチャ（OpenAI、ストリーミング、キャッシュ）
+- ✅ 会話履歴管理サービス
+- ✅ MCPサーバー（FastMCPベース）とツール群
+- ✅ Function Calling/ツール実行機能
+- ✅ フィードバック分析エンジン
+- ✅ 包括的ユニットテスト（全29件パス）
+
+### 次期計画（フェーズ3）
+- GitHub統合機能の強化
+- フィードバック投稿APIの統合
+- APIエンドポイントでのFunction Calling完全統合
+- エンドツーエンドテストの追加
+- リポジトリ管理機能の実装
+- 検索機能の実装
+
+## 📋 次期実装計画（フェーズ3: GitHub MCP統合）
+
+### 🎯 実装目標
+MCP経由でのGitHub Issue/PR作成機能を実装し、LLMとの対話からダイレクトにGitHubへフィードバック投稿できる仕組みを構築します。
+
+### 📅 実装スケジュール（2週間）
+- **Week 1**: GitHub APIクライアント基盤 + MCPツール実装
+- **Week 2**: Function Calling統合 + テスト実装 + 最適化
+
+### 🔧 実装予定機能
+
+#### **GitHub MCPツール**
+```python
+# 実装予定のMCPツール
+async def create_github_issue(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # Issue タイトル
+    description: str,      # Issue 本文
+    labels: List[str] = None,      # ラベル
+    assignees: List[str] = None    # アサイニー
+) -> Dict[str, Any]:
+    """GitHub Issue を作成し、結果を返す"""
+
+async def create_github_pr(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # PR タイトル
+    description: str,      # PR 説明
+    file_path: str,        # 変更するファイルパス
+    file_content: str,     # 新しいファイル内容
+    branch_name: str = None,       # ブランチ名
+    base_branch: str = "main"      # ベースブランチ
+) -> Dict[str, Any]:
+    """GitHub Pull Request を作成し、結果を返す"""
+```
+
+#### **使用例**
+```python
+# LLMとの対話例
+ユーザー: "この README.md の構造が分かりにくいので、改善提案をGitHubのIssueとして投稿してください"
+
+LLM: analyze_document_structure() で分析
+     ↓
+     generate_feedback_from_conversation() でフィードバック生成
+     ↓
+     create_github_issue() でIssue作成
+     ↓
+     "GitHub Issue #123 を作成しました: https://github.com/owner/repo/issues/123"
+```
+
+### 🎯 実装の利点
+1. **最小実装**: 既存MCP基盤（29テスト通過済み）をフル活用
+2. **即座に動作**: フロントエンド不要でLLM対話テスト可能
+3. **段階的拡張**: 基本機能確立後、フィードバックAPI等を追加可能
+4. **実装量削減**: 約250行の実装でコア機能完成
+
+---

@@ -1,3 +1,4 @@
+````instructions
 # Copilot Instructions for doc_ai_helper_backend
 
 このドキュメントはGitHub Copilotが`doc_ai_helper_backend`プロジェクトをより良く理解し、適切な提案を行うための指示書です。
@@ -34,7 +35,7 @@
    - 検索機能の実装 [🔄計画中]
    - パフォーマンスとセキュリティの最適化 [🔄計画中]
 
-3. **Quartoサポート（フェーズ3）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
+5. **Quartoサポート（フェーズ5）**: Quartoドキュメントプロジェクトの特殊機能（ソースと出力ファイルの関連付けなど）を追加 [⏱️将来対応]
 
 このアプローチにより、基本機能を早期に提供しながら、徐々に高度な機能を追加していくことが可能になります。
 
@@ -88,6 +89,12 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
    - JSONファイルからテンプレートを読み込み
    - 変数置換によるテンプレートのフォーマット
    - 必須変数の検証
+
+7. **会話履歴管理（`conversation_history.py`）**
+   - LLM問い合わせの会話履歴を管理
+   - セッション単位での会話フローの保持
+   - 過去のコンテキストを考慮した問い合わせ処理
+   - 履歴データの構造化と効率的なアクセス
 
 #### 実装状況
 
@@ -310,6 +317,7 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
 - ドキュメント取得APIの基本機能実装完了
 - リポジトリ構造取得APIの基本機能実装完了
 - Mockサービスの実装完了（開発・デモ・テスト用）
+
 ### 開発ステップ
 1. **基本API定義の完了** [✅完了]
    - RESTful APIのエンドポイント定義
@@ -333,108 +341,62 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
    - リンク情報の抽出と提供
    - ドキュメントメタデータの拡充
    
-5. **LLM API連携の実装** [✅部分的に完了]
+5. **LLM API連携の実装** [✅完了]
    - LLMサービス抽象化レイヤーの実装（`services/llm/base.py`） [✅完了]
    - プロバイダー固有の実装（OpenAI, モックサービス） [✅完了]
    - `LLMServiceFactory` の実装（`services/llm/factory.py`） [✅完了]
-   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅基本実装完了]
+   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅完了]
    - LLM問い合わせ用エンドポイントの追加（`api/endpoints/llm.py`） [✅完了]
    - プロンプトテンプレート管理機能の実装 [✅完了]
    - レスポンスキャッシュの実装 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）エンドポイントの実装 [✅完了]
-   - 追加のLLMプロバイダー実装（Ollama） [🔄進行中]
-   - MCPアダプターの拡張機能 [🔄計画中]
+   - 会話履歴管理機能の実装 [✅完了]
+   - MCPサーバー（FastMCPベース）の実装 [✅完了]
+   - Function Calling/ツール実行機能の実装 [✅完了]
+   - フィードバック分析エンジンの実装 [✅完了]
+   - MCPツール（document/feedback/analysis）の実装 [✅完了]
+   - ユニットテスト完全実装（29件全てPASSED）[✅完了]
 
-6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
+6. **GitHub MCP統合の実装** [🔄次期実装予定]
+   - GitHub APIクライアント基盤の実装
+   - `create_github_issue` MCPツールの実装
+   - `create_github_pr` MCPツールの実装
+   - GitHub認証・権限管理機能の実装
+   - MCPサーバーへのGitHubツール登録
+   - Function Calling統合とエラーハンドリング
+   - ユニットテスト・統合テスト実装
+
+7. **APIの拡張（将来機能）** [⏱️将来対応]
    - Quartoプロジェクト検出機能の追加
    - ソースファイルと出力ファイルの関連付けエンドポイント
    - リンク変換オプションの追加
    - フロントマター解析とメタデータ提供機能の拡張
    - リポジトリ設定モデルとAPIの追加
 
-7. **データベース層の実装** [🔄進行予定]
+8. **データベース層の実装** [🔄進行予定]
    - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
    - モデル定義（`db/models.py`）
    - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
    - Alembicによるマイグレーション設定
    - リポジトリ設定・マッピング機能の追加
 
-8. **Quartoドキュメント対応の追加** [⏱️未着手]
+9. **Quartoドキュメント対応の追加** [⏱️未着手]
    - Quartoプロジェクト設定（_quarto.yml）の解析
    - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
    - リポジトリ構造分析とパスマッピング
    - サイト構造情報の提供
 
-9. **テストの充実** [🔄部分的に完了]
+10. **テストの充実** [✅完了]
    - APIエンドポイントのテスト（ドキュメント取得、構造取得）[✅完了]
-   - 統合テスト（実際のDBを使った全体的なフロー確認）
-   - モックを使った外部サービスのテスト [✅完了]
-   - Markdownドキュメント機能の拡張テスト [✅完了]
+   - 単体テスト：Mockサービスを使った外部依存なしテスト [✅完了]
+   - 統合テスト：実際の外部API（GitHub、OpenAI等）を使用したテスト [✅完了]
+   - Markdownドキュメント機能のテスト [✅完了]
    - LLMサービスのテスト [✅完了]
+   - 会話履歴管理機能のテスト [✅完了]
    - 将来的なQuartoプロジェクト対応のテスト [⏱️未着手]
 
-10. **リファクタリングとコード品質向上** [🔄部分的に完了]
-    - モックサービスをテスト用からプロダクションコードへ移行 [✅完了]
-    - APIパスの整理（`/contents`と`/structure`の明確な分離）[✅完了]
-    - Markdownドキュメント処理の強化 [✅完了]
-    - LLMサービスのエラーハンドリング強化 [✅完了]
-    - ログ出力の強化 [🔄計画中]
-    - パフォーマンス最適化 [🔄計画中]
-    - セキュリティ対策の強化 [🔄計画中]
-
-3. **モックを用いたAPIの動作確認** [✅完了]
-   - 実際のデータベースなしでサービス層をモックしてAPIの動作を確認
-   - テスト駆動開発の手法を活用し、APIの期待する動作をテストで定義
-
-4. **Markdownドキュメント対応の拡張** [✅完了]
-   - Markdownファイルのフロントマター解析
-   - 相対リンクの絶対パス変換機能
-   - リンク情報の抽出と提供
-   - ドキュメントメタデータの拡充
-   
-5. **LLM API連携の実装** [✅部分的に完了]
-   - LLMサービス抽象化レイヤーの実装（`services/llm/base.py`） [✅完了]
-   - プロバイダー固有の実装（OpenAI, モックサービス） [✅完了]
-   - `LLMServiceFactory` の実装（`services/llm/factory.py`） [✅完了]
-   - MCPアダプターの実装（`services/llm/mcp_adapter.py`） [✅基本実装完了]
-   - LLM問い合わせ用エンドポイントの追加（`api/endpoints/llm.py`） [✅完了]
-   - プロンプトテンプレート管理機能の実装 [✅完了]
-   - レスポンスキャッシュの実装 [✅完了]
-   - ストリーミングレスポンスのサポート [✅完了]
-   - SSE（Server-Sent Events）エンドポイントの実装 [✅完了]
-   - 追加のLLMプロバイダー実装（Ollama） [🔄進行中]
-   - MCPアダプターの拡張機能 [🔄計画中]
-
-6. **APIの拡張（Quarto対応を見据えた機能）** [🔄計画中]
-   - Quartoプロジェクト検出機能の追加
-   - ソースファイルと出力ファイルの関連付けエンドポイント
-   - リンク変換オプションの追加
-   - フロントマター解析とメタデータ提供機能の拡張
-   - リポジトリ設定モデルとAPIの追加
-
-7. **データベース層の実装** [🔄進行予定]
-   - SQLAlchemyのBaseクラスとデータベース接続の設定（`db/database.py`）
-   - モデル定義（`db/models.py`）
-   - リポジトリパターンによるデータアクセス層の実装（`db/repositories/`）
-   - Alembicによるマイグレーション設定
-   - リポジトリ設定・マッピング機能の追加
-
-8. **Quartoドキュメント対応の追加** [⏱️未着手]
-   - Quartoプロジェクト設定（_quarto.yml）の解析
-   - ソースファイル(.qmd)と出力ファイル(.html)の関連付け
-   - リポジトリ構造分析とパスマッピング
-   - サイト構造情報の提供
-
-9. **テストの充実** [🔄部分的に完了]
-   - APIエンドポイントのテスト（ドキュメント取得、構造取得）[✅完了]
-   - 統合テスト（実際のDBを使った全体的なフロー確認）
-   - モックを使った外部サービスのテスト [✅完了]
-   - Markdownドキュメント機能の拡張テスト [✅完了]
-   - LLMサービスのテスト [✅完了]
-   - 将来的なQuartoプロジェクト対応のテスト [⏱️未着手]
-
-10. **リファクタリングとコード品質向上** [🔄部分的に完了]
+11. **リファクタリングとコード品質向上** [🔄部分的に完了]
     - モックサービスをテスト用からプロダクションコードへ移行 [✅完了]
     - APIパスの整理（`/contents`と`/structure`の明確な分離）[✅完了]
     - Markdownドキュメント処理の強化 [✅完了]
@@ -461,23 +423,32 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
    - 将来的にはQuartoドキュメント設定（パスマッピング、出力ディレクトリなど）の管理
    - リポジトリタイプ（Markdown/Quarto）の検出と管理
 
-3. **LLM API連携** [✅部分的に完了]
+3. **LLM API連携** [✅完了]
    - 外部LLMサービス（OpenAI）との統合 [✅完了]
    - ストリーミングレスポンスのサポート [✅完了]
    - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
-   - Model Context Protocol (MCP) 対応 [✅基本実装完了]
+   - Model Context Protocol (MCP) 対応 [✅完了]
    - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
    - プロンプトテンプレート管理 [✅完了]
    - レスポンスキャッシュ [✅完了]
-   - 追加のプロバイダー実装（Ollama） [🔄進行中]
-   - MCPアダプターの拡張機能 [🔄計画中]
+   - 会話履歴管理 [✅完了]
+   - MCPサーバー（FastMCPベース）の実装 [✅完了]
+   - Function Calling/ツール実行機能 [✅完了]
+   - フィードバック分析エンジン [✅完了]
+   - MCPツール（document/feedback/analysis）[✅完了]
 
-4. **検索API** [🔄実装予定]
+4. **GitHub統合** [🔄次期実装予定]
+   - GitHub MCPツール（Issue/PR作成）[🔄実装予定]
+   - GitHub認証・権限管理 [🔄実装予定]
+   - Function Calling経由GitHub操作 [🔄実装予定]
+   - GitHub統合テスト [🔄実装予定]
+
+5. **検索API** [🔄実装予定]
    - リポジトリ内のファイル検索
    - テキスト検索とメタデータ検索
    - ドキュメントタイプや属性によるフィルタリング
 
-5. **キャッシュ機能** [基本実装済み]
+6. **キャッシュ機能** [基本実装済み]
    - 頻繁にアクセスされるドキュメントのキャッシュ
    - リポジトリ構造のキャッシュ
    - 設定情報のキャッシュ
@@ -881,7 +852,8 @@ class RepositorySettings(BaseModel):
 
 7. **開発優先順位**
    - Markdownドキュメント対応を最優先で実装 [✅完了]
-   - バックエンド経由LLM API連携を優先的に実装 [🔄優先実装項目]
+   - バックエンド経由LLM API連携を優先的に実装 [✅完了]
+   - 会話履歴管理機能の実装 [✅完了]
    - リポジトリ管理機能の実装を進める
    - 検索機能の実装を進める
    - キャッシュ機能を強化する
@@ -1061,64 +1033,6 @@ class LLMServiceFactory:
         """プロバイダーに応じたLLMサービスを生成する"""
 ```
 
-## 主要機能
-
-1. **ドキュメント取得API** [✅基本実装済み]
-   - 様々なGitサービス（GitHub, Mock等）からのドキュメント取得
-   - Markdownファイルの取得と提供
-   - リポジトリ構造の取得
-   - ドキュメント内リンクの解析と変換 [✅完了]
-   - フロントマターの解析とメタデータ提供 [✅完了]
-   - HTMLファイルの取得と提供（基本実装済み）
-   - Quarto/HTMLファイルのソースと出力ファイルの関連付け（将来対応）
-
-2. **リポジトリ管理API** [🔄実装予定]
-   - リポジトリ情報のCRUD操作
-   - リポジトリメタデータの管理
-   - Markdownドキュメント設定の管理
-   - 将来的にはQuartoドキュメント設定（パスマッピング、出力ディレクトリなど）の管理
-   - リポジトリタイプ（Markdown/Quarto）の検出と管理
-
-3. **LLM API連携** [✅部分的に完了]
-   - 外部LLMサービス（OpenAI）との統合 [✅完了]
-   - ストリーミングレスポンスのサポート [✅完了]
-   - SSE（Server-Sent Events）によるリアルタイム応答 [✅完了]
-   - Model Context Protocol (MCP) 対応 [✅基本実装完了]
-   - ドキュメントコンテキストを活用したLLM問い合わせ [✅完了]
-   - プロンプトテンプレート管理 [✅完了]
-   - レスポンスキャッシュ [✅完了]
-   - 追加のプロバイダー実装（Ollama） [🔄進行中]
-   - MCPアダプターの拡張機能 [🔄計画中]
-
-4. **検索API** [🔄実装予定]
-   - リポジトリ内のファイル検索
-   - テキスト検索とメタデータ検索
-   - ドキュメントタイプや属性によるフィルタリング
-
-5. **キャッシュ機能** [基本実装済み]
-   - 頻繁にアクセスされるドキュメントのキャッシュ
-   - リポジトリ構造のキャッシュ
-   - 設定情報のキャッシュ
-   - LLMレスポンスのキャッシュ [✅完了]
-
-## 技術スタック
-
-- **フレームワーク**: FastAPI
-- **データベース**: SQLite（開発・本番共通）
-- **ORM**: SQLAlchemy
-- **マイグレーション**: Alembic
-- **HTTP クライアント**: httpx
-- **キャッシュ**: Redis または in-memory
-- **テスト**: pytest
-- **コンテナ化**: Docker
-- **フォーマッター**: black
-    }
-    
-    @classmethod
-    def create(cls, provider: str, **config) -> LLMServiceBase:
-        """プロバイダーに応じたLLMサービスを生成する"""
-```
-
 ### MCPアダプター (MCPAdapter)
 
 Model Context Protocol に準拠したコンテキスト管理を行うアダプターです。
@@ -1154,3 +1068,114 @@ async def query_llm(
 ):
     # 実装
 ```
+
+## 進捗サマリー（2024/6/22現在）
+
+### フェーズ2完了 - MCP/Function Calling/分析エンジン実装完了
+- ✅ **MCPサーバー（FastMCPベース）**: 完全実装・テスト済み
+- ✅ **Function Calling/ツール実行機能**: 完全実装・テスト済み
+- ✅ **フィードバック分析エンジン完成**: 対話分析・品質評価・改善提案
+- ✅ **MCPツール群**: document_tools/feedback_tools/analysis_tools全て実装済み
+- ✅ **ユニットテスト**: 29件全てPASSED（tests/unit/services/mcp_tests/配下）
+
+### 主要実装コンポーネント
+- **MCPサーバー**: `doc_ai_helper_backend/services/mcp/server.py`
+- **Function Registry**: `doc_ai_helper_backend/services/llm/function_manager.py`
+- **MCPアダプター**: `doc_ai_helper_backend/services/mcp/function_adapter.py`
+- **ツール群**: 
+  - document_tools: ドキュメント解析・最適化
+  - feedback_tools: フィードバック収集・分析
+  - analysis_tools: テキスト分析・感情分析
+- **設定管理**: `doc_ai_helper_backend/services/mcp/config.py`
+
+### 次期計画（フェーズ3）
+- GitHub統合機能の実装
+- フィードバック投稿API の統合
+- APIエンドポイントでのFunction Calling完全統合
+- エンドツーエンドテストの追加
+
+## 📋 フェーズ3: GitHub MCP統合 実装指針
+
+### 🎯 現在の実装状況（フェーズ2完了）
+- ✅ **MCP基盤完成**: FastMCPサーバー、29個のテスト通過
+- ✅ **Function Calling完成**: OpenAI/Mock対応、FunctionRegistry実装
+- ✅ **フィードバック分析エンジン完成**: 対話分析・品質評価・改善提案
+
+### 🔄 次期実装対象（フェーズ3: GitHub MCP統合）
+
+#### **実装スコープ**
+MCP経由でのGitHub Issue/PR作成機能に特化し、LLMとの対話から直接GitHubにフィードバック投稿できる仕組みを構築します。
+
+#### **実装予定のMCPツール**
+```python
+# doc_ai_helper_backend/services/mcp/tools/github_tools.py
+async def create_github_issue(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # Issue タイトル
+    description: str,      # Issue 本文
+    labels: List[str] = None,      # ラベル
+    assignees: List[str] = None    # アサイニー
+) -> Dict[str, Any]:
+    """GitHub Issue を作成し、結果を返す"""
+
+async def create_github_pr(
+    repository: str,        # "owner/repo" 形式
+    title: str,            # PR タイトル
+    description: str,      # PR 説明
+    file_path: str,        # 変更するファイルパス
+    file_content: str,     # 新しいファイル内容
+    branch_name: str = None,       # ブランチ名
+    base_branch: str = "main"      # ベースブランチ
+) -> Dict[str, Any]:
+    """GitHub Pull Request を作成し、結果を返す"""
+```
+
+#### **実装計画（2週間）**
+**Week 1**: GitHub基盤・MCPツール実装
+- GitHub APIクライアント基盤（認証・基本API）
+- MCPツール実装（Issue/PR作成）
+- MCPサーバー統合
+
+**Week 2**: 統合・テスト・最適化
+- Function Calling統合
+- ユニット・統合テスト実装
+- エラーハンドリング・リトライ機能
+- ドキュメント・デプロイ準備
+
+#### **実装の利点**
+1. **最小実装**: 既存MCP基盤（29テスト通過）をフル活用
+2. **即座に動作**: フロントエンド不要でLLM対話テスト可能
+3. **段階的拡張**: 基本機能確立後、フィードバックAPI等を追加可能
+4. **実装量削減**: 約250行の実装でコア機能完成
+
+#### **使用例**
+```python
+# LLMとの対話例
+ユーザー: "この README.md の構造が分かりにくいので、改善提案をGitHubのIssueとして投稿してください"
+
+LLM: analyze_document_structure() で分析
+     ↓
+     generate_feedback_from_conversation() でフィードバック生成
+     ↓
+     create_github_issue() でIssue作成
+     ↓
+     "GitHub Issue #123 を作成しました: https://github.com/owner/repo/issues/123"
+```
+
+### 📂 実装ファイル構成
+```
+doc_ai_helper_backend/
+├── services/
+│   ├── github/
+│   │   ├── __init__.py
+│   │   ├── github_client.py      # GitHub API クライアント
+│   │   └── auth_manager.py       # 認証管理
+│   └── mcp/tools/
+│       └── github_tools.py       # GitHub MCPツール
+└── tests/
+    ├── unit/services/
+    │   ├── github/               # GitHub関連ユニットテスト
+    │   └── mcp/test_github_tools.py
+    └── integration/github/       # GitHub統合テスト
+```
+`````

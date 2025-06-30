@@ -1,0 +1,26 @@
+[tool.pytest.ini_options]
+markers = [
+    "integration: Integration tests",
+    "mcp: MCP (Model Context Protocol) related tests",
+    "e2e: End-to-end tests", 
+    "function_calling: Function calling related tests",
+    "tools: Tool execution tests",
+    "performance: Performance tests",
+    "slow: Slow running tests",
+    "unit: Unit tests",
+    "api: API tests",
+    "llm: LLM service tests",
+    "git: Git service tests"
+]
+
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-ra -q --tb=short"
+asyncio_mode = "auto"
+
+filterwarnings = [
+    "ignore::DeprecationWarning:pytest.*",
+    "ignore::DeprecationWarning:pydantic.*"
+]

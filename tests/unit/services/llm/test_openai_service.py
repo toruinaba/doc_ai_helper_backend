@@ -6,6 +6,12 @@ from typing import Dict, Any
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
 from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
+from doc_ai_helper_backend.models.repository_context import (
+    RepositoryContext,
+    DocumentMetadata,
+    GitService,
+    DocumentType,
+)
 
 
 class TestOpenAIService:
@@ -458,8 +464,335 @@ class TestOpenAIService:
         # メッセージの検証
         messages = call_kwargs["messages"]
         assert len(messages) == 4  # 会話履歴3件 + 現在のプロンプト1件
+
+
+class TestOpenAIServiceWithContext:
+    """OpenAIServiceのコンテキスト機能テスト"""
+
+    @pytest.fixture
+    def openai_service_with_system_prompt_builder(self, monkeypatch):
+        """システムプロンプトビルダー付きのOpenAIServiceインスタンス"""
+        # OpenAI API のモック
+        mock_completion = MagicMock()
+        mock_completion.choices = [MagicMock()]
+        mock_completion.choices[0].message.content = "Context-aware mock response"
+        mock_completion.usage.prompt_tokens = 15
+        mock_completion.usage.completion_tokens = 25
+        mock_completion.usage.total_tokens = 40
+        mock_completion.model_dump.return_value = {"mock": "response"}
+
+        mock_async_client = MagicMock()
+        mock_async_client.chat.completions.create = AsyncMock(
+            return_value=mock_completion
+        )
+
+        mock_sync_client = MagicMock()
+        mock_encoder = MagicMock()
+        mock_encoder.encode.return_value = [1, 2, 3, 4, 5]
+
+        def mock_async_openai(**kwargs):
+            return mock_async_client
+
+        def mock_sync_openai(**kwargs):
+            return mock_sync_client
+
+        monkeypatch.setattr("openai.AsyncOpenAI", mock_async_openai)
+        monkeypatch.setattr("openai.OpenAI", mock_sync_openai)
+        monkeypatch.setattr("tiktoken.encoding_for_model", lambda model: mock_encoder)
+        monkeypatch.setattr("tiktoken.get_encoding", lambda encoding: mock_encoder)
+
+        # システムプロンプトビルダーのモック
+        mock_system_prompt_builder = MagicMock()
+        mock_system_prompt_builder.build_system_prompt.return_value = (
+            "Generated system prompt for test"
+        )
+
+        service = OpenAIService(api_key="test-api-key", default_model="gpt-4")
+        service.async_client = mock_async_client
+        service.sync_client = mock_sync_client
+        service.system_prompt_builder = mock_system_prompt_builder
+        service.cache_service.clear()
+
+        return service
+
+    @pytest.mark.asyncio
+    async def test_query_with_repository_context(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """リポジトリコンテキスト付きクエリのテスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # コンテキスト準備
+        repo_context = RepositoryContext(
+            service=GitService.GITHUB,
+            owner="microsoft",
+            repo="vscode",
+            ref="main",
+            current_path="README.md",
+        )
+
+        doc_metadata = DocumentMetadata(
+            title="Visual Studio Code",
+            type=DocumentType.MARKDOWN,
+            filename="README.md",
+            file_size=2048,
+        )
+
+        doc_content = "# Visual Studio Code\nA powerful code editor."
+
+        # クエリ実行
+        response = await service.query(
+            prompt="このドキュメントについて教えてください",
+            repository_context=repo_context,
+            document_metadata=doc_metadata,
+            document_content=doc_content,
+            system_prompt_template="contextual_document_assistant_ja",
+            include_document_in_system_prompt=True,
+        )
+
+        # レスポンス検証
+        assert isinstance(response, LLMResponse)
+        assert response.content == "Context-aware mock response"
+        assert response.model == "gpt-4"
+        assert response.provider == "openai"
+
+        # システムプロンプトビルダーが呼ばれたことを確認
+        service.system_prompt_builder.build_system_prompt.assert_called_once_with(
+            repository_context=repo_context,
+            document_metadata=doc_metadata,
+            document_content=doc_content,
+            template_id="contextual_document_assistant_ja",
+        )
+
+        # API呼び出しパラメータの検証
+        call_kwargs = service.async_client.chat.completions.create.call_args[1]
+        messages = call_kwargs["messages"]
+
+        # システムメッセージとユーザーメッセージが含まれることを確認
+        assert len(messages) == 2
+        assert messages[0]["role"] == "system"
+        assert messages[0]["content"] == "Generated system prompt for test"
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "このドキュメントについて教えてください"
+
+    @pytest.mark.asyncio
+    async def test_query_without_context(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """コンテキストなしクエリのテスト（従来動作の確認）"""
+        service = openai_service_with_system_prompt_builder
+
+        # コンテキストなしでクエリ実行
+        response = await service.query(
+            prompt="Hello, how are you?",
+            repository_context=None,
+            document_metadata=None,
+            document_content=None,
+            include_document_in_system_prompt=False,
+        )
+
+        # レスポンス検証
+        assert isinstance(response, LLMResponse)
+        assert response.content == "Context-aware mock response"
+
+        # システムプロンプトビルダーが呼ばれていないことを確認
+        service.system_prompt_builder.build_system_prompt.assert_not_called()
+
+        # API呼び出しパラメータの検証
+        call_kwargs = service.async_client.chat.completions.create.call_args[1]
+        messages = call_kwargs["messages"]
+
+        # システムメッセージがないことを確認
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "Hello, how are you?"
+
+    @pytest.mark.asyncio
+    async def test_query_with_context_and_conversation_history(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """コンテキストと会話履歴の組み合わせテスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # 会話履歴
+        from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
+
+        history = [
+            MessageItem(role=MessageRole.USER, content="前回の質問"),
+            MessageItem(role=MessageRole.ASSISTANT, content="前回の回答"),
+        ]
+
+        # コンテキスト
+        repo_context = RepositoryContext(
+            service=GitService.GITLAB, owner="group", repo="project", ref="develop"
+        )
+
+        # クエリ実行
+        response = await service.query(
+            prompt="続きの質問です",
+            conversation_history=history,
+            repository_context=repo_context,
+            system_prompt_template="contextual_document_assistant_ja",
+        )
+
+        # レスポンス検証
+        assert isinstance(response, LLMResponse)
+
+        # システムプロンプトビルダーが呼ばれたことを確認
+        service.system_prompt_builder.build_system_prompt.assert_called_once()
+
+        # API呼び出しパラメータの検証
+        call_kwargs = service.async_client.chat.completions.create.call_args[1]
+        messages = call_kwargs["messages"]
+
+        # システムメッセージ + 会話履歴 + 現在のプロンプト
+        assert len(messages) == 4
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "前回の質問"
         assert messages[2]["role"] == "assistant"
+        assert messages[2]["content"] == "前回の回答"
         assert messages[3]["role"] == "user"
-        assert messages[3]["content"] == "質問があります"
+        assert messages[3]["content"] == "続きの質問です"
+
+    @pytest.mark.asyncio
+    async def test_stream_query_with_context(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """ストリーミングクエリでのコンテキストテスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # ストリーミングレスポンスのモック
+        async def mock_stream():
+            mock_chunks = [
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="Context "))]),
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="aware "))]),
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="response"))]),
+            ]
+            for chunk in mock_chunks:
+                yield chunk
+
+        service.async_client.chat.completions.create.return_value = mock_stream()
+
+        # コンテキスト準備
+        repo_context = RepositoryContext(
+            service=GitService.GITHUB, owner="test", repo="example", ref="main"
+        )
+
+        # ストリーミングクエリ実行
+        chunks = []
+        async for chunk in service.stream_query(
+            prompt="ストリーミングテスト",
+            repository_context=repo_context,
+            system_prompt_template="contextual_document_assistant_ja",
+        ):
+            chunks.append(chunk)
+
+        # 結果検証
+        assert chunks == ["Context ", "aware ", "response"]
+
+        # システムプロンプトビルダーが呼ばれたことを確認
+        service.system_prompt_builder.build_system_prompt.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_system_prompt_builder_fallback(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """システムプロンプトビルダーエラー時のフォールバック動作テスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # システムプロンプトビルダーでエラーを発生させる
+        service.system_prompt_builder.build_system_prompt.side_effect = Exception(
+            "Builder error"
+        )
+
+        # コンテキスト準備
+        repo_context = RepositoryContext(
+            service=GitService.GITHUB, owner="test", repo="repo", ref="main"
+        )
+
+        # クエリ実行（エラーが発生してもフォールバックする）
+        response = await service.query(
+            prompt="フォールバックテスト", repository_context=repo_context
+        )
+
+        # レスポンス検証（エラーなく動作することを確認）
+        assert isinstance(response, LLMResponse)
+        assert response.content == "Context-aware mock response"
+
+        # システムプロンプトビルダーが呼ばれたことを確認
+        service.system_prompt_builder.build_system_prompt.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_context_parameter_variations(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """コンテキストパラメータの様々な組み合わせテスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # 1. repository_context のみ
+        response = await service.query(
+            prompt="リポジトリコンテキストのみ",
+            repository_context=RepositoryContext(
+                service=GitService.GITHUB, owner="test", repo="repo", ref="main"
+            ),
+        )
+        assert isinstance(response, LLMResponse)
+
+        # 2. document_metadata のみ
+        response = await service.query(
+            prompt="ドキュメントメタデータのみ",
+            document_metadata=DocumentMetadata(
+                title="Test Doc", type=DocumentType.PYTHON, filename="test.py"
+            ),
+        )
+        assert isinstance(response, LLMResponse)
+
+        # 3. document_content のみ
+        response = await service.query(
+            prompt="ドキュメントコンテンツのみ",
+            document_content="print('Hello, World!')",
+        )
+        assert isinstance(response, LLMResponse)
+
+        # 4. カスタムテンプレート
+        response = await service.query(
+            prompt="カスタムテンプレート",
+            repository_context=RepositoryContext(
+                service=GitService.GITHUB, owner="test", repo="repo", ref="main"
+            ),
+            system_prompt_template="custom_template",
+        )
+        assert isinstance(response, LLMResponse)
+
+    @pytest.mark.asyncio
+    async def test_include_document_in_system_prompt_false(
+        self, openai_service_with_system_prompt_builder
+    ):
+        """include_document_in_system_prompt=False の動作テスト"""
+        service = openai_service_with_system_prompt_builder
+
+        # コンテキストありだが、システムプロンプトに含めない設定
+        response = await service.query(
+            prompt="システムプロンプトなし",
+            repository_context=RepositoryContext(
+                service=GitService.GITHUB, owner="test", repo="repo", ref="main"
+            ),
+            document_content="Some content",
+            include_document_in_system_prompt=False,
+        )
+
+        # レスポンス検証
+        assert isinstance(response, LLMResponse)
+
+        # システムプロンプトビルダーが呼ばれていないことを確認
+        service.system_prompt_builder.build_system_prompt.assert_not_called()
+
+        # API呼び出しパラメータの検証
+        call_kwargs = service.async_client.chat.completions.create.call_args[1]
+        messages = call_kwargs["messages"]
+
+        # システムメッセージがないことを確認
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "システムプロンプトなし"
