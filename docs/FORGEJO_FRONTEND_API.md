@@ -315,9 +315,12 @@ python -m uvicorn doc_ai_helper_backend.main:app --reload --host 0.0.0.0 --port 
 ```
 
 ### 2. 環境変数の設定
-`.env` ファイルに以下を設定：
+`.env.example` をコピーして `.env` ファイルを作成し、以下を設定：
 
 ```bash
+# Copy example and customize
+cp .env.example .env
+
 # Forgejo server settings
 FORGEJO_BASE_URL=https://your-forgejo-server.com
 FORGEJO_TOKEN=your_access_token_here

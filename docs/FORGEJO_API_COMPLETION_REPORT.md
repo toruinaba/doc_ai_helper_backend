@@ -174,7 +174,7 @@ tests/api/test_forgejo_endpoints.py::TestForgejoAPIEndpoints::test_service_error
 - `docs/FORGEJO_FRONTEND_API.md`
 
 ### 設定例
-- `.env.forgejo.example`
+- `.env.example`
 
 ## 次のステップ
 

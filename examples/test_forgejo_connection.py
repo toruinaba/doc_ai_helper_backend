@@ -103,8 +103,8 @@ def print_setup_instructions():
     print("=" * 60)
 
     print("\n1. 📁 Create .env file:")
-    print("   Copy .env.forgejo.example to .env")
-    print("   cp .env.forgejo.example .env")
+    print("   Copy .env.example to .env and configure Forgejo settings")
+    print("   cp .env.example .env")
 
     print("\n2. 🔧 Configure Forgejo settings in .env:")
     print("   FORGEJO_BASE_URL=https://your-forgejo-server.com")

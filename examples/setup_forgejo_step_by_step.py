@@ -28,7 +28,7 @@ def step1_check_environment():
         print("❌ .env file not found!")
         print("\n💡 Solution:")
         print("   1. Copy the example file:")
-        print("      cp .env.forgejo.example .env")
+        print("      cp .env.example .env")
         print("   2. Edit .env with your Forgejo server details")
         return False
 

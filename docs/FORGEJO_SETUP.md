@@ -183,6 +183,9 @@ print(f"Document: {document.name}")
 
 ### Configuration Example
 ```bash
+# Copy the example file and customize
+cp .env.example .env
+
 # Production configuration
 FORGEJO_BASE_URL=https://git.company.com
 FORGEJO_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
