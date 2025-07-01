@@ -17,7 +17,10 @@ from doc_ai_helper_backend.core.exceptions import (
     UnauthorizedException,
 )
 from doc_ai_helper_backend.models.document import (
+    DocumentContent,
+    DocumentMetadata,
     DocumentResponse,
+    DocumentType,
     FileTreeItem,
     RepositoryStructureResponse,
 )
@@ -462,3 +465,55 @@ class GitHubService(GitServiceBase):
                 "error": str(e),
                 "authenticated": False,
             }
+
+    def build_document_response(
+        self,
+        owner: str,
+        repo: str,
+        path: str,
+        ref: str,
+        content: str,
+        metadata: Dict[str, Any],
+    ) -> DocumentResponse:
+        """Build a DocumentResponse from GitHub API data."""
+        from doc_ai_helper_backend.services.document_processors.factory import (
+            DocumentProcessorFactory,
+        )
+
+        # Detect document type
+        document_type = self.detect_document_type(path)
+
+        # Process document
+        processor = DocumentProcessorFactory.create(document_type)
+        document_content = processor.process_content(content, path)
+
+        # Convert metadata to DocumentMetadata
+        document_metadata = DocumentMetadata(
+            size=metadata.get("size", len(content)),
+            last_modified=datetime.utcnow(),
+            content_type=(
+                "text/markdown"
+                if document_type == DocumentType.MARKDOWN
+                else "text/plain"
+            ),
+            sha=metadata.get("sha"),
+            download_url=metadata.get("download_url"),
+            html_url=metadata.get("html_url"),
+            raw_url=metadata.get("download_url"),
+            extra=metadata.get("extra", {}),
+        )
+
+        return DocumentResponse(
+            path=path,
+            name=path.split("/")[-1],
+            type=document_type,
+            content=DocumentContent(content=content),
+            metadata=document_metadata,
+            repository=repo,
+            owner=owner,
+            service="github",
+            ref=ref,
+            links=processor.extract_links(content, path),
+        )
+
+    # ...existing methods...

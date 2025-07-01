@@ -81,7 +81,8 @@ class ForgejoService(GitServiceBase):
     def _get_auth_headers(self) -> Dict[str, str]:
         """Get authentication headers for Forgejo API."""
         if self.access_token:
-            return {"Authorization": f"token {self.access_token}"}
+            # Forgejo/Gitea uses Bearer token authentication
+            return {"Authorization": f"Bearer {self.access_token}"}
         elif self.username and self.password:
             # Basic authentication
             credentials = base64.b64encode(
@@ -95,8 +96,9 @@ class ForgejoService(GitServiceBase):
         try:
             headers = self._get_default_headers()
             async with httpx.AsyncClient() as client:
+                # Use repository search endpoint instead of /user for authentication test
                 response = await self._make_request(
-                    client, "GET", f"{self.api_base_url}/user", headers=headers
+                    client, "GET", f"{self.api_base_url}/repos/search", headers=headers
                 )
                 return response.status_code == 200
         except (UnauthorizedException, GitServiceException):
@@ -111,8 +113,9 @@ class ForgejoService(GitServiceBase):
         try:
             headers = self._get_default_headers()
             async with httpx.AsyncClient() as client:
+                # Use repository search endpoint instead of /user
                 response = await self._make_request(
-                    client, "GET", f"{self.api_base_url}/user", headers=headers
+                    client, "GET", f"{self.api_base_url}/repos/search", headers=headers
                 )
 
                 # Extract rate limit info from headers if available
@@ -140,8 +143,11 @@ class ForgejoService(GitServiceBase):
 
                 version_info = response.json() if response.status_code == 200 else {}
 
-                # Test authentication if configured
-                auth_test = await self.authenticate()
+                # Test authentication with repository search (less privileged endpoint)
+                auth_test_response = await self._make_request(
+                    client, "GET", f"{self.api_base_url}/repos/search", headers=headers
+                )
+                auth_test = auth_test_response.status_code == 200
 
                 return {
                     "service": "forgejo",
@@ -211,13 +217,35 @@ class ForgejoService(GitServiceBase):
                 # Process document
                 processor = DocumentProcessorFactory.create(document_type)
                 document_content = processor.process_content(content, path)
-                metadata = processor.extract_metadata(content, path)
+                extended_metadata = processor.extract_metadata(content, path)
+
+                # Convert ExtendedDocumentMetadata to DocumentMetadata
+                metadata = DocumentMetadata(
+                    size=file_data.get("size", len(content)),
+                    last_modified=datetime.utcnow(),  # Forgejo might not provide this
+                    content_type=(
+                        "text/markdown"
+                        if document_type == DocumentType.MARKDOWN
+                        else "text/plain"
+                    ),
+                    sha=file_data.get("sha"),
+                    download_url=file_data.get("download_url"),
+                    html_url=file_data.get("html_url"),
+                    raw_url=file_data.get(
+                        "download_url"
+                    ),  # Use download_url as raw_url
+                    extra=(
+                        extended_metadata.dict()
+                        if hasattr(extended_metadata, "dict")
+                        else {}
+                    ),
+                )
 
                 return DocumentResponse(
                     path=path,
                     name=file_data.get("name", path.split("/")[-1]),
                     type=document_type,
-                    content=document_content,
+                    content=DocumentContent(content=content),
                     metadata=metadata,
                     repository=repo,
                     owner=owner,
@@ -263,17 +291,19 @@ class ForgejoService(GitServiceBase):
                         type="file" if item["type"] == "file" else "directory",
                         size=item.get("size", 0),
                         sha=item.get("sha", ""),
-                        url=item.get("download_url", ""),
+                        download_url=item.get("download_url", ""),
+                        html_url=item.get("html_url", ""),
+                        git_url=item.get("git_url", ""),
                     )
                     files.append(file_item)
 
                 return RepositoryStructureResponse(
-                    repository=repo,
-                    owner=owner,
                     service="forgejo",
+                    owner=owner,
+                    repo=repo,
                     ref=ref,
-                    path=path,
-                    files=files,
+                    tree=files,
+                    last_updated=datetime.utcnow(),
                 )
 
         except NotFoundException:

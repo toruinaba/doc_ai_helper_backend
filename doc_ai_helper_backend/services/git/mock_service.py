@@ -20,7 +20,10 @@ from doc_ai_helper_backend.services.git.mock_data import (
     EXTENDED_EXISTING_REPOS,
 )
 from doc_ai_helper_backend.models.document import (
+    DocumentContent,
+    DocumentMetadata,
     DocumentResponse,
+    DocumentType,
     FileTreeItem,
     RepositoryStructureResponse,
 )
@@ -370,3 +373,55 @@ class MockGitService(GitServiceBase):
             "rate_limit": await self.get_rate_limit_info(),
             "api_url": "mock://localhost",
         }
+
+    def build_document_response(
+        self,
+        owner: str,
+        repo: str,
+        path: str,
+        ref: str,
+        content: str,
+        metadata: Dict[str, Any],
+    ) -> DocumentResponse:
+        """Build a DocumentResponse from mock data."""
+        from doc_ai_helper_backend.services.document_processors.factory import (
+            DocumentProcessorFactory,
+        )
+
+        # Detect document type
+        document_type = self.detect_document_type(path)
+
+        # Process document
+        processor = DocumentProcessorFactory.create(document_type)
+
+        # Convert metadata to DocumentMetadata
+        document_metadata = DocumentMetadata(
+            size=metadata.get("size", len(content)),
+            last_modified=metadata.get("last_modified", datetime.utcnow()),
+            content_type=metadata.get(
+                "content_type",
+                (
+                    "text/markdown"
+                    if document_type == DocumentType.MARKDOWN
+                    else "text/plain"
+                ),
+            ),
+            sha=metadata.get("sha"),
+            download_url=metadata.get("download_url"),
+            html_url=metadata.get("html_url"),
+            raw_url=metadata.get("raw_url"),
+            extra=metadata.get("extra", {}),
+        )
+
+        return DocumentResponse(
+            path=path,
+            name=path.split("/")[-1],
+            type=document_type,
+            content=DocumentContent(content=content),
+            metadata=document_metadata,
+            repository=repo,
+            owner=owner,
+            service="mock",
+            ref=ref,
+            links=processor.extract_links(content, path),
+        )

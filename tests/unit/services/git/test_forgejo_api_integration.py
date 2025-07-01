@@ -18,7 +18,6 @@ from doc_ai_helper_backend.models.document import (
 from doc_ai_helper_backend.services.git.forgejo_service import ForgejoService
 
 
-@pytest.mark.asyncio
 class TestForgejoAPIIntegration:
     """Test cases for API integration with Forgejo service."""
 
@@ -32,6 +31,7 @@ class TestForgejoAPIIntegration:
         self.ref = "main"
 
     @patch("doc_ai_helper_backend.services.git.factory.GitServiceFactory.create")
+    @pytest.mark.asyncio
     async def test_get_document_endpoint_with_forgejo(self, mock_create):
         """Test document retrieval endpoint with Forgejo service."""
         # Mock Forgejo service
@@ -78,6 +78,7 @@ class TestForgejoAPIIntegration:
         assert isinstance(result, DocumentResponse)
 
     @patch("doc_ai_helper_backend.services.git.factory.GitServiceFactory.create")
+    @pytest.mark.asyncio
     async def test_get_repository_structure_endpoint_with_forgejo(self, mock_create):
         """Test repository structure endpoint with Forgejo service."""
         # Mock Forgejo service
@@ -125,6 +126,7 @@ class TestForgejoAPIIntegration:
         assert isinstance(result, RepositoryStructureResponse)
         assert result.service == "forgejo"
 
+    @pytest.mark.asyncio
     async def test_forgejo_service_authentication_methods(self):
         """Test Forgejo service authentication methods."""
         # Test token authentication
@@ -133,7 +135,7 @@ class TestForgejoAPIIntegration:
         )
         auth_headers_token = service_token._get_auth_headers()
         assert "Authorization" in auth_headers_token
-        assert auth_headers_token["Authorization"] == f"token {self.access_token}"
+        assert auth_headers_token["Authorization"] == f"Bearer {self.access_token}"
 
         # Test basic authentication
         username = "testuser"
@@ -159,6 +161,7 @@ class TestForgejoAPIIntegration:
         assert "token" in auth_methods
         assert "basic_auth" in auth_methods
 
+    @pytest.mark.asyncio
     async def test_forgejo_error_handling(self):
         """Test error handling in Forgejo service."""
         service = ForgejoService(base_url=self.base_url, access_token=self.access_token)

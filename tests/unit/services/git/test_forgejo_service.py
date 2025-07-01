@@ -61,7 +61,7 @@ class TestForgejoService:
         """Test getting auth headers with token."""
         service = ForgejoService(base_url=self.base_url, access_token=self.access_token)
         headers = service._get_auth_headers()
-        assert headers["Authorization"] == f"token {self.access_token}"
+        assert headers["Authorization"] == f"Bearer {self.access_token}"
 
     def test_get_auth_headers_with_basic_auth(self):
         """Test getting auth headers with basic auth."""
