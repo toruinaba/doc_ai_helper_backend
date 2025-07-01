@@ -380,3 +380,85 @@ class GitHubService(GitServiceBase):
             raise GitServiceException(
                 f"Error checking if GitHub repository exists: {str(e)}"
             )
+
+    def get_supported_auth_methods(self) -> List[str]:
+        """Get supported authentication methods for GitHub.
+
+        Returns:
+            List[str]: List of supported authentication methods
+        """
+        return ["token", "oauth"]
+
+    async def authenticate(self) -> bool:
+        """Test authentication with GitHub API.
+
+        Returns:
+            bool: True if authentication is successful, False otherwise
+
+        Raises:
+            UnauthorizedException: If authentication fails
+            GitServiceException: If there is an error with the GitHub API
+        """
+        if not self.access_token:
+            return False
+
+        url = f"{GITHUB_API_BASE_URL}/user"
+
+        try:
+            await self._make_request("GET", url)
+            return True
+        except UnauthorizedException:
+            return False
+        except Exception as e:
+            raise GitServiceException(f"Error testing GitHub authentication: {str(e)}")
+
+    async def get_rate_limit_info(self) -> Dict[str, Any]:
+        """Get GitHub API rate limit information.
+
+        Returns:
+            Dict[str, Any]: Rate limit information including current usage and limits
+
+        Raises:
+            GitServiceException: If there is an error with the GitHub API
+            UnauthorizedException: If access is unauthorized
+        """
+        url = f"{GITHUB_API_BASE_URL}/rate_limit"
+
+        try:
+            data, headers = await self._make_request("GET", url)
+            return {
+                "service": "github",
+                "rate_limit": data.get("rate", {}),
+                "remaining": int(headers.get("X-RateLimit-Remaining", "0")),
+                "reset_time": int(headers.get("X-RateLimit-Reset", "0")),
+            }
+        except Exception as e:
+            raise GitServiceException(f"Error getting GitHub rate limit: {str(e)}")
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test connection to GitHub API.
+
+        Returns:
+            Dict[str, Any]: Connection test results including status and service info
+
+        Raises:
+            GitServiceException: If connection test fails
+        """
+        try:
+            auth_success = await self.authenticate()
+            rate_limit_info = await self.get_rate_limit_info()
+
+            return {
+                "service": "github",
+                "status": "success",
+                "authenticated": auth_success,
+                "rate_limit": rate_limit_info,
+                "api_url": GITHUB_API_BASE_URL,
+            }
+        except Exception as e:
+            return {
+                "service": "github",
+                "status": "error",
+                "error": str(e),
+                "authenticated": False,
+            }

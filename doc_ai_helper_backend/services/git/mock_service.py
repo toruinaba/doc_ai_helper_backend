@@ -313,5 +313,60 @@ class MockGitService(GitServiceBase):
             return True
         return repo_path in self.existing_repos
 
+    def get_supported_auth_methods(self) -> List[str]:
+        """Get supported authentication methods for Mock service.
 
-# Old default mock data moved to mock_data.py
+        Returns:
+            List[str]: List of supported authentication methods
+        """
+        return ["token", "none"]
+
+    async def authenticate(self) -> bool:
+        """Test authentication with Mock service.
+
+        Returns:
+            bool: Always returns True for mock service
+
+        Raises:
+            UnauthorizedException: Never raised in mock service
+            GitServiceException: Never raised in mock service
+        """
+        return True
+
+    async def get_rate_limit_info(self) -> Dict[str, Any]:
+        """Get Mock service rate limit information.
+
+        Returns:
+            Dict[str, Any]: Mock rate limit information
+
+        Raises:
+            GitServiceException: Never raised in mock service
+            UnauthorizedException: Never raised in mock service
+        """
+        return {
+            "service": "mock",
+            "rate_limit": {
+                "limit": 5000,
+                "used": 100,
+                "remaining": 4900,
+            },
+            "remaining": 4900,
+            "reset_time": 3600,
+        }
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test connection to Mock service.
+
+        Returns:
+            Dict[str, Any]: Connection test results - always successful
+
+        Raises:
+            GitServiceException: Never raised in mock service
+        """
+        return {
+            "service": "mock",
+            "status": "success",
+            "authenticated": True,
+            "rate_limit": await self.get_rate_limit_info(),
+            "api_url": "mock://localhost",
+        }
