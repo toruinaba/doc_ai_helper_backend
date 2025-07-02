@@ -15,7 +15,7 @@ __all__ = [
     "GitServiceType",
     "CredentialManager",
     "ContextValidationError",
-    "UnsupportedServiceError", 
+    "UnsupportedServiceError",
     "AuthenticationError",
     "InvalidContextError",
 ]

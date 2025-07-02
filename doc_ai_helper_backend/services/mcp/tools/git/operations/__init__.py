@@ -11,6 +11,6 @@ from .repository_operations import RepositoryOperations
 
 __all__ = [
     "IssueOperations",
-    "PROperations", 
+    "PROperations",
     "RepositoryOperations",
 ]

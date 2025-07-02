@@ -119,7 +119,9 @@ class TestMCPGitHubClient:
         }
 
         with patch.object(client, "_make_request", return_value=mock_response):
-            result = await client.check_repository_permissions(owner="owner", repo="repo")
+            result = await client.check_repository_permissions(
+                owner="owner", repo="repo"
+            )
 
             assert result["permissions"]["admin"] is True
             assert result["permissions"]["push"] is True
@@ -131,7 +133,10 @@ class TestMCPGitHubAdapter:
 
     def test_init_with_config(self):
         """Test initialization with configuration."""
-        config = {"access_token": "test_token", "default_labels": ["bug", "enhancement"]}
+        config = {
+            "access_token": "test_token",
+            "default_labels": ["bug", "enhancement"],
+        }
         adapter = MCPGitHubAdapter(config)
         assert adapter.config == config
         assert adapter.client.access_token == "test_token"

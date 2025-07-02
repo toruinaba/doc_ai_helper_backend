@@ -20,10 +20,12 @@ class TestMCPServerGitToolsIntegration:
             default_git_service="github",
             github_default_labels=["bug", "enhancement"],
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure:
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure:
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Verify GitHub service was configured
             mock_configure.assert_called_with(
                 "github",
@@ -31,7 +33,7 @@ class TestMCPServerGitToolsIntegration:
                     "access_token": "test_token",
                     "default_labels": ["bug", "enhancement"],
                 },
-                set_as_default=True
+                set_as_default=True,
             )
 
     def test_server_initialization_with_forgejo_config(self):
@@ -43,10 +45,12 @@ class TestMCPServerGitToolsIntegration:
             default_git_service="forgejo",
             forgejo_default_labels=["feature"],
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure:
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure:
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Verify Forgejo service was configured
             mock_configure.assert_called_with(
                 "forgejo",
@@ -57,7 +61,7 @@ class TestMCPServerGitToolsIntegration:
                     "password": None,
                     "default_labels": ["feature"],
                 },
-                set_as_default=True
+                set_as_default=True,
             )
 
     def test_server_initialization_with_both_services(self):
@@ -70,13 +74,15 @@ class TestMCPServerGitToolsIntegration:
             forgejo_password="testpass",
             default_git_service="github",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure:
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure:
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Verify both services were configured
             assert mock_configure.call_count == 2
-            
+
             # Check GitHub configuration
             github_call = None
             forgejo_call = None
@@ -85,10 +91,10 @@ class TestMCPServerGitToolsIntegration:
                     github_call = call
                 elif call[0][0] == "forgejo":
                     forgejo_call = call
-            
+
             assert github_call is not None
             assert forgejo_call is not None
-            
+
             # Verify GitHub is set as default
             assert github_call[1]["set_as_default"] is True
             assert forgejo_call[1]["set_as_default"] is False
@@ -99,10 +105,12 @@ class TestMCPServerGitToolsIntegration:
             enable_github_tools=False,
             github_token="test_token",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure:
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure:
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Verify no Git services were configured
             mock_configure.assert_not_called()
 
@@ -114,14 +122,16 @@ class TestMCPServerGitToolsIntegration:
             github_token="test_token",
             default_git_service="github",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service'):
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ):
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Check that the tools are registered in the FastMCP app
             registered_tools = server.app.get_tools()
             tool_names = [tool.name for tool in registered_tools]
-            
+
             assert "create_git_issue" in tool_names
             assert "create_git_pull_request" in tool_names
             assert "check_git_repository_permissions" in tool_names
@@ -134,24 +144,29 @@ class TestMCPServerGitToolsIntegration:
             github_token="test_token",
             default_git_service="github",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service'), \
-             patch('doc_ai_helper_backend.services.mcp.tools.git_tools.create_git_issue') as mock_create_issue:
-            
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ), patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.create_git_issue"
+        ) as mock_create_issue:
+
             mock_create_issue.return_value = "Issue created successfully: #123"
-            
+
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Simulate repository context
             repo_context = RepositoryContext(
                 owner="owner", repo="repo", service="github", ref="main", path=""
             )
             server._current_repository_context = repo_context
-            
+
             # Execute the tool through FastMCP
             tools = server.app.get_tools()
-            create_issue_tool = next(tool for tool in tools if tool.name == "create_git_issue")
-            
+            create_issue_tool = next(
+                tool for tool in tools if tool.name == "create_git_issue"
+            )
+
             result = await create_issue_tool.handler(
                 title="Test Issue",
                 description="This is a test issue",
@@ -160,7 +175,7 @@ class TestMCPServerGitToolsIntegration:
                 service_type="github",
                 github_token="runtime_token",
             )
-            
+
             assert "Issue created successfully" in result
             mock_create_issue.assert_called_once()
 
@@ -173,24 +188,29 @@ class TestMCPServerGitToolsIntegration:
             forgejo_token="forgejo_token",
             default_git_service="forgejo",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service'), \
-             patch('doc_ai_helper_backend.services.mcp.tools.git_tools.create_git_pull_request') as mock_create_pr:
-            
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ), patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.create_git_pull_request"
+        ) as mock_create_pr:
+
             mock_create_pr.return_value = "Pull request created successfully: #456"
-            
+
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Simulate repository context
             repo_context = RepositoryContext(
                 owner="owner", repo="repo", service="forgejo", ref="main", path=""
             )
             server._current_repository_context = repo_context
-            
+
             # Execute the tool through FastMCP
             tools = server.app.get_tools()
-            create_pr_tool = next(tool for tool in tools if tool.name == "create_git_pull_request")
-            
+            create_pr_tool = next(
+                tool for tool in tools if tool.name == "create_git_pull_request"
+            )
+
             result = await create_pr_tool.handler(
                 title="Test PR",
                 description="This is a test PR",
@@ -199,7 +219,7 @@ class TestMCPServerGitToolsIntegration:
                 service_type="forgejo",
                 forgejo_token="runtime_token",
             )
-            
+
             assert "Pull request created successfully" in result
             mock_create_pr.assert_called_once()
 
@@ -211,29 +231,38 @@ class TestMCPServerGitToolsIntegration:
             github_token="test_token",
             default_git_service="github",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service'), \
-             patch('doc_ai_helper_backend.services.mcp.tools.git_tools.check_git_repository_permissions') as mock_check_perms:
-            
-            mock_check_perms.return_value = "Repository permissions: admin: True, push: True, pull: True"
-            
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ), patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.check_git_repository_permissions"
+        ) as mock_check_perms:
+
+            mock_check_perms.return_value = (
+                "Repository permissions: admin: True, push: True, pull: True"
+            )
+
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Simulate repository context
             repo_context = RepositoryContext(
                 owner="owner", repo="repo", service="github", ref="main", path=""
             )
             server._current_repository_context = repo_context
-            
+
             # Execute the tool through FastMCP
             tools = server.app.get_tools()
-            check_perms_tool = next(tool for tool in tools if tool.name == "check_git_repository_permissions")
-            
+            check_perms_tool = next(
+                tool
+                for tool in tools
+                if tool.name == "check_git_repository_permissions"
+            )
+
             result = await check_perms_tool.handler(
                 service_type="github",
                 github_token="runtime_token",
             )
-            
+
             assert "Repository permissions" in result
             mock_check_perms.assert_called_once()
 
@@ -244,15 +273,18 @@ class TestMCPServerGitToolsIntegration:
             github_token="test_token",
             default_git_service="github",
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure, \
-             patch('doc_ai_helper_backend.services.mcp.server.logger') as mock_logger:
-            
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure, patch(
+            "doc_ai_helper_backend.services.mcp.server.logger"
+        ) as mock_logger:
+
             mock_configure.side_effect = Exception("Configuration error")
-            
+
             # Should not raise exception, but log warning
             server = DocumentAIHelperMCPServer(config)
-            
+
             mock_logger.warning.assert_called_with(
                 "Failed to configure GitHub service: Configuration error"
             )
@@ -266,25 +298,34 @@ class TestMCPServerGitToolsIntegration:
             forgejo_token="forgejo_token",
             default_git_service="github",
         )
-        
+
         def mock_configure_side_effect(service_type, *args, **kwargs):
             if service_type == "github":
                 return  # Success
             elif service_type == "forgejo":
                 raise Exception("Forgejo configuration error")
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service') as mock_configure, \
-             patch('doc_ai_helper_backend.services.mcp.server.logger') as mock_logger:
-            
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git_tools.configure_git_service"
+        ) as mock_configure, patch(
+            "doc_ai_helper_backend.services.mcp.server.logger"
+        ) as mock_logger:
+
             mock_configure.side_effect = mock_configure_side_effect
-            
+
             server = DocumentAIHelperMCPServer(config)
-            
+
             # Should log success for GitHub and warning for Forgejo
-            info_calls = [call for call in mock_logger.info.call_args_list 
-                         if "Configured GitHub service" in str(call)]
-            warning_calls = [call for call in mock_logger.warning.call_args_list 
-                           if "Failed to configure Forgejo service" in str(call)]
-            
+            info_calls = [
+                call
+                for call in mock_logger.info.call_args_list
+                if "Configured GitHub service" in str(call)
+            ]
+            warning_calls = [
+                call
+                for call in mock_logger.warning.call_args_list
+                if "Failed to configure Forgejo service" in str(call)
+            ]
+
             assert len(info_calls) == 1
             assert len(warning_calls) == 1

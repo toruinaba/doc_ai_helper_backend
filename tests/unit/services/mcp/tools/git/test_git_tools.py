@@ -28,9 +28,9 @@ class TestGitToolsConfiguration:
     def test_configure_github_service(self):
         """Test configuring GitHub service."""
         config = {"access_token": "test_token", "default_labels": ["bug"]}
-        
+
         configure_git_service("github", config, set_as_default=True)
-        
+
         assert "github" in _configured_services
         assert _default_service == "github"
         assert _configured_services["github"].config == config
@@ -42,9 +42,9 @@ class TestGitToolsConfiguration:
             "access_token": "test_token",
             "default_labels": ["enhancement"],
         }
-        
+
         configure_git_service("forgejo", config, set_as_default=False)
-        
+
         assert "forgejo" in _configured_services
         assert _default_service is None  # Not set as default
         assert _configured_services["forgejo"].config == config
@@ -61,10 +61,10 @@ class TestGitToolsConfiguration:
             "base_url": "https://forgejo.example.com",
             "access_token": "forgejo_token",
         }
-        
+
         configure_git_service("github", github_config, set_as_default=True)
         configure_git_service("forgejo", forgejo_config, set_as_default=False)
-        
+
         assert len(_configured_services) == 2
         assert "github" in _configured_services
         assert "forgejo" in _configured_services
@@ -87,22 +87,24 @@ class TestGitToolsOperations:
         # Configure GitHub as default service
         github_config = {"access_token": "test_token"}
         configure_git_service("github", github_config, set_as_default=True)
-        
+
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="github", ref="main", path=""
         )
-        
+
         # Mock the adapter
         mock_adapter = Mock()
-        mock_adapter.create_issue = AsyncMock(return_value="Issue created successfully: #123")
+        mock_adapter.create_issue = AsyncMock(
+            return_value="Issue created successfully: #123"
+        )
         _configured_services["github"] = mock_adapter
-        
+
         result = await create_git_issue(
             title="Test Issue",
             description="This is a test issue",
             repository_context=repo_context,
         )
-        
+
         assert "Issue created successfully" in result
         mock_adapter.create_issue.assert_called_once_with(
             title="Test Issue",
@@ -123,25 +125,27 @@ class TestGitToolsOperations:
         }
         configure_git_service("github", github_config, set_as_default=True)
         configure_git_service("forgejo", forgejo_config, set_as_default=False)
-        
+
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="forgejo", ref="main", path=""
         )
-        
+
         # Mock the adapters
         mock_github_adapter = Mock()
         mock_forgejo_adapter = Mock()
-        mock_forgejo_adapter.create_issue = AsyncMock(return_value="Issue created successfully: #456")
+        mock_forgejo_adapter.create_issue = AsyncMock(
+            return_value="Issue created successfully: #456"
+        )
         _configured_services["github"] = mock_github_adapter
         _configured_services["forgejo"] = mock_forgejo_adapter
-        
+
         result = await create_git_issue(
             title="Test Issue",
             description="This is a test issue",
             repository_context=repo_context,
             service_type="forgejo",
         )
-        
+
         assert "Issue created successfully" in result
         # Forgejo adapter should be called, not GitHub
         mock_forgejo_adapter.create_issue.assert_called_once()
@@ -153,13 +157,17 @@ class TestGitToolsOperations:
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="github", ref="main", path=""
         )
-        
+
         # No pre-configured services, should create temporary service
-        with patch('doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter') as mock_create:
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter"
+        ) as mock_create:
             mock_adapter = Mock()
-            mock_adapter.create_issue = AsyncMock(return_value="Issue created successfully: #789")
+            mock_adapter.create_issue = AsyncMock(
+                return_value="Issue created successfully: #789"
+            )
             mock_create.return_value = mock_adapter
-            
+
             result = await create_git_issue(
                 title="Test Issue",
                 description="This is a test issue",
@@ -167,9 +175,11 @@ class TestGitToolsOperations:
                 service_type="github",
                 github_token="runtime_token",
             )
-            
+
             assert "Issue created successfully" in result
-            mock_create.assert_called_once_with("github", {"access_token": "runtime_token"})
+            mock_create.assert_called_once_with(
+                "github", {"access_token": "runtime_token"}
+            )
             mock_adapter.create_issue.assert_called_once()
 
     @pytest.mark.asyncio
@@ -187,16 +197,18 @@ class TestGitToolsOperations:
         # Configure GitHub as default service
         github_config = {"access_token": "test_token"}
         configure_git_service("github", github_config, set_as_default=True)
-        
+
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="github", ref="main", path=""
         )
-        
+
         # Mock the adapter
         mock_adapter = Mock()
-        mock_adapter.create_pull_request = AsyncMock(return_value="PR created successfully: #123")
+        mock_adapter.create_pull_request = AsyncMock(
+            return_value="PR created successfully: #123"
+        )
         _configured_services["github"] = mock_adapter
-        
+
         result = await create_git_pull_request(
             title="Test PR",
             description="This is a test PR",
@@ -204,7 +216,7 @@ class TestGitToolsOperations:
             base_branch="main",
             repository_context=repo_context,
         )
-        
+
         assert "PR created successfully" in result
         mock_adapter.create_pull_request.assert_called_once_with(
             title="Test PR",
@@ -220,23 +232,27 @@ class TestGitToolsOperations:
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="forgejo", ref="main", path=""
         )
-        
+
         # No pre-configured services, should create temporary service
-        with patch('doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter') as mock_create:
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter"
+        ) as mock_create:
             mock_adapter = Mock()
             mock_adapter.check_repository_permissions = AsyncMock(
                 return_value="Repository permissions: admin: True, push: True, pull: True"
             )
             mock_create.return_value = mock_adapter
-            
+
             result = await check_git_repository_permissions(
                 repository_context=repo_context,
                 service_type="forgejo",
                 forgejo_token="runtime_token",
             )
-            
+
             assert "Repository permissions" in result
-            mock_create.assert_called_once_with("forgejo", {"access_token": "runtime_token"})
+            mock_create.assert_called_once_with(
+                "forgejo", {"access_token": "runtime_token"}
+            )
             mock_adapter.check_repository_permissions.assert_called_once()
 
     @pytest.mark.asyncio
@@ -245,21 +261,23 @@ class TestGitToolsOperations:
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="forgejo", ref="main", path=""
         )
-        
-        with patch('doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter') as mock_create:
+
+        with patch(
+            "doc_ai_helper_backend.services.mcp.tools.git.factory.MCPGitToolsFactory.create_adapter"
+        ) as mock_create:
             mock_adapter = Mock()
             mock_adapter.check_repository_permissions = AsyncMock(
                 return_value="Repository permissions: admin: False, push: True, pull: True"
             )
             mock_create.return_value = mock_adapter
-            
+
             result = await check_git_repository_permissions(
                 repository_context=repo_context,
                 service_type="forgejo",
                 forgejo_username="testuser",
                 forgejo_password="testpass",
             )
-            
+
             assert "Repository permissions" in result
             expected_config = {
                 "username": "testuser",
@@ -273,7 +291,7 @@ class TestGitToolsOperations:
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="gitlab", ref="main", path=""
         )
-        
+
         with pytest.raises(ValueError, match="Unsupported service type"):
             await create_git_issue(
                 title="Test Issue",
@@ -288,21 +306,21 @@ class TestGitToolsOperations:
         # Configure GitHub service
         github_config = {"access_token": "test_token"}
         configure_git_service("github", github_config, set_as_default=True)
-        
+
         repo_context = RepositoryContext(
             owner="owner", repo="repo", service="github", ref="main", path=""
         )
-        
+
         # Mock the adapter to raise an exception
         mock_adapter = Mock()
         mock_adapter.create_issue = AsyncMock(side_effect=Exception("API Error"))
         _configured_services["github"] = mock_adapter
-        
+
         result = await create_git_issue(
             title="Test Issue",
             description="This is a test issue",
             repository_context=repo_context,
         )
-        
+
         assert "Error creating issue" in result
         assert "API Error" in result

@@ -13,7 +13,7 @@ The architecture consists of:
 
 Usage:
     from doc_ai_helper_backend.services.mcp.tools.git import unified_git_tools
-    
+
     # Create an issue using repository context
     result = await unified_git_tools.create_issue(
         repository_context="owner/repo",  # or detailed context dict
@@ -31,24 +31,20 @@ from .tools import UnifiedGitTools, unified_git_tools
 __all__ = [
     # Context management
     "RepositoryContext",
-    "GitServiceType", 
+    "GitServiceType",
     "CredentialManager",
-    
     # Service resolution
     "GitServiceResolver",
     "resolve_git_adapter",
-    
     # Adapters
     "BaseGitAdapter",
     "GitOperationResult",
     "GitHubAdapter",
     "ForgejoAdapter",
-    
     # Operations
     "IssueOperations",
     "PROperations",
     "RepositoryOperations",
-    
     # Unified tools (main interface)
     "UnifiedGitTools",
     "unified_git_tools",

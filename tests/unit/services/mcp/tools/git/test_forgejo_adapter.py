@@ -76,7 +76,10 @@ class TestMCPForgejoClient:
 
             assert result["number"] == 123
             assert result["title"] == "Test Issue"
-            assert result["html_url"] == "https://forgejo.example.com/owner/repo/issues/123"
+            assert (
+                result["html_url"]
+                == "https://forgejo.example.com/owner/repo/issues/123"
+            )
 
     @pytest.mark.asyncio
     async def test_create_issue_success_with_username_password(self):
@@ -156,7 +159,9 @@ class TestMCPForgejoClient:
 
             assert result["number"] == 456
             assert result["title"] == "Test PR"
-            assert result["html_url"] == "https://forgejo.example.com/owner/repo/pulls/456"
+            assert (
+                result["html_url"] == "https://forgejo.example.com/owner/repo/pulls/456"
+            )
 
     @pytest.mark.asyncio
     async def test_check_repository_permissions_success(self):
@@ -173,7 +178,9 @@ class TestMCPForgejoClient:
         }
 
         with patch.object(client, "_make_request", return_value=mock_response):
-            result = await client.check_repository_permissions(owner="owner", repo="repo")
+            result = await client.check_repository_permissions(
+                owner="owner", repo="repo"
+            )
 
             assert result["permissions"]["admin"] is True
             assert result["permissions"]["push"] is True

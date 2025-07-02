@@ -170,10 +170,11 @@ class DocumentAIHelperMCPServer:
     def _setup_unified_git_tools(self):
         """Set up unified Git tools with configured services."""
         from .tools.git_tools import configure_git_service
-        
+
         # Configure GitHub if enabled
-        if self.config.enable_github_tools and (self.config.github_token or 
-            self.config.default_git_service == "github"):
+        if self.config.enable_github_tools and (
+            self.config.github_token or self.config.default_git_service == "github"
+        ):
             try:
                 configure_git_service(
                     "github",
@@ -181,15 +182,17 @@ class DocumentAIHelperMCPServer:
                         "access_token": self.config.github_token,
                         "default_labels": self.config.github_default_labels,
                     },
-                    set_as_default=(self.config.default_git_service == "github")
+                    set_as_default=(self.config.default_git_service == "github"),
                 )
                 logger.info("Configured GitHub service for unified Git tools")
             except Exception as e:
                 logger.warning(f"Failed to configure GitHub service: {str(e)}")
-        
+
         # Configure Forgejo if configured
-        if (self.config.forgejo_base_url and 
-            (self.config.forgejo_token or (self.config.forgejo_username and self.config.forgejo_password))):
+        if self.config.forgejo_base_url and (
+            self.config.forgejo_token
+            or (self.config.forgejo_username and self.config.forgejo_password)
+        ):
             try:
                 configure_git_service(
                     "forgejo",
@@ -200,7 +203,7 @@ class DocumentAIHelperMCPServer:
                         "password": self.config.forgejo_password,
                         "default_labels": self.config.forgejo_default_labels,
                     },
-                    set_as_default=(self.config.default_git_service == "forgejo")
+                    set_as_default=(self.config.default_git_service == "forgejo"),
                 )
                 logger.info("Configured Forgejo service for unified Git tools")
             except Exception as e:
@@ -248,7 +251,7 @@ class DocumentAIHelperMCPServer:
                 assignees=assignees,
                 repository_context=repository_context,
                 service_type=service_type,
-                **kwargs
+                **kwargs,
             )
 
         @self.app.tool("create_git_pull_request")
@@ -285,7 +288,7 @@ class DocumentAIHelperMCPServer:
                 base_branch=base_branch,
                 repository_context=repository_context,
                 service_type=service_type,
-                **kwargs
+                **kwargs,
             )
 
         @self.app.tool("check_git_repository_permissions")
@@ -314,12 +317,10 @@ class DocumentAIHelperMCPServer:
             return await check_git_repository_permissions(
                 repository_context=repository_context,
                 service_type=service_type,
-                **kwargs
+                **kwargs,
             )
 
         logger.info("Unified Git tools registered with FastMCP")
-
-
 
     def _register_utility_tools(self):
         """Register utility tools using FastMCP decorators."""
