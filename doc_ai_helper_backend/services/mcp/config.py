@@ -58,6 +58,11 @@ class MCPConfig(BaseModel):
         default=10, description="Maximum number of tools that can be called per request"
     )
 
+    # Git services integration settings
+    default_git_service: str = Field(
+        default="github", description="Default Git service for operations"
+    )
+    
     # GitHub integration settings
     github_token: Optional[str] = Field(
         default=None, description="GitHub API token for integration features"
@@ -66,6 +71,28 @@ class MCPConfig(BaseModel):
     github_default_labels: List[str] = Field(
         default_factory=lambda: ["documentation", "improvement"],
         description="Default labels for GitHub issues",
+    )
+    
+    # Forgejo integration settings
+    forgejo_base_url: Optional[str] = Field(
+        default=None, description="Forgejo instance base URL"
+    )
+    
+    forgejo_token: Optional[str] = Field(
+        default=None, description="Forgejo API token for integration features"
+    )
+    
+    forgejo_username: Optional[str] = Field(
+        default=None, description="Forgejo username for basic authentication"
+    )
+    
+    forgejo_password: Optional[str] = Field(
+        default=None, description="Forgejo password for basic authentication"
+    )
+    
+    forgejo_default_labels: List[str] = Field(
+        default_factory=lambda: ["documentation", "improvement"],
+        description="Default labels for Forgejo issues",
     )
 
     # Analysis settings
