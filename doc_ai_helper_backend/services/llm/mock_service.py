@@ -964,13 +964,6 @@ class MockLLMService(LLMServiceBase):
         """
         all_functions = []
 
-        # Add GitHub function definitions for testing
-        from doc_ai_helper_backend.services.llm.github_functions import (
-            get_github_function_definitions,
-        )
-
-        all_functions.extend(get_github_function_definitions())
-
         # Add utility functions
         from doc_ai_helper_backend.services.llm.utility_functions import (
             get_utility_functions,

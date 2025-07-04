@@ -82,14 +82,12 @@ class MCPGitToolsFactory:
         if not access_token:
             logger.warning("No GitHub access token provided. Some operations may fail.")
 
-        return MCPGitHubAdapter(
-            access_token=access_token,
-            **{
-                k: v
-                for k, v in config.items()
-                if k not in ["access_token", "github_token"]
-            },
-        )
+        # Create merged config with access_token
+        merged_config = config.copy()
+        if access_token:
+            merged_config["access_token"] = access_token
+
+        return MCPGitHubAdapter(merged_config)
 
     @classmethod
     def _create_forgejo_adapter(cls, config: Dict[str, Any]) -> MCPForgejoAdapter:
@@ -125,26 +123,18 @@ class MCPGitToolsFactory:
                 "Some operations may fail."
             )
 
-        return MCPForgejoAdapter(
-            base_url=base_url,
-            access_token=access_token,
-            username=username,
-            password=password,
-            **{
-                k: v
-                for k, v in config.items()
-                if k
-                not in [
-                    "base_url",
-                    "access_token",
-                    "forgejo_token",
-                    "username",
-                    "forgejo_username",
-                    "password",
-                    "forgejo_password",
-                ]
-            },
-        )
+        # Create merged config with all detected values
+        merged_config = config.copy()
+        if base_url:
+            merged_config["base_url"] = base_url
+        if access_token:
+            merged_config["access_token"] = access_token
+        if username:
+            merged_config["username"] = username
+        if password:
+            merged_config["password"] = password
+
+        return MCPForgejoAdapter(merged_config)
 
     @classmethod
     def create_from_repository_context(
@@ -215,7 +205,7 @@ class MCPGitToolsFactory:
 # Convenience functions for common use cases
 def create_github_tools(
     access_token: Optional[str] = None, **kwargs
-) -> MCPGitHubAdapter:
+) -> MCPGitToolsBase:
     """
     Create GitHub MCP tools adapter.
 
@@ -235,7 +225,7 @@ def create_forgejo_tools(
     username: Optional[str] = None,
     password: Optional[str] = None,
     **kwargs,
-) -> MCPForgejoAdapter:
+) -> MCPGitToolsBase:
     """
     Create Forgejo MCP tools adapter.
 

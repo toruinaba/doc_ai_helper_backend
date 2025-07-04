@@ -29,7 +29,7 @@ class TestGitService:
     def test_git_service_iteration(self):
         """Test GitService can be iterated."""
         services = list(GitService)
-        assert len(services) == 3
+        assert len(services) == 4  # GitHub, GitLab, Bitbucket, Forgejo
         assert GitService.GITHUB in services
 
 

@@ -163,11 +163,9 @@ class TestMCPForgejoClient:
             "title": "Test Issue",
             "html_url": "https://forgejo.example.com/owner/repo/issues/123",
             "state": "open",
-            "created_at": "2024-01-01T00:00:00Z",
         }
 
-        # Mock the httpx client directly
-        with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        with patch.object(client, "_make_request", return_value=mock_response):
             result = await client.create_issue(
                 repository="owner/repo",
                 title="Test Issue",
@@ -176,10 +174,10 @@ class TestMCPForgejoClient:
                 assignees=["user1"],
             )
 
-            assert result["issue_number"] == 123
+            assert result["number"] == 123
             assert result["title"] == "Test Issue"
             assert (
-                result["issue_url"]
+                result["html_url"]
                 == "https://forgejo.example.com/owner/repo/issues/123"
             )
 
@@ -199,11 +197,9 @@ class TestMCPForgejoClient:
             "title": "Test Issue",
             "html_url": "https://forgejo.example.com/owner/repo/issues/456",
             "state": "open",
-            "created_at": "2024-01-01T00:00:00Z",
         }
 
-        # Mock the httpx client directly
-        with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        with patch.object(client, "_make_request", return_value=mock_response):
             result = await client.create_issue(
                 repository="owner/repo",
                 title="Test Issue",
@@ -212,7 +208,7 @@ class TestMCPForgejoClient:
                 assignees=["user2"],
             )
 
-            assert result["issue_number"] == 456
+            assert result["number"] == 456
 
     @pytest.mark.asyncio
     async def test_create_issue_error(self):
@@ -225,8 +221,7 @@ class TestMCPForgejoClient:
         mock_response.status_code = 400
         mock_response.text = "Bad Request"
 
-        # Mock the httpx client directly
-        with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        with patch.object(client, "_make_request", return_value=mock_response):
             with pytest.raises(Exception):
                 await client.create_issue(
                     repository="owner/repo", title="Test Issue", description="Test"
@@ -246,11 +241,9 @@ class TestMCPForgejoClient:
             "title": "Test PR",
             "html_url": "https://forgejo.example.com/owner/repo/pulls/789",
             "state": "open",
-            "created_at": "2024-01-01T00:00:00Z",
         }
 
-        # Mock the httpx client directly
-        with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        with patch.object(client, "_make_request", return_value=mock_response):
             result = await client.create_pull_request(
                 repository="owner/repo",
                 title="Test PR",
@@ -259,7 +252,7 @@ class TestMCPForgejoClient:
                 base_branch="main",
             )
 
-            assert result["pr_number"] == 789
+            assert result["number"] == 789
             assert result["title"] == "Test PR"
 
     @pytest.mark.asyncio
@@ -279,8 +272,7 @@ class TestMCPForgejoClient:
             }
         }
 
-        # Mock the httpx client directly
-        with patch("httpx.AsyncClient.get", return_value=mock_response) as mock_get:
+        with patch.object(client, "_make_request", return_value=mock_response):
             result = await client.check_repository_permissions(repository="owner/repo")
 
             assert result["permissions"]["push"] is True

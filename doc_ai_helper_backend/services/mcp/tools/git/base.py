@@ -9,7 +9,7 @@ and repository operations across different Git hosting platforms.
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from .....models.repository_context import RepositoryContext
 
@@ -229,14 +229,22 @@ class MCPGitToolsBase(ABC):
             )
 
     def _validate_repository_context(
-        self, repository_context: Optional[Dict[str, Any]]
+        self, repository_context: Optional[Union[Dict[str, Any], RepositoryContext]]
     ) -> RepositoryContext:
         """Validate and convert repository context."""
         if not repository_context:
             raise ValueError("Repository context is required for secure operations")
 
         try:
-            return RepositoryContext(**repository_context)
+            # Handle both dict and RepositoryContext objects
+            if isinstance(repository_context, RepositoryContext):
+                return repository_context
+            elif isinstance(repository_context, dict):
+                return RepositoryContext(**repository_context)
+            else:
+                raise ValueError(
+                    f"Invalid repository context type: {type(repository_context)}"
+                )
         except Exception as e:
             raise ValueError(f"Invalid repository context: {str(e)}")
 
