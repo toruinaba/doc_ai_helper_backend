@@ -29,7 +29,7 @@ router = APIRouter(tags=["documents"])
     description="Get document from a Git repository",
 )
 async def get_document(
-    service: str = Path(..., description="Git service (github, gitlab, etc.)"),
+    service: str = Path(..., description="Git service (github, forgejo, mock)"),
     owner: str = Path(..., description="Repository owner"),
     repo: str = Path(..., description="Repository name"),
     path: str = Path(..., description="Document path"),
@@ -46,7 +46,7 @@ async def get_document(
     Get document from a Git repository.
 
     Args:
-        service: Git service type (github, gitlab, etc.)
+        service: Git service type (github, forgejo, mock)
         owner: Repository owner
         repo: Repository name
         path: Document path
@@ -62,8 +62,8 @@ async def get_document(
         NotFoundException: If document is not found
         GitServiceException: If there is an error with the Git service
     """
-    # Allow GitHub and Mock services only
-    if service.lower() not in ["github", "mock"]:
+    # Allow GitHub, Forgejo, and Mock services
+    if service.lower() not in ["github", "forgejo", "mock"]:
         raise NotFoundException(f"Unsupported Git service: {service}")
 
     return await document_service.get_document(
@@ -84,7 +84,7 @@ async def get_document(
     description="Get structure of a Git repository",
 )
 async def get_repository_structure(
-    service: str = Path(..., description="Git service (github, gitlab, etc.)"),
+    service: str = Path(..., description="Git service (github, forgejo, mock)"),
     owner: str = Path(..., description="Repository owner"),
     repo: str = Path(..., description="Repository name"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
@@ -95,7 +95,7 @@ async def get_repository_structure(
     Get structure of a Git repository.
 
     Args:
-        service: Git service type (github, gitlab, etc.)
+        service: Git service type (github, forgejo, mock)
         owner: Repository owner
         repo: Repository name
         ref: Branch or tag name. Default is "main"
@@ -109,8 +109,8 @@ async def get_repository_structure(
         NotFoundException: If repository is not found
         GitServiceException: If there is an error with the Git service
     """
-    # Allow GitHub and Mock services only
-    if service.lower() not in ["github", "mock"]:
+    # Allow GitHub, Forgejo, and Mock services
+    if service.lower() not in ["github", "forgejo", "mock"]:
         raise NotFoundException(f"Unsupported Git service: {service}")
 
     return await document_service.get_repository_structure(

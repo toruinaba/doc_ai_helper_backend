@@ -135,18 +135,49 @@ class MockLLMService(LLMServiceBase):
                 system_prompt_used = f"Failed to generate system prompt: {str(e)}"
 
         # Determine which model to use
-        model = options.get(
-            "model", self.default_model
-        )  # Check if function calling is requested
+        model = options.get("model", self.default_model)
+
+        # Check if function calling is requested
         functions = options.get("functions", [])
+        tools = options.get("tools", [])
+
+        # Convert tools to function definitions if tools are provided
+        if tools and not functions:
+            functions = []
+            for tool in tools:
+                if isinstance(tool, dict) and tool.get("type") == "function":
+                    function_info = tool.get("function", {})
+                    # Create a mock function definition object
+                    func_def = type(
+                        "FunctionDef",
+                        (),
+                        {
+                            "name": function_info.get("name", "unknown"),
+                            "description": function_info.get("description", ""),
+                            "parameters": function_info.get("parameters", {}),
+                        },
+                    )()
+                    functions.append(func_def)
+
         github_functions = []
         utility_functions = []
         analysis_functions = []
+        git_functions = []
+
         if functions:
             github_functions = [
                 f
                 for f in functions
                 if hasattr(f, "name") and "github" in f.name.lower()
+            ]
+            git_functions = [
+                f
+                for f in functions
+                if hasattr(f, "name")
+                and any(
+                    keyword in f.name.lower()
+                    for keyword in ["git", "issue", "pull_request"]
+                )
             ]
             utility_functions = [
                 f
@@ -177,10 +208,15 @@ class MockLLMService(LLMServiceBase):
 
         # Generate appropriate response
         tool_calls = []
-        if github_functions and self._should_call_github_function(prompt):
-            # Simulate GitHub function calling
-            tool_calls = self._generate_mock_github_tool_calls(prompt, github_functions)
-            content = "I'll help you with that GitHub operation."
+        if (github_functions or git_functions) and self._should_call_github_function(
+            prompt
+        ):
+            # Simulate GitHub/Git function calling
+            all_git_functions = github_functions + git_functions
+            tool_calls = self._generate_mock_github_tool_calls(
+                prompt, all_git_functions
+            )
+            content = "I'll help you with that GitHub/Git operation."
         elif utility_functions and self._should_call_utility_function(prompt):
             # Simulate utility function calling
             tool_calls = self._generate_mock_utility_tool_calls(
@@ -193,11 +229,6 @@ class MockLLMService(LLMServiceBase):
                 prompt, analysis_functions
             )
             content = "I'll help you with that analysis operation."
-            # Simulate utility function calling
-            tool_calls = self._generate_mock_utility_tool_calls(
-                prompt, utility_functions
-            )
-            content = "I'll help you with that utility operation."
         else:
             # Generate normal response
             if conversation_history:
@@ -205,9 +236,7 @@ class MockLLMService(LLMServiceBase):
                     prompt, conversation_history, system_prompt_used
                 )
             else:
-                content = self._generate_response(
-                    prompt, system_prompt_used
-                )  # Calculate mock token usage
+                content = self._generate_response(prompt, system_prompt_used)
         prompt_tokens = len(prompt) // 4
         completion_tokens = len(content) // 4  # Create response
         response = LLMResponse(
@@ -517,13 +546,13 @@ class MockLLMService(LLMServiceBase):
 
     def _should_call_github_function(self, prompt: str) -> bool:
         """
-        Determine if the prompt suggests a GitHub operation should be performed.
+        Determine if the prompt suggests a GitHub/Git operation should be performed.
 
         Args:
             prompt: The user prompt to analyze
 
         Returns:
-            bool: True if a GitHub function should be called
+            bool: True if a GitHub/Git function should be called
         """
         github_keywords = [
             "create issue",
@@ -540,6 +569,13 @@ class MockLLMService(LLMServiceBase):
             "post to github",
             "submit to github",
             "create in github",
+            "create git issue",
+            "create git pr",
+            "git issue",
+            "git pull request",
+            "github issue",
+            "github pr",
+            "github pull request",
         ]
 
         prompt_lower = prompt.lower()
@@ -549,24 +585,26 @@ class MockLLMService(LLMServiceBase):
         self, prompt: str, github_functions: List
     ) -> List:
         """
-        Generate mock GitHub tool calls based on the prompt.
+        Generate mock GitHub/Git tool calls based on the prompt.
 
         Args:
             prompt: The user prompt
-            github_functions: Available GitHub functions
+            github_functions: Available GitHub/Git functions
 
         Returns:
             List of mock tool calls"""
         tool_calls = []
         prompt_lower = prompt.lower()
 
-        # Determine which GitHub function to call based on prompt content
+        # Determine which GitHub/Git function to call based on prompt content
         if any(word in prompt_lower for word in ["issue", "bug", "report", "problem"]):
             # Create issue
             for func in github_functions:
-                if hasattr(func, "name") and func.name == "create_github_issue":
+                if hasattr(func, "name") and any(
+                    keyword in func.name.lower() for keyword in ["create_git_issue"]
+                ):
                     function_call = FunctionCall(
-                        name="create_github_issue",
+                        name=func.name,
                         arguments='{"repository": "owner/repo", "title": "Mock Issue", "description": "This is a mock issue created for testing", "labels": ["bug"]}',
                     )
                     tool_call = ToolCall(
@@ -580,9 +618,15 @@ class MockLLMService(LLMServiceBase):
         elif any(word in prompt_lower for word in ["pr", "pull request", "merge"]):
             # Create pull request
             for func in github_functions:
-                if hasattr(func, "name") and func.name == "create_github_pull_request":
+                if hasattr(func, "name") and any(
+                    keyword in func.name.lower()
+                    for keyword in [
+                        "create_github_pull_request",
+                        "create_git_pull_request",
+                    ]
+                ):
                     function_call = FunctionCall(
-                        name="create_github_pull_request",
+                        name=func.name,
                         arguments='{"repository": "owner/repo", "title": "Mock PR", "description": "This is a mock pull request", "head_branch": "feature-branch"}',
                     )
                     tool_call = ToolCall(
@@ -596,12 +640,15 @@ class MockLLMService(LLMServiceBase):
         elif any(word in prompt_lower for word in ["permission", "access", "check"]):
             # Check permissions
             for func in github_functions:
-                if (
-                    hasattr(func, "name")
-                    and func.name == "check_github_repository_permissions"
+                if hasattr(func, "name") and any(
+                    keyword in func.name.lower()
+                    for keyword in [
+                        "check_github_repository_permissions",
+                        "check_git_repository_permissions",
+                    ]
                 ):
                     function_call = FunctionCall(
-                        name="check_github_repository_permissions",
+                        name=func.name,
                         arguments='{"repository": "owner/repo"}',
                     )
                     tool_call = ToolCall(
@@ -916,13 +963,6 @@ class MockLLMService(LLMServiceBase):
             List[FunctionDefinition]: List of available function definitions
         """
         all_functions = []
-
-        # Add GitHub function definitions for testing
-        from doc_ai_helper_backend.services.llm.github_functions import (
-            get_github_function_definitions,
-        )
-
-        all_functions.extend(get_github_function_definitions())
 
         # Add utility functions
         from doc_ai_helper_backend.services.llm.utility_functions import (

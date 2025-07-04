@@ -25,14 +25,16 @@ from doc_ai_helper_backend.models.document import (
 class GitServiceBase(abc.ABC):
     """Abstract base class for Git services."""
 
-    def __init__(self, access_token: Optional[str] = None):
+    def __init__(self, access_token: Optional[str] = None, **kwargs):
         """Initialize Git service.
 
         Args:
             access_token: Access token for the Git service
+            **kwargs: Additional service-specific configuration
         """
         self.access_token = access_token
         self.service_name = self._get_service_name()
+        self.config = kwargs
 
     @abc.abstractmethod
     def _get_service_name(self) -> str:
@@ -40,6 +42,53 @@ class GitServiceBase(abc.ABC):
 
         Returns:
             str: Service name
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_supported_auth_methods(self) -> List[str]:
+        """Get supported authentication methods.
+
+        Returns:
+            List[str]: List of supported authentication methods
+        """
+        pass
+
+    @abc.abstractmethod
+    async def authenticate(self) -> bool:
+        """Test authentication with the Git service.
+
+        Returns:
+            bool: True if authentication is successful, False otherwise
+
+        Raises:
+            UnauthorizedException: If authentication fails
+            GitServiceException: If there is an error with the Git service
+        """
+        pass
+
+    @abc.abstractmethod
+    async def get_rate_limit_info(self) -> Dict[str, Any]:
+        """Get rate limit information.
+
+        Returns:
+            Dict[str, Any]: Rate limit information including current usage and limits
+
+        Raises:
+            GitServiceException: If there is an error with the Git service
+            UnauthorizedException: If access is unauthorized
+        """
+        pass
+
+    @abc.abstractmethod
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test connection to the Git service.
+
+        Returns:
+            Dict[str, Any]: Connection test results including status and service info
+
+        Raises:
+            GitServiceException: If connection test fails
         """
         pass
 
@@ -130,6 +179,35 @@ class GitServiceBase(abc.ABC):
         """
         pass
 
+    def _handle_http_error(self, response: Any, context: str) -> None:
+        """Handle HTTP errors in a standardized way.
+
+        Args:
+            response: HTTP response object
+            context: Context description for error logging
+
+        Raises:
+            NotFoundException: If resource is not found (404)
+            UnauthorizedException: If access is unauthorized (401)
+            RateLimitException: If rate limit is exceeded (429)
+            GitServiceException: For other HTTP errors
+        """
+        status_code = getattr(response, "status_code", None)
+
+        if status_code == 404:
+            raise NotFoundException(f"{context}: Resource not found")
+        elif status_code == 401:
+            raise UnauthorizedException(f"{context}: Unauthorized access")
+        elif status_code == 403:
+            raise UnauthorizedException(f"{context}: Forbidden access")
+        elif status_code == 429:
+            raise RateLimitException(f"{context}: Rate limit exceeded")
+        else:
+            error_msg = f"{context}: HTTP {status_code}"
+            if hasattr(response, "text"):
+                error_msg += f" - {response.text}"
+            raise GitServiceException(error_msg)
+
     @staticmethod
     def detect_document_type(path: str) -> DocumentType:
         """Detect document type from file extension.
@@ -149,61 +227,54 @@ class GitServiceBase(abc.ABC):
         else:
             return DocumentType.OTHER
 
-    def build_document_response(
-        self,
-        owner: str,
-        repo: str,
-        path: str,
-        ref: str,
-        content: str,
-        metadata: Dict[str, Any],
-    ) -> DocumentResponse:
-        """Build document response.
-
-        Args:
-            owner: Repository owner
-            repo: Repository name
-            path: Document path
-            ref: Branch or tag name
-            content: Document content
-            metadata: Document metadata
+    def _get_default_headers(self) -> Dict[str, str]:
+        """Get default headers for API requests.
 
         Returns:
-            DocumentResponse: Document response
+            Dict[str, str]: Default headers
         """
-        # Extract file name from path
-        name = path.split("/")[-1]
+        headers = {
+            "User-Agent": f"doc-ai-helper/{self.service_name}",
+            "Accept": "application/json",
+        }
 
-        # Detect document type
-        doc_type = self.detect_document_type(path)
+        if self.access_token:
+            headers.update(self._get_auth_headers())
 
-        # Build document metadata
-        doc_metadata = DocumentMetadata(
-            size=metadata.get("size", 0),
-            last_modified=metadata.get("last_modified", datetime.utcnow()),
-            content_type=metadata.get("content_type", "text/plain"),
-            sha=metadata.get("sha"),
-            download_url=metadata.get("download_url"),
-            html_url=metadata.get("html_url"),
-            raw_url=metadata.get("raw_url"),
-            extra=metadata.get("extra", {}),
-        )
+        return headers
 
-        # Build document content
-        doc_content = DocumentContent(
-            content=content,
-            encoding=metadata.get("encoding", "utf-8"),
-        )
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers.
 
-        # Build full document response
-        return DocumentResponse(
-            path=path,
-            name=name,
-            type=doc_type,
-            metadata=doc_metadata,
-            content=doc_content,
-            repository=repo,
-            owner=owner,
-            service=self.service_name,
-            ref=ref,
-        )
+        This method should be overridden by subclasses to provide
+        service-specific authentication headers.
+
+        Returns:
+            Dict[str, str]: Authentication headers
+        """
+        if self.access_token:
+            return {"Authorization": f"token {self.access_token}"}
+        return {}
+
+    async def _make_request(self, client: Any, method: str, url: str, **kwargs) -> Any:
+        """Make an HTTP request with error handling.
+
+        Args:
+            client: HTTP client instance
+            method: HTTP method
+            url: Request URL
+            **kwargs: Additional request parameters
+
+        Returns:
+            Response object
+
+        Raises:
+            GitServiceException: If request fails
+        """
+        try:
+            response = await client.request(method, url, **kwargs)
+            response.raise_for_status()
+            return response
+        except Exception as e:
+            self._handle_http_error(getattr(e, "response", None), f"Request to {url}")
+            raise GitServiceException(f"Request failed: {str(e)}")

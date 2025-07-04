@@ -69,7 +69,7 @@ class TestLLMGitHubIntegration:
                     id="call_123",
                     type="function",
                     function=FunctionCall(
-                        name="create_github_issue",
+                        name="create_git_issue",
                         arguments='{"repository": "test/repo", "title": "Test Issue", "description": "This is a test issue", "labels": ["bug"]}',
                     ),
                 )
@@ -90,7 +90,7 @@ class TestLLMGitHubIntegration:
             request_data = {
                 "prompt": "Please create a GitHub issue in the test/repo repository with the title 'Test Issue' and description 'This is a test issue'. Add the 'bug' label.",
                 "model": "test-model",
-                "options": {"functions": ["create_github_issue"]},
+                "options": {"functions": ["create_git_issue"]},
             }
 
             # Make request
@@ -110,7 +110,7 @@ class TestLLMGitHubIntegration:
             assert len(response_data["tool_calls"]) == 1
 
             tool_call = response_data["tool_calls"][0]
-            assert tool_call["function"]["name"] == "create_github_issue"
+            assert tool_call["function"]["name"] == "create_git_issue"
 
             # Parse and verify function arguments
             arguments = json.loads(tool_call["function"]["arguments"])
@@ -138,7 +138,7 @@ class TestLLMGitHubIntegration:
                     id="call_456",
                     type="function",
                     function=FunctionCall(
-                        name="create_github_pull_request",
+                        name="create_git_pull_request",
                         arguments='{"repository": "test/repo", "title": "Test PR", "description": "This is a test PR", "head_branch": "feature/test", "base_branch": "main"}',
                     ),
                 )
@@ -159,7 +159,7 @@ class TestLLMGitHubIntegration:
             request_data = {
                 "prompt": "Please create a pull request in test/repo from feature/test to main with title 'Test PR' and description 'This is a test PR'.",
                 "model": "test-model",
-                "options": {"functions": ["create_github_pull_request"]},
+                "options": {"functions": ["create_git_pull_request"]},
             }
 
             # Make request
@@ -178,7 +178,7 @@ class TestLLMGitHubIntegration:
             assert len(response_data["tool_calls"]) == 1
 
             tool_call = response_data["tool_calls"][0]
-            assert tool_call["function"]["name"] == "create_github_pull_request"
+            assert tool_call["function"]["name"] == "create_git_pull_request"
 
             # Parse and verify function arguments
             arguments = json.loads(tool_call["function"]["arguments"])
@@ -260,7 +260,7 @@ class TestLLMGitHubIntegration:
                     id="call_123",
                     type="function",
                     function=FunctionCall(
-                        name="create_github_issue",
+                        name="create_git_issue",
                         arguments='{"repository": "test/repo", "title": "Test Issue", "description": "This is a test issue", "labels": ["bug"]}',
                     ),
                 )
@@ -295,7 +295,7 @@ class TestLLMGitHubIntegration:
                         "content": "Users can't log in with their email addresses",
                     },
                 ],
-                "options": {"functions": ["create_github_issue"]},
+                "options": {"functions": ["create_git_issue"]},
             }
 
             # Make request
@@ -337,7 +337,7 @@ class TestLLMGitHubIntegration:
                         id="call_error",
                         type="function",
                         function=FunctionCall(
-                            name="create_github_issue",
+                            name="create_git_issue",
                             arguments='{"repository": "invalid-repo", "title": "Test", "description": "Test"}',
                         ),
                     )
@@ -359,7 +359,7 @@ class TestLLMGitHubIntegration:
             request_data = {
                 "prompt": "Create an issue in invalid-repo",
                 "model": "test-model",
-                "options": {"functions": ["create_github_issue"]},
+                "options": {"functions": ["create_git_issue"]},
             }
 
             # Make request
@@ -378,3 +378,4 @@ class TestLLMGitHubIntegration:
         finally:
             # Clean up
             test_app.dependency_overrides.clear()
+

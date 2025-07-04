@@ -27,11 +27,15 @@ class DocumentAIHelperMCPServer:
         """
         self.config = config or default_mcp_config
         self.app = FastMCP(name=self.config.server_name)
+        self._unified_git_tools = None
         self._setup_server()
 
     def _setup_server(self):
         """Set up the MCP server with tools and resources."""
         logger.info(f"Setting up MCP Server '{self.config.server_name}'")
+
+        # Initialize unified Git tools
+        self._setup_unified_git_tools()
 
         # Register tools based on configuration
         if self.config.enable_document_tools:
@@ -44,7 +48,7 @@ class DocumentAIHelperMCPServer:
             self._register_analysis_tools()
 
         if self.config.enable_github_tools:
-            self._register_github_tools()
+            self._register_git_tools()
 
         if self.config.enable_utility_tools:
             self._register_utility_tools()
@@ -163,56 +167,160 @@ class DocumentAIHelperMCPServer:
 
         logger.info("Analysis tools registered with FastMCP")
 
-    def _register_github_tools(self):
-        """Register secure GitHub integration tools using FastMCP decorators."""
-        from .tools.github_tools import (
-            create_github_issue,
-            create_github_pull_request,
+    def _setup_unified_git_tools(self):
+        """Set up unified Git tools with configured services."""
+        from .tools.git_tools import configure_git_service
+
+        # Configure GitHub if enabled
+        if self.config.enable_github_tools and (
+            self.config.github_token or self.config.default_git_service == "github"
+        ):
+            try:
+                configure_git_service(
+                    "github",
+                    config={
+                        "access_token": self.config.github_token,
+                        "default_labels": self.config.github_default_labels,
+                    },
+                    set_as_default=(self.config.default_git_service == "github"),
+                )
+                logger.info("Configured GitHub service for unified Git tools")
+            except Exception as e:
+                logger.warning(f"Failed to configure GitHub service: {str(e)}")
+
+        # Configure Forgejo if configured
+        if self.config.forgejo_base_url and (
+            self.config.forgejo_token
+            or (self.config.forgejo_username and self.config.forgejo_password)
+        ):
+            try:
+                configure_git_service(
+                    "forgejo",
+                    config={
+                        "base_url": self.config.forgejo_base_url,
+                        "access_token": self.config.forgejo_token,
+                        "username": self.config.forgejo_username,
+                        "password": self.config.forgejo_password,
+                        "default_labels": self.config.forgejo_default_labels,
+                    },
+                    set_as_default=(self.config.default_git_service == "forgejo"),
+                )
+                logger.info("Configured Forgejo service for unified Git tools")
+            except Exception as e:
+                logger.warning(f"Failed to configure Forgejo service: {str(e)}")
+
+    def _register_git_tools(self):
+        """Register unified Git tools using FastMCP decorators."""
+        from .tools.git_tools import (
+            create_git_issue,
+            create_git_pull_request,
+            check_git_repository_permissions,
         )
 
-        @self.app.tool("create_github_issue")
+        @self.app.tool("create_git_issue")
         async def create_issue_tool(
             title: str,
             description: str,
             labels: Optional[List[str]] = None,
             assignees: Optional[List[str]] = None,
+            service_type: Optional[str] = None,
             github_token: Optional[str] = None,
+            forgejo_token: Optional[str] = None,
+            forgejo_username: Optional[str] = None,
+            forgejo_password: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub issue in the current repository context."""
+            """Create a new issue in the Git repository (supports GitHub, Forgejo, and other Git services)."""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
-            return await create_github_issue(
+            # Prepare service-specific kwargs
+            kwargs = {}
+            if github_token:
+                kwargs["github_token"] = github_token
+            if forgejo_token:
+                kwargs["forgejo_token"] = forgejo_token
+            if forgejo_username:
+                kwargs["forgejo_username"] = forgejo_username
+            if forgejo_password:
+                kwargs["forgejo_password"] = forgejo_password
+
+            return await create_git_issue(
                 title=title,
                 description=description,
                 labels=labels,
                 assignees=assignees,
-                github_token=github_token,
                 repository_context=repository_context,
+                service_type=service_type,
+                **kwargs,
             )
 
-        @self.app.tool("create_github_pull_request")
+        @self.app.tool("create_git_pull_request")
         async def create_pr_tool(
             title: str,
             description: str,
             head_branch: str,
             base_branch: str = "main",
+            service_type: Optional[str] = None,
             github_token: Optional[str] = None,
+            forgejo_token: Optional[str] = None,
+            forgejo_username: Optional[str] = None,
+            forgejo_password: Optional[str] = None,
         ) -> str:
-            """Create a new GitHub pull request in the current repository context."""
+            """Create a new pull request in the specified Git service."""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
-            return await create_github_pull_request(
+            # Prepare service-specific kwargs
+            kwargs = {}
+            if github_token:
+                kwargs["github_token"] = github_token
+            if forgejo_token:
+                kwargs["forgejo_token"] = forgejo_token
+            if forgejo_username:
+                kwargs["forgejo_username"] = forgejo_username
+            if forgejo_password:
+                kwargs["forgejo_password"] = forgejo_password
+
+            return await create_git_pull_request(
                 title=title,
                 description=description,
                 head_branch=head_branch,
                 base_branch=base_branch,
-                github_token=github_token,
                 repository_context=repository_context,
+                service_type=service_type,
+                **kwargs,
             )
 
-        logger.info("GitHub tools registered with FastMCP")
+        @self.app.tool("check_git_repository_permissions")
+        async def check_permissions_tool(
+            service_type: Optional[str] = None,
+            github_token: Optional[str] = None,
+            forgejo_token: Optional[str] = None,
+            forgejo_username: Optional[str] = None,
+            forgejo_password: Optional[str] = None,
+        ) -> str:
+            """Check permissions for the current repository context."""
+            # Get repository context from current session
+            repository_context = getattr(self, "_current_repository_context", None)
+
+            # Prepare service-specific kwargs
+            kwargs = {}
+            if github_token:
+                kwargs["github_token"] = github_token
+            if forgejo_token:
+                kwargs["forgejo_token"] = forgejo_token
+            if forgejo_username:
+                kwargs["forgejo_username"] = forgejo_username
+            if forgejo_password:
+                kwargs["forgejo_password"] = forgejo_password
+
+            return await check_git_repository_permissions(
+                repository_context=repository_context,
+                service_type=service_type,
+                **kwargs,
+            )
+
+        logger.info("Unified Git tools registered with FastMCP")
 
     def _register_utility_tools(self):
         """Register utility tools using FastMCP decorators."""
@@ -379,24 +487,24 @@ class DocumentAIHelperMCPServer:
                 )
 
                 return await check_document_completeness(**kwargs)
-            elif tool_name == "create_github_issue":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
-                    create_github_issue,
+            elif tool_name == "create_git_issue":
+                from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+                    create_git_issue,
                 )
 
-                return await create_github_issue(**kwargs)
-            elif tool_name == "create_github_pull_request":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
-                    create_github_pull_request,
+                return await create_git_issue(**kwargs)
+            elif tool_name == "create_git_pull_request":
+                from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+                    create_git_pull_request,
                 )
 
-                return await create_github_pull_request(**kwargs)
-            elif tool_name == "check_github_repository_permissions":
-                from doc_ai_helper_backend.services.mcp.tools.github_tools import (
-                    check_github_repository_permissions,
+                return await create_git_pull_request(**kwargs)
+            elif tool_name == "check_git_repository_permissions":
+                from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+                    check_git_repository_permissions,
                 )
 
-                return await check_github_repository_permissions(**kwargs)
+                return await check_git_repository_permissions(**kwargs)
             elif tool_name == "get_current_time":
                 from doc_ai_helper_backend.services.mcp.tools.utility_tools import (
                     get_current_time,
@@ -492,8 +600,8 @@ class DocumentAIHelperMCPServer:
             "analyze_document_quality": "Analyze document quality against various criteria",
             "extract_document_topics": "Extract main topics and themes from document content",
             "check_document_completeness": "Check document completeness against specified criteria",
-            # GitHub tools
-            "create_github_issue": "現在表示中のドキュメントのリポジトリにGitHub Issueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
+            # Git tools
+            "create_git_issue": "統一Gitサービス（GitHub/Forgejo）でIssueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
             "create_github_pull_request": "現在表示中のドキュメントのリポジトリにGitHubプルリクエストを作成します。コード変更、ドキュメント更新などの提案に使用できます。",
             "check_github_repository_permissions": "現在表示中のドキュメントのGitHubリポジトリの権限を確認します。読み取り、書き込み、Issue作成などの権限状況を確認できます。",
             # Utility tools
@@ -679,8 +787,8 @@ class DocumentAIHelperMCPServer:
                     "description": "Completeness criteria to apply",
                 },
             ],
-            # GitHub tools
-            "create_github_issue": [
+            # Git tools
+            "create_git_issue": [
                 {
                     "name": "title",
                     "type": "str",
@@ -703,7 +811,7 @@ class DocumentAIHelperMCPServer:
                     "name": "assignees",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Issueを担当するGitHubユーザー名のリスト",
+                    "description": "Issueを担当するユーザー名のリスト",
                 },
                 {
                     "name": "github_token",
@@ -854,7 +962,7 @@ class DocumentAIHelperMCPServer:
             or tool_name.startswith("check_")
         ):
             return "analysis"
-        elif "github" in tool_name:
+        elif "github" in tool_name or "git" in tool_name:
             return "github"
         else:
             return "utility"
