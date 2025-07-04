@@ -9,8 +9,6 @@ from doc_ai_helper_backend.services.mcp.tools.git_tools import (
     create_git_issue,
     create_git_pull_request,
     check_git_repository_permissions,
-    _configured_services,
-    _default_service,
 )
 from doc_ai_helper_backend.models.repository_context import RepositoryContext
 

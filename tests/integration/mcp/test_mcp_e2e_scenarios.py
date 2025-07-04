@@ -130,14 +130,14 @@ class TestMCPE2EScenarios:
 
         assert feedback_result is not None
 
-        # Step 3: GitHub Issue作成
-        from doc_ai_helper_backend.services.mcp.tools.github_tools import (
-            create_github_issue,
+        # Step 3: Git Issue作成
+        from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+            create_git_issue,
         )
 
         test_repo = os.getenv("GITHUB_TEST_REPO", "test-user/test-repo")
 
-        issue_result = await create_github_issue(
+        issue_result = await create_git_issue(
             repository=test_repo,
             title="[E2E Test] Automated feedback issue",
             description=f"Feedback from conversation analysis:\n\n{feedback_result}",
@@ -182,15 +182,15 @@ class TestMCPE2EScenarios:
                 "status": "created",
             }
 
-            from doc_ai_helper_backend.services.mcp.tools.github_tools import (
-                create_github_issue,
+            from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+                create_git_issue,
             )
 
-            issue_result = await create_github_issue(
-                repository="test/repo",
+            issue_result = await create_git_issue(
                 title="Automated Improvement Feedback",
                 description=f"Generated feedback:\n\n{feedback_result}",
                 labels=["improvement", "automated"],
+                service_type="github",
             )
 
             assert issue_result is not None

@@ -66,11 +66,13 @@ class MCPForgejoClient(MCPGitClientBase):
                 "body": description,
             }
 
-            # Add labels if provided
-            if labels:
-                issue_data["labels"] = labels
+            # Note: Forgejo API expects label IDs (integers), not label names (strings)
+            # For now, we'll skip labels to avoid the unmarshal error
+            # TODO: Implement label name to ID resolution
+            # if labels:
+            #     issue_data["labels"] = labels
 
-            # Add assignees if provided
+            # Add assignees if provided (using assignee names)
             if assignees:
                 issue_data["assignees"] = assignees
 
@@ -79,7 +81,9 @@ class MCPForgejoClient(MCPGitClientBase):
                 url = f"{self.forgejo_service.base_url}/api/v1/repos/{owner}/{repo}/issues"
 
                 response = await client.post(
-                    url, headers=self.forgejo_service._get_headers(), json=issue_data
+                    url,
+                    headers=self.forgejo_service._get_default_headers(),
+                    json=issue_data,
                 )
 
                 if response.status_code == 201:
@@ -139,7 +143,9 @@ class MCPForgejoClient(MCPGitClientBase):
                 )
 
                 response = await client.post(
-                    url, headers=self.forgejo_service._get_headers(), json=pr_data
+                    url,
+                    headers=self.forgejo_service._get_default_headers(),
+                    json=pr_data,
                 )
 
                 if response.status_code == 201:
@@ -187,7 +193,7 @@ class MCPForgejoClient(MCPGitClientBase):
                 url = f"{self.forgejo_service.base_url}/api/v1/repos/{owner}/{repo}"
 
                 response = await client.get(
-                    url, headers=self.forgejo_service._get_headers()
+                    url, headers=self.forgejo_service._get_default_headers()
                 )
 
                 if response.status_code == 200:

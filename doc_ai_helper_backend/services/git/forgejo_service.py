@@ -350,3 +350,76 @@ class ForgejoService(GitServiceBase):
         except Exception as e:
             logger.error(f"Error searching repository in Forgejo: {str(e)}")
             raise GitServiceException(f"Failed to search repository: {str(e)}")
+
+    def get_async_client(self) -> httpx.AsyncClient:
+        """Get async HTTP client with authentication headers."""
+        headers = self._get_default_headers()
+        return httpx.AsyncClient(headers=headers, timeout=30.0)
+
+    async def create_issue(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        labels: Optional[List[str]] = None,
+        assignees: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Create an issue in the specified repository.
+
+        Args:
+            repository: Repository name in format "owner/repo"
+            title: Issue title
+            body: Issue description/body
+            labels: List of label names (optional)
+            assignees: List of usernames to assign (optional)
+
+        Returns:
+            Dict containing issue information
+
+        Raises:
+            GitServiceException: If creation fails
+            NotFoundException: If repository not found
+            UnauthorizedException: If authentication fails
+        """
+        if "/" not in repository:
+            raise ValueError(
+                f"Repository must be in 'owner/repo' format, got: {repository}"
+            )
+
+        owner, repo = repository.split("/", 1)
+
+        # Prepare issue data
+        issue_data: Dict[str, Any] = {
+            "title": title,
+            "body": body,
+        }
+
+        if labels:
+            issue_data["labels"] = labels
+
+        if assignees:
+            issue_data["assignees"] = assignees
+
+        try:
+            headers = self._get_default_headers()
+            async with httpx.AsyncClient() as client:
+                url = f"{self.api_base_url}/repos/{owner}/{repo}/issues"
+                response = await self._make_request(
+                    client, "POST", url, headers=headers, json=issue_data
+                )
+
+                if response.status_code == 201:
+                    return response.json()
+                elif response.status_code == 404:
+                    raise NotFoundException(f"Repository {repository} not found")
+                elif response.status_code == 401:
+                    raise UnauthorizedException("Authentication failed")
+                else:
+                    raise GitServiceException(
+                        f"Failed to create issue: HTTP {response.status_code} - {response.text}"
+                    )
+
+        except (NotFoundException, UnauthorizedException, GitServiceException):
+            raise
+        except Exception as e:
+            raise GitServiceException(f"Error creating issue: {str(e)}")

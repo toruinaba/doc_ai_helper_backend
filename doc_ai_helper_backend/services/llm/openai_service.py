@@ -991,15 +991,16 @@ class OpenAIService(LLMServiceBase):
                     function_names.add(func.name)
 
         # Add GitHub functions - MCPで定義されていない場合のみ
-        from doc_ai_helper_backend.services.llm.github_functions import (
-            get_github_function_definitions,
-        )
-
-        github_functions = get_github_function_definitions()
-        for func in github_functions:
-            if hasattr(func, "name") and func.name not in function_names:
-                all_functions.append(func)
-                function_names.add(func.name)
+        # REMOVED: Using unified git tools from MCP instead of legacy GitHub functions
+        # from doc_ai_helper_backend.services.llm.github_functions import (
+        #     get_github_function_definitions,
+        # )
+        #
+        # github_functions = get_github_function_definitions()
+        # for func in github_functions:
+        #     if hasattr(func, "name") and func.name not in function_names:
+        #         all_functions.append(func)
+        #         function_names.add(func.name)
 
         # Add utility functions - MCPで定義されていない場合のみ
         from doc_ai_helper_backend.services.llm.utility_functions import (

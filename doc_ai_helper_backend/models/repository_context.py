@@ -17,6 +17,7 @@ class GitService(str, Enum):
     GITHUB = "github"
     GITLAB = "gitlab"
     BITBUCKET = "bitbucket"
+    FORGEJO = "forgejo"
 
 
 class DocumentType(str, Enum):

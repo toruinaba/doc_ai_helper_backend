@@ -26,18 +26,18 @@ class TestGitHubFunctionCalling:
 
         # Check function names
         func_names = [func.name for func in func_defs]
-        assert "create_github_issue" in func_names
-        assert "create_github_pull_request" in func_names
-        assert "check_github_repository_permissions" in func_names
+        assert "create_git_issue" in func_names
+        assert "create_git_pull_request" in func_names
+        assert "check_git_repository_permissions" in func_names
 
     def test_create_github_function_registry(self):
         """Test creating a function registry with GitHub functions."""
         registry = create_github_function_registry()
 
         # Check that functions are registered
-        assert "create_github_issue" in registry._functions
-        assert "create_github_pull_request" in registry._functions
-        assert "check_github_repository_permissions" in registry._functions
+        assert "create_git_issue" in registry._functions
+        assert "create_git_pull_request" in registry._functions
+        assert "check_git_repository_permissions" in registry._functions
 
         # Check function definitions
         func_defs = registry.get_all_function_definitions()
@@ -61,7 +61,7 @@ class TestGitHubFunctionCalling:
         assert response.content == "I'll help you with that GitHub operation."
         assert response.tool_calls is not None
         assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].function.name == "create_github_issue"
+        assert response.tool_calls[0].function.name == "create_git_issue"
 
     @pytest.mark.asyncio
     @patch.dict("os.environ", {"GITHUB_TOKEN": "mock_token"})
@@ -81,7 +81,7 @@ class TestGitHubFunctionCalling:
         assert response.content == "I'll help you with that GitHub operation."
         assert response.tool_calls is not None
         assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].function.name == "create_github_pull_request"
+        assert response.tool_calls[0].function.name == "create_git_pull_request"
 
     @pytest.mark.asyncio
     @patch.dict("os.environ", {"GITHUB_TOKEN": "mock_token"})
@@ -102,8 +102,7 @@ class TestGitHubFunctionCalling:
         assert response.tool_calls is not None
         assert len(response.tool_calls) == 1
         assert (
-            response.tool_calls[0].function.name
-            == "check_github_repository_permissions"
+            response.tool_calls[0].function.name == "check_git_repository_permissions"
         )
 
     @pytest.mark.asyncio
@@ -167,7 +166,7 @@ class TestGitHubFunctionCalling:
         # Check tool format
         tools = call_args.kwargs["tools"]
         tool_names = [tool["function"]["name"] for tool in tools]
-        assert "create_github_issue" in tool_names
+        assert "create_git_issue" in tool_names
 
     @pytest.mark.asyncio
     @patch("doc_ai_helper_backend.services.llm.openai_service.AsyncOpenAI")
@@ -182,7 +181,7 @@ class TestGitHubFunctionCalling:
         mock_tool_call = MagicMock()
         mock_tool_call.id = "call_123"
         mock_tool_call.type = "function"
-        mock_tool_call.function.name = "create_github_issue"
+        mock_tool_call.function.name = "create_git_issue"
         mock_tool_call.function.arguments = (
             '{"repository": "test/repo", "title": "Test Issue"}'
         )
@@ -213,7 +212,7 @@ class TestGitHubFunctionCalling:
         assert response.tool_calls is not None
         assert len(response.tool_calls) == 1
         assert response.tool_calls[0].id == "call_123"
-        assert response.tool_calls[0].function.name == "create_github_issue"
+        assert response.tool_calls[0].function.name == "create_git_issue"
 
         # Parse arguments to verify they're valid JSON
         args = json.loads(response.tool_calls[0].function.arguments)

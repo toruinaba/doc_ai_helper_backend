@@ -4,6 +4,7 @@ MCP (Model Context Protocol) configuration.
 This module provides configuration settings for the FastMCP server.
 """
 
+import os
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
@@ -105,5 +106,40 @@ class MCPConfig(BaseModel):
     )
 
 
+def create_mcp_config_from_env() -> MCPConfig:
+    """
+    Create MCP configuration from environment variables.
+
+    Returns:
+        MCPConfig instance with environment-based configuration
+    """
+    config = MCPConfig()
+
+    # Git service configuration
+    if os.getenv("FORGEJO_BASE_URL"):
+        config.forgejo_base_url = os.getenv("FORGEJO_BASE_URL")
+    if os.getenv("FORGEJO_TOKEN"):
+        config.forgejo_token = os.getenv("FORGEJO_TOKEN")
+    if os.getenv("FORGEJO_USERNAME"):
+        config.forgejo_username = os.getenv("FORGEJO_USERNAME")
+    if os.getenv("FORGEJO_PASSWORD"):
+        config.forgejo_password = os.getenv("FORGEJO_PASSWORD")
+
+    # Set default service based on available configuration
+    if config.forgejo_base_url and (
+        config.forgejo_token or (config.forgejo_username and config.forgejo_password)
+    ):
+        config.default_git_service = "forgejo"
+
+    if os.getenv("GITHUB_TOKEN"):
+        config.github_token = os.getenv("GITHUB_TOKEN")
+        if (
+            not config.forgejo_base_url
+        ):  # Only set GitHub as default if Forgejo is not configured
+            config.default_git_service = "github"
+
+    return config
+
+
 # Default configuration instance
-default_mcp_config = MCPConfig()
+default_mcp_config = create_mcp_config_from_env()

@@ -229,7 +229,7 @@ class DocumentAIHelperMCPServer:
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
         ) -> str:
-            """Create a new issue in the specified Git service."""
+            """Create a new issue in the Git repository (supports GitHub, Forgejo, and other Git services)."""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
@@ -600,8 +600,8 @@ class DocumentAIHelperMCPServer:
             "analyze_document_quality": "Analyze document quality against various criteria",
             "extract_document_topics": "Extract main topics and themes from document content",
             "check_document_completeness": "Check document completeness against specified criteria",
-            # GitHub tools
-            "create_github_issue": "現在表示中のドキュメントのリポジトリにGitHub Issueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
+            # Git tools
+            "create_git_issue": "統一Gitサービス（GitHub/Forgejo）でIssueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
             "create_github_pull_request": "現在表示中のドキュメントのリポジトリにGitHubプルリクエストを作成します。コード変更、ドキュメント更新などの提案に使用できます。",
             "check_github_repository_permissions": "現在表示中のドキュメントのGitHubリポジトリの権限を確認します。読み取り、書き込み、Issue作成などの権限状況を確認できます。",
             # Utility tools
@@ -787,8 +787,8 @@ class DocumentAIHelperMCPServer:
                     "description": "Completeness criteria to apply",
                 },
             ],
-            # GitHub tools
-            "create_github_issue": [
+            # Git tools
+            "create_git_issue": [
                 {
                     "name": "title",
                     "type": "str",
@@ -811,7 +811,7 @@ class DocumentAIHelperMCPServer:
                     "name": "assignees",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Issueを担当するGitHubユーザー名のリスト",
+                    "description": "Issueを担当するユーザー名のリスト",
                 },
                 {
                     "name": "github_token",
@@ -962,7 +962,7 @@ class DocumentAIHelperMCPServer:
             or tool_name.startswith("check_")
         ):
             return "analysis"
-        elif "github" in tool_name:
+        elif "github" in tool_name or "git" in tool_name:
             return "github"
         else:
             return "utility"
