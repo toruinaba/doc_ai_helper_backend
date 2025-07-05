@@ -1,5 +1,7 @@
 """
 Test for LLM services in isolation.
+
+NOTE: These are legacy tests. Current mock service tests are in test_mock_service.py
 """
 
 import pytest
@@ -8,6 +10,11 @@ from unittest.mock import AsyncMock, patch
 
 from doc_ai_helper_backend.services.llm import MockLLMService
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
+
+# Skip all tests in this file as they are legacy
+pytestmark = pytest.mark.skip(
+    reason="Legacy isolation tests - functionality moved to test_mock_service.py"
+)
 
 
 @pytest.fixture

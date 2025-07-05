@@ -1,5 +1,8 @@
 """
 Tests for the LLM service implementations.
+
+NOTE: These are legacy tests. Current tests are distributed across
+test_mock_service.py, test_openai_service.py, and test_factory.py
 """
 
 import pytest
@@ -10,6 +13,11 @@ from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
 from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
 from doc_ai_helper_backend.core.exceptions import ServiceNotFoundError
+
+# Skip all tests in this file as they are legacy
+pytestmark = pytest.mark.skip(
+    reason="Legacy tests - functionality moved to dedicated test files"
+)
 
 
 # This allows running async tests

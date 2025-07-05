@@ -1,5 +1,8 @@
 """
 Test for streaming support in LLM services.
+
+NOTE: These are legacy tests. Current streaming tests are integrated
+into test_mock_service.py and test_openai_service.py
 """
 
 import pytest
@@ -8,6 +11,11 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 from doc_ai_helper_backend.services.llm import MockLLMService
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
+
+# Skip all tests in this file as they are legacy
+pytestmark = pytest.mark.skip(
+    reason="Legacy streaming tests - functionality moved to service-specific test files"
+)
 
 
 @pytest.fixture

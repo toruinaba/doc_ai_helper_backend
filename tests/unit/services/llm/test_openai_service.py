@@ -332,11 +332,20 @@ class TestCompositionIntegration:
         """Test that the service works with the factory pattern."""
         from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
 
-        # Test that factory creates composition-based service
-        service = LLMServiceFactory.create(
-            "openai", api_key="test_key", default_model="gpt-4"
-        )
+        # Register OpenAI service before testing
+        LLMServiceFactory.register("openai", OpenAIService)
 
-        assert isinstance(service, OpenAIService)
-        assert service.api_key == "test_key"
-        assert service.default_model == "gpt-4"
+        try:
+            # Test that factory creates composition-based service
+            service = LLMServiceFactory.create(
+                "openai", api_key="test_key", default_model="gpt-4"
+            )
+
+            assert isinstance(service, OpenAIService)
+            assert service.api_key == "test_key"
+            assert service.default_model == "gpt-4"
+
+        finally:
+            # Cleanup
+            if "openai" in LLMServiceFactory._services:
+                del LLMServiceFactory._services["openai"]
