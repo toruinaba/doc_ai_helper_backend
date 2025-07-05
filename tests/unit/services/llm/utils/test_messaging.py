@@ -81,13 +81,13 @@ def test_format_conversation_role_mapping():
         MessageItem(role=MessageRole.USER, content="ユーザー"),
         MessageItem(role=MessageRole.ASSISTANT, content="アシスタント"),
     ]
-    
+
     # OpenAI: 全てそのまま
     openai_result = format_conversation_for_provider(all_roles_history, "openai")
     expected_openai_roles = ["system", "user", "assistant"]
     actual_openai_roles = [msg["role"] for msg in openai_result]
     assert actual_openai_roles == expected_openai_roles
-    
+
     # Anthropic: user -> human
     anthropic_result = format_conversation_for_provider(all_roles_history, "anthropic")
     expected_anthropic_roles = ["system", "human", "assistant"]

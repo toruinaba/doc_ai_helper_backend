@@ -19,11 +19,16 @@ from doc_ai_helper_backend.models.repository_context import (
     DocumentMetadata,
     RepositoryContextSummary,
 )
-from .tokens import estimate_message_tokens, estimate_conversation_tokens, DEFAULT_MAX_TOKENS
+from .tokens import (
+    estimate_message_tokens,
+    estimate_conversation_tokens,
+    DEFAULT_MAX_TOKENS,
+)
 
 logger = logging.getLogger(__name__)
 
 # === Conversation History Management ===
+
 
 def optimize_conversation_history(
     history: List[MessageItem],
@@ -271,6 +276,7 @@ async def summarize_conversation_history(
         }
 
         return fallback_history, optimization_info
+
 
 # === System Prompt Classes (kept as is from system_prompt_builder.py) ===
 

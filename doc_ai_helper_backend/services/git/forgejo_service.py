@@ -216,6 +216,7 @@ class ForgejoService(GitServiceBase):
                 from doc_ai_helper_backend.services.document.processors.factory import (
                     DocumentProcessorFactory,
                 )
+
                 processor = DocumentProcessorFactory.create(document_type)
                 document_content = processor.process_content(content, path)
                 extended_metadata = processor.extract_metadata(content, path)

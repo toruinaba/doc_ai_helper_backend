@@ -101,55 +101,61 @@ estimate_tokens_for_messages = estimate_conversation_tokens
 
 
 def optimize_conversation_history(
-    conversation_history: List[MessageItem], 
+    conversation_history: List[MessageItem],
     max_tokens: int = DEFAULT_MAX_TOKENS,
     verbose: bool = False,
-    preserve_recent: int = 2
+    preserve_recent: int = 2,
 ) -> tuple[List[MessageItem], dict]:
     """
     Optimize conversation history to fit within token limits.
-    
+
     Args:
         conversation_history: List of conversation messages
         max_tokens: Maximum allowed tokens
         verbose: Whether to include optimization details
         preserve_recent: Number of recent messages to preserve
-        
+
     Returns:
         tuple: (optimized_conversation, optimization_info)
     """
     if not conversation_history:
         return [], {"was_optimized": False, "removed_messages": 0, "tokens_saved": 0}
-    
+
     # Always return a copy, not the original list
     conversation_copy = conversation_history.copy()
-    
+
     total_tokens = estimate_conversation_tokens(conversation_copy)
-    
+
     if total_tokens <= max_tokens:
         return conversation_copy, {
-            "was_optimized": False, 
-            "removed_messages": 0, 
+            "was_optimized": False,
+            "removed_messages": 0,
             "tokens_saved": 0,
             "original_tokens": total_tokens,
-            "optimized_tokens": total_tokens
+            "optimized_tokens": total_tokens,
         }
-    
+
     # Start from the most recent messages and work backwards
     optimized = []
     current_tokens = 0
     removed_count = 0
-    
+
     # Preserve the most recent messages
-    recent_messages = conversation_copy[-preserve_recent:] if preserve_recent > 0 else []
-    older_messages = conversation_copy[:-preserve_recent] if preserve_recent > 0 else conversation_copy
-    
+    recent_messages = (
+        conversation_copy[-preserve_recent:] if preserve_recent > 0 else []
+    )
+    older_messages = (
+        conversation_copy[:-preserve_recent]
+        if preserve_recent > 0
+        else conversation_copy
+    )
+
     # Add recent messages first
     for message in recent_messages:
         message_tokens = estimate_message_tokens(message)
         current_tokens += message_tokens
         optimized.append(message)
-    
+
     # Add older messages if they fit
     for message in reversed(older_messages):
         message_tokens = estimate_message_tokens(message)
@@ -158,19 +164,21 @@ def optimize_conversation_history(
             current_tokens += message_tokens
         else:
             removed_count += 1
-    
+
     tokens_saved = total_tokens - current_tokens
-    
+
     optimization_info = {
         "was_optimized": True,
         "optimization_method": "truncation",
         "removed_messages": removed_count,
         "tokens_saved": tokens_saved,
         "original_tokens": total_tokens,
-        "optimized_tokens": current_tokens
+        "optimized_tokens": current_tokens,
     }
-    
+
     if verbose:
-        optimization_info["details"] = f"Removed {removed_count} messages, saved {tokens_saved} tokens"
-    
+        optimization_info["details"] = (
+            f"Removed {removed_count} messages, saved {tokens_saved} tokens"
+        )
+
     return optimized, optimization_info

@@ -99,16 +99,16 @@ class TestSystemPromptBuilder:
     def test_basic_prompt_building(self):
         """Test basic system prompt building."""
         builder = SystemPromptBuilder()
-        
+
         # Provide minimal required context to avoid template errors
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -118,12 +118,11 @@ class TestSystemPromptBuilder:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         prompt = builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
         assert isinstance(prompt, str)
         assert len(prompt) > 0
@@ -131,31 +130,31 @@ class TestSystemPromptBuilder:
     def test_prompt_with_context(self):
         """Test system prompt building with repository context."""
         builder = SystemPromptBuilder()
-        
+
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         prompt = builder.build_system_prompt(repository_context=repo_context)
         assert "test_owner" in prompt or "test_repo" in prompt
 
     def test_prompt_with_document_metadata(self):
         """Test system prompt building with document metadata."""
         builder = SystemPromptBuilder()
-        
+
         # Also provide repository context to satisfy template requirements
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -165,12 +164,11 @@ class TestSystemPromptBuilder:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         prompt = builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
         # The prompt should include repository or document information
         assert "test_owner" in prompt or "test_repo" in prompt
@@ -178,16 +176,16 @@ class TestSystemPromptBuilder:
     def test_prompt_caching(self):
         """Test system prompt caching."""
         builder = SystemPromptBuilder()
-        
+
         # Provide minimal required context
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -197,21 +195,19 @@ class TestSystemPromptBuilder:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         # First call should build and cache
         prompt1 = builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
-        
+
         # Second call should return cached result
         prompt2 = builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
-        
+
         assert prompt1 == prompt2
 
 
@@ -221,16 +217,16 @@ class TestJapaneseSystemPromptBuilder:
     def test_japanese_prompt_building(self):
         """Test Japanese system prompt building."""
         builder = JapaneseSystemPromptBuilder()
-        
+
         # Provide minimal required context
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -240,16 +236,15 @@ class TestJapaneseSystemPromptBuilder:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         prompt = builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
         assert isinstance(prompt, str)
         assert len(prompt) > 0
-        
+
         # Should contain Japanese characters
         japanese_chars = any(ord(char) >= 0x3040 for char in prompt)
         assert japanese_chars
@@ -257,15 +252,15 @@ class TestJapaneseSystemPromptBuilder:
     def test_japanese_prompt_with_context(self):
         """Test Japanese system prompt building with context."""
         builder = JapaneseSystemPromptBuilder()
-        
+
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         prompt = builder.build_system_prompt(repository_context=repo_context)
         assert isinstance(prompt, str)
         assert len(prompt) > 0
@@ -276,16 +271,16 @@ class TestJapaneseSystemPromptBuilder:
         # This test verifies they can handle the same context
         english_builder = SystemPromptBuilder()
         japanese_builder = JapaneseSystemPromptBuilder()
-        
+
         # Provide minimal required context
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -295,18 +290,16 @@ class TestJapaneseSystemPromptBuilder:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         english_prompt = english_builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
         japanese_prompt = japanese_builder.build_system_prompt(
-            repository_context=repo_context,
-            document_metadata=doc_metadata
+            repository_context=repo_context, document_metadata=doc_metadata
         )
-        
+
         # Both should be valid prompts (they may be the same if using same template)
         assert isinstance(english_prompt, str) and len(english_prompt) > 0
         assert isinstance(japanese_prompt, str) and len(japanese_prompt) > 0
@@ -318,16 +311,16 @@ class TestSystemPromptBuilderWithDocumentContent:
     def test_prompt_with_document_content(self):
         """Test system prompt building with document content."""
         builder = SystemPromptBuilder()
-        
+
         # Provide minimal required context
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -337,15 +330,17 @@ class TestSystemPromptBuilderWithDocumentContent:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
-        document_content = "# Test Document\n\nThis is a test document with some content."
-        
+
+        document_content = (
+            "# Test Document\n\nThis is a test document with some content."
+        )
+
         prompt = builder.build_system_prompt(
             repository_context=repo_context,
             document_metadata=doc_metadata,
-            document_content=document_content
+            document_content=document_content,
         )
         assert isinstance(prompt, str)
         assert len(prompt) > 0
@@ -353,15 +348,15 @@ class TestSystemPromptBuilderWithDocumentContent:
     def test_prompt_with_all_parameters(self):
         """Test system prompt building with all parameters."""
         builder = SystemPromptBuilder()
-        
+
         repo_context = RepositoryContext(
             service=GitService.GITHUB,
             owner="test_owner",
             repo="test_repo",
             ref="main",
-            base_url="https://github.com/test_owner/test_repo"
+            base_url="https://github.com/test_owner/test_repo",
         )
-        
+
         doc_metadata = DocumentMetadata(
             filename="test.md",
             extension=".md",
@@ -371,43 +366,43 @@ class TestSystemPromptBuilderWithDocumentContent:
             description="A test document",
             author="Test Author",
             date="2023-01-01",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
-        
+
         document_content = "# Test Document\n\nThis is a test document."
-        
+
         prompt = builder.build_system_prompt(
             repository_context=repo_context,
             document_metadata=doc_metadata,
-            document_content=document_content
+            document_content=document_content,
         )
-        
+
         assert isinstance(prompt, str)
         assert len(prompt) > 0
 
     def test_prompt_cache_with_different_contexts(self):
         """Test that different contexts produce different cached prompts."""
         builder = SystemPromptBuilder()
-        
+
         # Build prompt with first context
         repo_context1 = RepositoryContext(
             service=GitService.GITHUB,
             owner="owner1",
             repo="repo1",
             ref="main",
-            base_url="https://github.com/owner1/repo1"
+            base_url="https://github.com/owner1/repo1",
         )
         prompt1 = builder.build_system_prompt(repository_context=repo_context1)
-        
+
         # Build prompt with different context
         repo_context2 = RepositoryContext(
             service=GitService.GITHUB,
             owner="owner2",
             repo="repo2",
             ref="main",
-            base_url="https://github.com/owner2/repo2"
+            base_url="https://github.com/owner2/repo2",
         )
         prompt2 = builder.build_system_prompt(repository_context=repo_context2)
-        
+
         # Should be different prompts
         assert prompt1 != prompt2

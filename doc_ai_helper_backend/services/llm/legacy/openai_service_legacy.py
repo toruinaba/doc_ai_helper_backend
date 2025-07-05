@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     )
 
 from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase
-from doc_ai_helper_backend.services.llm.utils import PromptTemplateManager, LLMCacheService
+from doc_ai_helper_backend.services.llm.utils import (
+    PromptTemplateManager,
+    LLMCacheService,
+)
 from doc_ai_helper_backend.services.llm.legacy.openai_client import OpenAIAPIClient
 from doc_ai_helper_backend.services.llm.legacy.openai_options_builder import (
     OpenAIOptionsBuilder,

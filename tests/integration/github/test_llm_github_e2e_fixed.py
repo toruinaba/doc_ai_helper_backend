@@ -95,35 +95,36 @@ def create_mcp_tool_wrapper(
             # デバッグ用: 入力パラメータを表示
             print(f"       🔧 {tool_name} 呼び出し開始")
             print(f"          入力パラメータ: {kwargs}")
-            
+
             # GitHubトークンをツール呼び出しに注入
             kwargs["github_token"] = github_token
-            
+
             # repository パラメータがある場合は、repository_contextに変換
             if "repository" in kwargs:
                 repository = kwargs.pop("repository")
-                owner, repo = repository.split('/', 1)
-                
+                owner, repo = repository.split("/", 1)
+
                 # RepositoryContextを作成してリポジトリコンテキストとして注入
                 repo_context = RepositoryContext(
                     repo=repo,
                     owner=owner,
                     service=GitService.GITHUB,  # GitServiceを正しく使用
-                    ref="main"
+                    ref="main",
                 )
                 kwargs["repository_context"] = repo_context.model_dump()
                 print(f"          変換後パラメータ: {kwargs}")
-            
+
             result = await mcp_server.call_tool(tool_name, **kwargs)
-            
+
             # デバッグ用: MCPツールの生の結果を表示
             print(f"          MCPツール生の結果: {result}")
             print(f"          結果のタイプ: {type(result)}")
-            
+
             return {"success": True, "result": result, "error": None}
         except Exception as e:
             print(f"          ❌ MCPツール実行エラー: {str(e)}")
             import traceback
+
             traceback.print_exc()
             return {"success": False, "result": None, "error": str(e)}
 
@@ -436,18 +437,23 @@ Contact: email@example.com
                         print(f"       🔍 Tool実行結果の詳細:")
                         print(f"          Type: {type(result_data)}")
                         print(f"          Data: {result_data}")
-                        
+
                         # 結果を表示
                         if isinstance(result_data, dict) and result_data.get("success"):
                             result_content = result_data.get("result", {})
-                            print(f"          Result content type: {type(result_content)}")
+                            print(
+                                f"          Result content type: {type(result_content)}"
+                            )
                             print(f"          Result content: {result_content}")
-                            
-                            if isinstance(result_content, dict) and "issue_info" in result_content:
+
+                            if (
+                                isinstance(result_content, dict)
+                                and "issue_info" in result_content
+                            ):
                                 issue_info = result_content["issue_info"]
                                 print(f"          Issue info type: {type(issue_info)}")
                                 print(f"          Issue info: {issue_info}")
-                                
+
                                 if isinstance(issue_info, dict):
                                     print(
                                         f"       ✅ Issue #{issue_info.get('number')} 作成成功"
@@ -460,7 +466,9 @@ Contact: email@example.com
                                         f"       🏷️  ラベル: {issue_info.get('labels', [])}"
                                     )
                                 else:
-                                    print(f"       ⚠️ Issue info is not a dict: {issue_info}")
+                                    print(
+                                        f"       ⚠️ Issue info is not a dict: {issue_info}"
+                                    )
                             elif isinstance(result_content, str):
                                 print(f"       ✅ 操作成功: {result_content}")
                             else:
@@ -616,7 +624,7 @@ async def test_basic_github_issue_creation():
                         func = function_registry.get_function("create_github_issue")
                         if func:
                             tool_result = await func(**arguments)
-                            
+
                             # デバッグ用: 結果の詳細を表示
                             print(f"       🔍 Tool実行結果:")
                             print(f"          Type: {type(tool_result)}")
@@ -625,7 +633,10 @@ async def test_basic_github_issue_creation():
                             if tool_result.get("success"):
                                 success = True
                                 result_content = tool_result.get("result", {})
-                                if isinstance(result_content, dict) and "issue_info" in result_content:
+                                if (
+                                    isinstance(result_content, dict)
+                                    and "issue_info" in result_content
+                                ):
                                     issue_info = result_content["issue_info"]
                                     print(
                                         f"   ✅ Issue #{issue_info.get('number')} 作成成功"
@@ -734,7 +745,7 @@ async def test_github_permissions_check():
                         )
                         if func:
                             tool_result = await func(**arguments)
-                            
+
                             # デバッグ用: 結果の詳細を表示
                             print(f"       🔍 権限確認結果:")
                             print(f"          Type: {type(tool_result)}")
@@ -779,14 +790,14 @@ async def test_readme_improvement_with_confirmation():
     """READMEドリブン改善要求の確認フロー付きE2Eテスト"""
     print("📖 README改善確認フロー E2Eテスト")
     print("=" * 55)
-    
+
     config = E2ETestConfig()
     config.print_status()
-    
+
     if not config.is_valid():
         print("❌ 環境変数が設定されていません")
         return False
-    
+
     try:
         # 1. LLMサービス初期化
         print("\n1️⃣ LLMサービス初期化...")
@@ -797,18 +808,18 @@ async def test_readme_improvement_with_confirmation():
             default_model="azure-tk-gpt-4o",
         )
         print("   ✅ LLMサービス初期化完了")
-        
+
         # 2. Function Registry & MCP設定
         print("\n2️⃣ Function Registry & MCP設定...")
-        
+
         # GitHubトークンがNoneでないことを保証
         if not config.github_token:
             print("❌ GitHubトークンが設定されていません")
             return False
-            
+
         function_registry, mcp_adapter = await setup_mcp_functions(config.github_token)
         print("   ✅ Function Registry & MCP設定完了")
-        
+
         # 3. サンプルREADME準備（実際の取得は省略）
         print("\n3️⃣ サンプルREADME準備...")
         sample_readme = """
@@ -827,10 +838,10 @@ npm install
 Run the application.
 """
         print("   📝 サンプルREADMEを使用")
-        
+
         # 4. 第1段階 - Issue内容生成（投稿はしない）
         print("\n4️⃣ Issue内容生成段階...")
-        
+
         system_prompt_generation = f"""
 あなたは日本語で対応するドキュメント改善の専門家です。
 
@@ -861,7 +872,7 @@ README.mdの内容:
 
 必ず日本語で内容を作成し、JSONフォーマットで返してください。
 """
-        
+
         user_prompt_generation = """
 このREADMEファイルを見て、以下の観点から改善提案をお願いします：
 
@@ -873,9 +884,9 @@ README.mdの内容:
 上記の問題点を解決するための改善提案を、先ほどのJSONフォーマットで作成してください。
 必ず日本語で作成してください。
 """
-        
+
         print("   📝 Issue内容生成中...")
-        
+
         query_options_generation = {
             "model": "azure-tk-gpt-4o",
             "messages": [
@@ -883,22 +894,24 @@ README.mdの内容:
                 {"role": "user", "content": user_prompt_generation},
             ],
             "temperature": 0.7,
-            "max_tokens": 1000
+            "max_tokens": 1000,
         }
-        
+
         generation_response = await llm_service.query(
             prompt="", options=query_options_generation  # messagesで指定済み
         )
-        
+
         print(f"   ✅ Issue内容生成完了")
-        
+
         # 5. 生成されたIssue内容を解析
         print("\n5️⃣ 生成されたIssue内容の解析...")
-        
+
         import re
-        
+
         # JSONブロックを抽出
-        json_match = re.search(r'```json\s*(\{.*?\})\s*```', generation_response.content, re.DOTALL)
+        json_match = re.search(
+            r"```json\s*(\{.*?\})\s*```", generation_response.content, re.DOTALL
+        )
         if json_match:
             try:
                 issue_data = json.loads(json_match.group(1))
@@ -911,7 +924,7 @@ README.mdの内容:
             print("   ❌ JSON形式のIssue内容が見つかりません")
             print(f"   📄 生成内容: {generation_response.content}")
             return False
-        
+
         # 6. ユーザー確認（実際の入力）
         print("\n6️⃣ ユーザー確認...")
         print("=" * 60)
@@ -922,23 +935,23 @@ README.mdの内容:
         print(f"\n本文:\n{issue_data['body']}")
         print(f"\nラベル: {', '.join(issue_data['labels'])}")
         print("=" * 60)
-        
+
         # 実際のユーザー入力
         print("\n❓ この内容でGitHub Issueを投稿しますか？")
         print("   [1] はい - Issueを投稿")
         print("   [2] いいえ - キャンセル")
         print("   [3] 修正 - 内容を修正して再生成")
-        
+
         while True:
             user_choice = input("選択してください (1/2/3): ").strip()
             if user_choice in ["1", "2", "3"]:
                 break
             print("無効な選択です。1、2、または3を入力してください。")
-        
+
         # 7. ユーザー選択に基づく処理
         if user_choice == "1":
             print("\n7️⃣ GitHub Issue投稿実行...")
-            
+
             # 第2段階 - 実際のIssue投稿
             system_prompt_posting = f"""
 あなたは確認済みのGitHub Issue投稿を実行する専門家です。
@@ -956,9 +969,9 @@ README.mdの内容:
 
 必ず上記の確認済み内容でIssueを投稿してください。
 """
-            
+
             user_prompt_posting = "確認済みの内容でGitHub Issueを投稿してください。"
-            
+
             # Function Calling有効でLLM実行
             tools = []
             for func_def in function_registry.get_all_function_definitions():
@@ -971,7 +984,7 @@ README.mdの内容:
                     },
                 }
                 tools.append(tool)
-            
+
             query_options = {
                 "model": "azure-tk-gpt-4o",
                 "messages": [
@@ -982,74 +995,90 @@ README.mdの内容:
                 "tool_choice": "auto",
                 "temperature": 0.1,
             }
-            
+
             posting_response = await llm_service.query(
                 prompt="", options=query_options  # messagesで指定済み
             )
-            
+
             print(f"   📤 LLM応答: {posting_response.content}")
-            
+
             # Function Call処理
             if posting_response.tool_calls:
-                print(f"\n   🔧 Function Call検出: {len(posting_response.tool_calls)}個")
-                
+                print(
+                    f"\n   🔧 Function Call検出: {len(posting_response.tool_calls)}個"
+                )
+
                 for tool_call in posting_response.tool_calls:
                     print(f"   📞 関数呼び出し: {tool_call.function.name}")
-                    
+
                     if tool_call.function.name == "create_github_issue":
                         try:
                             # Function実行（既存のラッパー使用）
-                            func = function_registry.get_function(tool_call.function.name)
-                            
+                            func = function_registry.get_function(
+                                tool_call.function.name
+                            )
+
                             if func is None:
-                                print(f"   ❌ 関数が見つかりません: {tool_call.function.name}")
+                                print(
+                                    f"   ❌ 関数が見つかりません: {tool_call.function.name}"
+                                )
                                 return False
-                            
+
                             args = json.loads(tool_call.function.arguments)
-                            
+
                             result = await func(**args)
-                            
+
                             if isinstance(result, dict) and result.get("success"):
                                 print(f"   ✅ Issue投稿成功")
                                 result_content = result.get("result", {})
-                                if isinstance(result_content, dict) and "issue_info" in result_content:
+                                if (
+                                    isinstance(result_content, dict)
+                                    and "issue_info" in result_content
+                                ):
                                     issue_info = result_content["issue_info"]
                                     if isinstance(issue_info, dict):
-                                        print(f"   📋 Issue #{issue_info.get('number')} が作成されました")
+                                        print(
+                                            f"   📋 Issue #{issue_info.get('number')} が作成されました"
+                                        )
                                         print(f"   🔗 URL: {issue_info.get('url')}")
-                                        print(f"   🏷️ ラベル: {issue_info.get('labels', [])}")
+                                        print(
+                                            f"   🏷️ ラベル: {issue_info.get('labels', [])}"
+                                        )
                                 print(f"   🎉 確認フロー付きIssue作成が完了しました！")
                                 return True
                             else:
-                                print(f"   ❌ Issue投稿エラー: {result.get('error') if isinstance(result, dict) else result}")
+                                print(
+                                    f"   ❌ Issue投稿エラー: {result.get('error') if isinstance(result, dict) else result}"
+                                )
                                 return False
-                            
+
                         except Exception as e:
                             print(f"   ❌ Issue投稿エラー: {e}")
                             import traceback
+
                             traceback.print_exc()
                             return False
             else:
                 print("   ⚠️ Function Callが実行されませんでした")
                 return False
-                
+
         elif user_choice == "2":
             print("\n❌ ユーザーによりキャンセルされました")
             return True  # キャンセルも正常終了
-            
+
         elif user_choice == "3":
             print("\n🔄 内容修正機能は今後実装予定です")
             return True
-        
+
         print("\n🎉 インタラクティブ確認フロー付きE2Eテスト完了")
         return True
-        
+
     except Exception as e:
         print(f"❌ テストエラー: {e}")
         import traceback
+
         traceback.print_exc()
         return False
-
 
 
 async def main():
