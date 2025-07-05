@@ -47,11 +47,8 @@ class DocumentAIHelperMCPServer:
         if self.config.enable_analysis_tools:
             self._register_analysis_tools()
 
-        if self.config.enable_github_tools:
-            self._register_git_tools()
-
-        if self.config.enable_utility_tools:
-            self._register_utility_tools()
+        # Always register git tools (GitHub/Forgejo integration is enabled by default)
+        self._register_git_tools()
 
         logger.info("MCP Server setup completed")
 
@@ -169,41 +166,47 @@ class DocumentAIHelperMCPServer:
 
     def _setup_unified_git_tools(self):
         """Set up unified Git tools with configured services."""
+        import os
         from .tools.git_tools import configure_git_service
 
-        # Configure GitHub if enabled
-        if self.config.enable_github_tools and (
-            self.config.github_token or self.config.default_git_service == "github"
-        ):
+        # Get tokens from environment variables
+        github_token = os.getenv("GITHUB_TOKEN")
+        forgejo_token = os.getenv("FORGEJO_TOKEN")
+        forgejo_base_url = os.getenv("FORGEJO_BASE_URL")
+        forgejo_username = os.getenv("FORGEJO_USERNAME")
+        forgejo_password = os.getenv("FORGEJO_PASSWORD")
+        default_git_service = os.getenv("DEFAULT_GIT_SERVICE", "github")
+
+        # Configure GitHub if token is available
+        if github_token:
             try:
                 configure_git_service(
                     "github",
                     config={
-                        "access_token": self.config.github_token,
-                        "default_labels": self.config.github_default_labels,
+                        "access_token": github_token,
+                        "default_labels": ["documentation", "improvement"],
                     },
-                    set_as_default=(self.config.default_git_service == "github"),
+                    set_as_default=(default_git_service == "github"),
                 )
                 logger.info("Configured GitHub service for unified Git tools")
             except Exception as e:
                 logger.warning(f"Failed to configure GitHub service: {str(e)}")
 
         # Configure Forgejo if configured
-        if self.config.forgejo_base_url and (
-            self.config.forgejo_token
-            or (self.config.forgejo_username and self.config.forgejo_password)
+        if forgejo_base_url and (
+            forgejo_token or (forgejo_username and forgejo_password)
         ):
             try:
                 configure_git_service(
                     "forgejo",
                     config={
-                        "base_url": self.config.forgejo_base_url,
-                        "access_token": self.config.forgejo_token,
-                        "username": self.config.forgejo_username,
-                        "password": self.config.forgejo_password,
-                        "default_labels": self.config.forgejo_default_labels,
+                        "base_url": forgejo_base_url,
+                        "access_token": forgejo_token,
+                        "username": forgejo_username,
+                        "password": forgejo_password,
+                        "default_labels": ["documentation", "improvement"],
                     },
-                    set_as_default=(self.config.default_git_service == "forgejo"),
+                    set_as_default=(default_git_service == "forgejo"),
                 )
                 logger.info("Configured Forgejo service for unified Git tools")
             except Exception as e:
@@ -321,45 +324,6 @@ class DocumentAIHelperMCPServer:
             )
 
         logger.info("Unified Git tools registered with FastMCP")
-
-    def _register_utility_tools(self):
-        """Register utility tools using FastMCP decorators."""
-        from .tools.utility_tools import (
-            get_current_time,
-            count_text_characters,
-            validate_email_format,
-            generate_random_data,
-            calculate_simple_math,
-        )
-
-        @self.app.tool("get_current_time")
-        async def get_time_tool(timezone: str = "UTC", format: str = "ISO") -> str:
-            """Get current time in specified timezone and format."""
-            return await get_current_time(timezone=timezone, format=format)
-
-        @self.app.tool("count_text_characters")
-        async def count_chars_tool(text: str, count_type: str = "all") -> str:
-            """Count characters in the provided text with various counting options."""
-            return await count_text_characters(text=text, count_type=count_type)
-
-        @self.app.tool("validate_email_format")
-        async def validate_email_tool(email: str) -> str:
-            """Validate if the provided string is a valid email format."""
-            return await validate_email_format(email=email)
-
-        @self.app.tool("generate_random_data")
-        async def generate_random_tool(
-            data_type: str = "string", length: int = 10
-        ) -> str:
-            """Generate random data for testing purposes."""
-            return await generate_random_data(data_type=data_type, length=length)
-
-        @self.app.tool("calculate_simple_math")
-        async def calculate_math_tool(expression: str) -> str:
-            """Calculate simple mathematical expressions safely."""
-            return await calculate_simple_math(expression=expression)
-
-        logger.info("Utility tools registered with FastMCP")
 
     def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
         """
@@ -977,8 +941,7 @@ class DocumentAIHelperMCPServer:
                 "document_tools": self.config.enable_document_tools,
                 "feedback_tools": self.config.enable_feedback_tools,
                 "analysis_tools": self.config.enable_analysis_tools,
-                "github_tools": self.config.enable_github_tools,
-                "utility_tools": self.config.enable_utility_tools,
+                "git_tools": True,  # Git tools are always enabled
             },
         }
 
