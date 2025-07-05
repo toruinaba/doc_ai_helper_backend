@@ -4,7 +4,7 @@
 
 import pytest
 
-from doc_ai_helper_backend.services.document_processors.link_transformer import (
+from doc_ai_helper_backend.services.document.processors.link_transformer import (
     LinkTransformer,
 )
 

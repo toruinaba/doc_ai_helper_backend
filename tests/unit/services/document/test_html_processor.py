@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 
 from doc_ai_helper_backend.models.document import DocumentType
-from doc_ai_helper_backend.services.document_processors.html_processor import (
+from doc_ai_helper_backend.services.document.processors.html_processor import (
     HTMLProcessor,
 )
 

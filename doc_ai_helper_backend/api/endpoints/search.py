@@ -15,7 +15,7 @@ from doc_ai_helper_backend.models.search import (
     SearchResponse,
     SearchResultItem,
 )
-from doc_ai_helper_backend.services.document_service import DocumentService
+from doc_ai_helper_backend.services.document import DocumentService
 
 # Logger
 logger = logging.getLogger("doc_ai_helper")

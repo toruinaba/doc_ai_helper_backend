@@ -384,7 +384,7 @@ class MockGitService(GitServiceBase):
         metadata: Dict[str, Any],
     ) -> DocumentResponse:
         """Build a DocumentResponse from mock data."""
-        from doc_ai_helper_backend.services.document_processors.factory import (
+        from doc_ai_helper_backend.services.document.processors.factory import (
             DocumentProcessorFactory,
         )
 

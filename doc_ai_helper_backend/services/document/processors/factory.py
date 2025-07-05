@@ -6,13 +6,13 @@ from typing import Dict, Type
 
 from doc_ai_helper_backend.core.exceptions import DocumentParsingException
 from doc_ai_helper_backend.models.document import DocumentType
-from doc_ai_helper_backend.services.document_processors.base_processor import (
+from doc_ai_helper_backend.services.document.processors.base_processor import (
     DocumentProcessorBase,
 )
-from doc_ai_helper_backend.services.document_processors.html_processor import (
+from doc_ai_helper_backend.services.document.processors.html_processor import (
     HTMLProcessor,
 )
-from doc_ai_helper_backend.services.document_processors.markdown_processor import (
+from doc_ai_helper_backend.services.document.processors.markdown_processor import (
     MarkdownProcessor,
 )
 

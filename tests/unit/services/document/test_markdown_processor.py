@@ -5,10 +5,10 @@ Markdownプロセッサーのテスト。
 import os
 import pytest
 
-from doc_ai_helper_backend.services.document_processors.markdown_processor import (
+from doc_ai_helper_backend.services.document.processors.markdown_processor import (
     MarkdownProcessor,
 )
-from doc_ai_helper_backend.services.document_processors.frontmatter_parser import (
+from doc_ai_helper_backend.services.document.processors.frontmatter_parser import (
     parse_frontmatter,
 )
 

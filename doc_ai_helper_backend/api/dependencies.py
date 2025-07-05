@@ -6,7 +6,7 @@ from typing import Callable
 
 from fastapi import Depends
 
-from doc_ai_helper_backend.services.document_service import DocumentService
+from doc_ai_helper_backend.services.document import DocumentService
 from doc_ai_helper_backend.services.llm import LLMServiceBase, LLMServiceFactory
 from doc_ai_helper_backend.core.config import settings
 

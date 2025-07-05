@@ -13,7 +13,7 @@ from doc_ai_helper_backend.models.document import (
     DocumentResponse,
     RepositoryStructureResponse,
 )
-from doc_ai_helper_backend.services.document_service import DocumentService
+from doc_ai_helper_backend.services.document import DocumentService
 
 # Logger
 logger = logging.getLogger("doc_ai_helper")
