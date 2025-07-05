@@ -1,15 +1,15 @@
 """
 Tests for API endpoints with Forgejo service support.
 
-LEGACY TEST: This integration test file has been moved to legacy/ to maintain 1:1 correspondence.
-Integration tests should be in tests/integration/ directory.
+Integration tests for Forgejo API functionality.
+This file was moved from tests/unit/services/git/legacy/ to the appropriate integration test directory.
 """
 
 import pytest
 
-# Skip all tests in this legacy file
+# TODO: Update these integration tests to work with current API structure
 pytestmark = pytest.mark.skip(
-    reason="Legacy integration test - should be moved to tests/integration/"
+    reason="Integration test needs updating for current API structure"
 )
 
 from unittest.mock import AsyncMock, patch, MagicMock
