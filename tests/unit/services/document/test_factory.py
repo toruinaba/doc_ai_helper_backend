@@ -7,6 +7,7 @@ This module tests the factory that creates appropriate document processors based
 import pytest
 from unittest.mock import patch, MagicMock
 
+from doc_ai_helper_backend.models.document import DocumentType
 from doc_ai_helper_backend.services.document.processors.factory import (
     DocumentProcessorFactory,
 )
@@ -30,7 +31,7 @@ class TestDocumentProcessorFactory:
 
     def test_create_markdown_processor(self):
         """Test creating a markdown processor."""
-        processor = DocumentProcessorFactory.create("test.md")
+        processor = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
 
         assert processor is not None
         assert isinstance(processor, MarkdownProcessor)
@@ -38,60 +39,43 @@ class TestDocumentProcessorFactory:
 
     def test_create_html_processor(self):
         """Test creating an HTML processor."""
-        processor = DocumentProcessorFactory.create("test.html")
+        processor = DocumentProcessorFactory.create(DocumentType.HTML)
 
         assert processor is not None
         assert isinstance(processor, HTMLProcessor)
         assert isinstance(processor, DocumentProcessorBase)
 
     def test_create_markdown_extensions(self):
-        """Test creating processors for various markdown extensions."""
-        markdown_extensions = [".md", ".markdown", ".mdown", ".mkd"]
-
-        for ext in markdown_extensions:
-            processor = DocumentProcessorFactory.create(f"test{ext}")
-            assert isinstance(processor, MarkdownProcessor)
+        """Test creating processors for Markdown document type."""
+        processor = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
+        assert isinstance(processor, MarkdownProcessor)
 
     def test_create_html_extensions(self):
-        """Test creating processors for various HTML extensions."""
-        html_extensions = [".html", ".htm"]
-
-        for ext in html_extensions:
-            processor = DocumentProcessorFactory.create(f"test{ext}")
-            assert isinstance(processor, HTMLProcessor)
+        """Test creating processors for HTML document type."""
+        processor = DocumentProcessorFactory.create(DocumentType.HTML)
+        assert isinstance(processor, HTMLProcessor)
 
     def test_case_insensitive_extension(self):
-        """Test that extension matching is case insensitive."""
-        processor_lower = DocumentProcessorFactory.create("test.md")
-        processor_upper = DocumentProcessorFactory.create("test.MD")
-        processor_mixed = DocumentProcessorFactory.create("test.Md")
+        """Test that different instances of same type are same class."""
+        processor_1 = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
+        processor_2 = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
 
-        assert type(processor_lower) == type(processor_upper) == type(processor_mixed)
+        assert type(processor_1) == type(processor_2)
         assert all(
             isinstance(p, MarkdownProcessor)
-            for p in [processor_lower, processor_upper, processor_mixed]
+            for p in [processor_1, processor_2]
         )
 
     def test_unsupported_file_type(self):
-        """Test handling of unsupported file types."""
+        """Test handling of unsupported document types."""
         with pytest.raises(DocumentParsingException) as exc_info:
-            DocumentProcessorFactory.create("test.txt")
+            DocumentProcessorFactory.create(DocumentType.OTHER)
 
-        assert "test.txt" in str(exc_info.value)
+        assert "OTHER" in str(exc_info.value)
         assert "unsupported" in str(exc_info.value).lower()
 
-    def test_file_without_extension(self):
-        """Test handling of files without extensions."""
-        with pytest.raises(DocumentParsingException):
-            DocumentProcessorFactory.create("README")
-
-    def test_empty_filename(self):
-        """Test handling of empty filename."""
-        with pytest.raises(DocumentParsingException):
-            DocumentProcessorFactory.create("")
-
-    def test_none_filename(self):
-        """Test handling of None filename."""
+    def test_none_document_type(self):
+        """Test handling of None document type."""
         with pytest.raises((DocumentParsingException, AttributeError)):
             DocumentProcessorFactory.create(None)
 
@@ -126,8 +110,8 @@ class TestDocumentProcessorFactory:
 
     def test_processor_singleton_behavior(self):
         """Test that processors are created fresh each time (not singleton)."""
-        processor1 = DocumentProcessorFactory.create("test.md")
-        processor2 = DocumentProcessorFactory.create("test.md")
+        processor1 = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
+        processor2 = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
 
         # Should be different instances but same type
         assert type(processor1) == type(processor2)

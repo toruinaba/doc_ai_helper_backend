@@ -23,20 +23,60 @@ class ConcreteDocumentProcessor(DocumentProcessorBase):
     def process_content(self, content: str, path: str, **kwargs) -> DocumentContent:
         """Process document content - test implementation."""
         return DocumentContent(
-            raw=content, processed=f"processed: {content}", type=DocumentType.MARKDOWN
+            content=content,
+            encoding="utf-8"
         )
 
     def extract_metadata(self, content: str, path: str, **kwargs) -> DocumentMetadata:
         """Extract metadata from document - test implementation."""
+        from datetime import datetime
         return DocumentMetadata(
-            title=f"Title from {path}",
-            description="Test description",
-            author="Test Author",
-            created_at=None,
-            updated_at=None,
-            tags=[],
-            custom_fields={},
+            size=len(content),
+            last_modified=datetime.now(),
+            content_type="text/plain",
+            sha="test_sha",
+            extra={"test": "data"}
         )
+
+    def extract_links(self, content: str, path: str, **kwargs) -> list:
+        """Extract links from document - test implementation."""
+        # Simple test implementation - look for markdown links
+        import re
+
+        links = []
+        link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
+        matches = re.findall(link_pattern, content)
+        for text, url in matches:
+            links.append(
+                {
+                    "text": text,
+                    "url": url,
+                    "is_image": False,
+                    "is_external": url.startswith(("http://", "https://")),
+                }
+            )
+        return links
+
+    def transform_links(
+        self, content: str, path: str, base_url: str, **kwargs
+    ) -> str:
+        """Transform links in document - test implementation."""
+        # Simple test implementation - replace relative links
+        import re
+
+        def replace_link(match):
+            text = match.group(1)
+            url = match.group(2)
+            if not url.startswith(("http://", "https://", "mailto:", "#")):
+                # Relative link - make it absolute
+                if base_url.endswith("/"):
+                    new_url = f"{base_url}{url}"
+                else:
+                    new_url = f"{base_url}/{url}"
+                return f"[{text}]({new_url})"
+            return match.group(0)
+
+        return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replace_link, content)
 
     def can_process(self, file_path: str) -> bool:
         """Check if processor can handle the file - test implementation."""
@@ -73,9 +113,8 @@ class TestDocumentProcessorBase:
         result = processor.process_content(content, path)
 
         assert isinstance(result, DocumentContent)
-        assert result.raw == content
-        assert result.processed == f"processed: {content}"
-        assert result.type == DocumentType.MARKDOWN
+        assert result.content == content
+        assert result.encoding == "utf-8"
 
     def test_extract_metadata(self, processor):
         """Test the extract_metadata method."""
@@ -85,11 +124,38 @@ class TestDocumentProcessorBase:
         result = processor.extract_metadata(content, path)
 
         assert isinstance(result, DocumentMetadata)
-        assert result.title == f"Title from {path}"
-        assert result.description == "Test description"
-        assert result.author == "Test Author"
-        assert result.tags == []
-        assert result.custom_fields == {}
+        assert result.size == len(content)
+        assert result.content_type == "text/plain"
+        assert result.sha == "test_sha"
+        assert result.extra == {"test": "data"}
+
+    def test_extract_links(self, processor):
+        """Test the extract_links method."""
+        content = "Test content with a link [example](http://example.com)"
+        path = "test.test"
+
+        result = processor.extract_links(content, path)
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["text"] == "example"
+        assert result[0]["url"] == "http://example.com"
+        assert result[0]["is_image"] is False
+        assert result[0]["is_external"] is True
+
+    def test_transform_links(self, processor):
+        """Test the transform_links method."""
+        content = "Test content with a link [example](relative/path)"
+        path = "test.test"
+        base_url = "http://base.url"
+
+        result = processor.transform_links(content, path, base_url)
+
+        assert isinstance(result, str)
+        assert (
+            result
+            == "Test content with a link [example](http://base.url/relative/path)"
+        )
 
     def test_can_process(self, processor):
         """Test the can_process method."""
@@ -100,7 +166,13 @@ class TestDocumentProcessorBase:
     def test_interface_coverage(self, processor):
         """Test that all required methods are implemented."""
         # Check that all abstract methods are implemented
-        required_methods = ["process_content", "extract_metadata", "can_process"]
+        required_methods = [
+            "process_content",
+            "extract_metadata",
+            "extract_links",
+            "transform_links",
+            "can_process",
+        ]
 
         for method_name in required_methods:
             assert hasattr(processor, method_name)
