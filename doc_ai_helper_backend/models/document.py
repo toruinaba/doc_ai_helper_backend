@@ -86,3 +86,23 @@ class RepositoryStructureResponse(BaseModel):
     ref: str = Field(default="main", description="Branch or tag name")
     tree: List[FileTreeItem] = Field(..., description="Repository tree")
     last_updated: datetime = Field(..., description="Last updated datetime")
+
+
+class HTMLMetadata(BaseModel):
+    """HTML固有のメタデータモデル"""
+
+    title: Optional[str] = Field(None, description="HTML document title")
+    description: Optional[str] = Field(None, description="HTML document description")
+    author: Optional[str] = Field(None, description="HTML document author")
+    generator: Optional[str] = Field(
+        None, description="Generator tool (Quarto, Hugo, etc.)"
+    )
+    source_file: Optional[str] = Field(None, description="Source file path (.md/.qmd)")
+    build_info: Optional[Dict[str, Any]] = Field(
+        default={}, description="Build information"
+    )
+    headings: List[Dict[str, Any]] = Field(
+        default=[], description="Document heading structure"
+    )
+    lang: Optional[str] = Field(None, description="Document language")
+    charset: Optional[str] = Field(None, description="Document character encoding")

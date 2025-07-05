@@ -88,11 +88,12 @@ class DocumentService:
 
             # Determine document type
             file_extension = os.path.splitext(path)[1].lower()
-            document_type = (
-                DocumentType.MARKDOWN
-                if file_extension in [".md", ".markdown"]
-                else DocumentType.OTHER
-            )
+            if file_extension in [".md", ".markdown"]:
+                document_type = DocumentType.MARKDOWN
+            elif file_extension in [".html", ".htm"]:
+                document_type = DocumentType.HTML
+            else:
+                document_type = DocumentType.OTHER
 
             # Process document with appropriate processor
             try:

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rich metadata HTML document">
+    <meta name="author" content="Test Author">
+    <meta name="keywords" content="html, testing, metadata">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Rich Metadata Document">
+    <meta property="og:description" content="An HTML document with rich metadata">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://example.com/rich-metadata">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Rich Metadata Document">
+    <title>Rich Metadata Document</title>
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="canonical" href="https://example.com/rich-metadata">
+</head>
+
+<body>
+    <header>
+        <h1 id="main-title">Rich Metadata Document</h1>
+        <nav>
+            <ul>
+                <li><a href="#section1">Section 1</a></li>
+                <li><a href="#section2">Section 2</a></li>
+                <li><a href="#section3">Section 3</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h2 id="section1">Section 1: Introduction</h2>
+        <p>This document demonstrates various metadata extraction capabilities.</p>
+
+        <h3 id="subsection1-1">Subsection 1.1</h3>
+        <p>Contains various types of links and references:</p>
+        <ul>
+            <li><a href="./relative/path.html">Relative link</a></li>
+            <li><a href="https://external.example.com">External link</a></li>
+            <li><a href="#section2">Internal anchor</a></li>
+        </ul>
+
+        <h2 id="section2">Section 2: Media Content</h2>
+        <p>This section contains various media elements.</p>
+
+        <h3 id="subsection2-1">Images</h3>
+        <figure>
+            <img src="./images/local-image.jpg" alt="Local image" width="300">
+            <figcaption>A local image example</figcaption>
+        </figure>
+
+        <img src="https://external.example.com/remote-image.png" alt="Remote image">
+
+        <h4 id="subsection2-1-1">Nested subsection</h4>
+        <p>This is a deeper level heading for testing heading structure extraction.</p>
+
+        <h2 id="section3">Section 3: Resources</h2>
+        <p>External resources and assets:</p>
+
+        <h3 id="subsection3-1">Stylesheets and Scripts</h3>
+        <link rel="stylesheet" href="./assets/additional.css">
+        <script src="./scripts/app.js"></script>
+        <script src="https://cdn.example.com/library.js"></script>
+    </main>
+
+    <footer>
+        <p>Copyright © 2024 Test Author. All rights reserved.</p>
+    </footer>
+</body>
+
+</html>

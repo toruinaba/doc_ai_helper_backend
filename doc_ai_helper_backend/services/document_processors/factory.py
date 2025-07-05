@@ -9,6 +9,9 @@ from doc_ai_helper_backend.models.document import DocumentType
 from doc_ai_helper_backend.services.document_processors.base_processor import (
     DocumentProcessorBase,
 )
+from doc_ai_helper_backend.services.document_processors.html_processor import (
+    HTMLProcessor,
+)
 from doc_ai_helper_backend.services.document_processors.markdown_processor import (
     MarkdownProcessor,
 )
@@ -20,9 +23,9 @@ class DocumentProcessorFactory:
     # 利用可能なプロセッサー
     _processors: Dict[DocumentType, Type[DocumentProcessorBase]] = {
         DocumentType.MARKDOWN: MarkdownProcessor,
-        # 将来的にQuartoやHTMLを追加
+        DocumentType.HTML: HTMLProcessor,
+        # 将来的にQuartoを追加
         # DocumentType.QUARTO: QuartoProcessor,
-        # DocumentType.HTML: HTMLProcessor,
     }
 
     @classmethod
