@@ -965,7 +965,7 @@ class MockLLMService(LLMServiceBase):
         all_functions = []
 
         # Add utility functions
-        from doc_ai_helper_backend.services.llm.utility_functions import (
+        from doc_ai_helper_backend.services.llm.utils import (
             get_utility_functions,
         )
 

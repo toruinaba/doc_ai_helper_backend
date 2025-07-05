@@ -1003,7 +1003,7 @@ class OpenAIService(LLMServiceBase):
         #         function_names.add(func.name)
 
         # Add utility functions - MCPで定義されていない場合のみ
-        from doc_ai_helper_backend.services.llm.utility_functions import (
+        from doc_ai_helper_backend.services.llm.utils import (
             get_utility_functions,
         )
 
