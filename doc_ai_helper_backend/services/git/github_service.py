@@ -15,6 +15,11 @@ from doc_ai_helper_backend.core.exceptions import (
     NotFoundException,
     RateLimitException,
     UnauthorizedException,
+    GitHubAPIError,
+    GitHubAuthError,
+    GitHubRateLimitError,
+    GitHubRepositoryNotFoundError,
+    GitHubPermissionError,
 )
 from doc_ai_helper_backend.models.document import (
     DocumentContent,
@@ -516,4 +521,222 @@ class GitHubService(GitServiceBase):
             links=processor.extract_links(content, path),
         )
 
-    # ...existing methods...
+    def _parse_repository(self, repository: str) -> Tuple[str, str]:
+        """
+        Parse repository string into owner and repo name.
+
+        Args:
+            repository: Repository in "owner/repo" format.
+
+        Returns:
+            Tuple of (owner, repo).
+
+        Raises:
+            ValueError: If repository format is invalid.
+        """
+        if "/" not in repository:
+            raise ValueError(
+                f"Invalid repository format: {repository}. Expected 'owner/repo'"
+            )
+
+        parts = repository.split("/")
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(
+                f"Invalid repository format: {repository}. Expected 'owner/repo'"
+            )
+
+        return parts[0], parts[1]
+
+    async def get_repository_info(self, owner: str, repo: str) -> Dict[str, Any]:
+        """
+        Get repository information.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Repository information.
+        """
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}"
+        data, _ = await self._make_request("GET", url)
+        return data
+
+    async def check_repository_permissions(
+        self, owner: str, repo: str
+    ) -> Dict[str, bool]:
+        """
+        Check permissions for a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Dictionary with permission flags.
+        """
+        try:
+            repo_info = await self.get_repository_info(owner, repo)
+            permissions = repo_info.get("permissions", {})
+
+            return {
+                "read": permissions.get("pull", False),
+                "write": permissions.get("push", False),
+                "admin": permissions.get("admin", False),
+                "issues": repo_info.get("has_issues", False),
+                "pull_requests": True,  # Most repos allow PRs
+            }
+        except NotFoundException:
+            return {
+                "read": False,
+                "write": False,
+                "admin": False,
+                "issues": False,
+                "pull_requests": False,
+            }
+
+    async def create_issue(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        labels: Optional[List[str]] = None,
+        assignees: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create an issue in the repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            title: Issue title
+            body: Issue body/description
+            labels: List of label names
+            assignees: List of GitHub usernames to assign
+
+        Returns:
+            Created issue information.
+
+        Raises:
+            GitServiceException: If there is an error creating the issue
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/issues"
+
+        issue_data = {
+            "title": title,
+            "body": body,
+        }
+
+        if labels:
+            issue_data["labels"] = labels
+        if assignees:
+            issue_data["assignees"] = assignees
+
+        logger.info(f"Creating issue in {owner}/{repo}: {title}")
+
+        try:
+            data, _ = await self._make_request("POST", url, json=issue_data)
+            return data
+        except Exception as e:
+            logger.error(f"Failed to create issue in {owner}/{repo}: {str(e)}")
+            raise
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+    ) -> Dict[str, Any]:
+        """
+        Create a pull request in the repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+
+        Returns:
+            Created pull request information.
+
+        Raises:
+            GitServiceException: If there is an error creating the PR
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls"
+
+        pr_data = {
+            "title": title,
+            "body": body,
+            "head": head_branch,
+            "base": base_branch,
+        }
+
+        logger.info(f"Creating pull request in {owner}/{repo}: {title}")
+
+        try:
+            data, _ = await self._make_request("POST", url, json=pr_data)
+            return data
+        except Exception as e:
+            logger.error(f"Failed to create pull request in {owner}/{repo}: {str(e)}")
+            raise
+
+    # Convenience methods that take repository string
+    async def create_issue_from_repository_string(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        labels: Optional[List[str]] = None,
+        assignees: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create an issue using repository string.
+
+        Args:
+            repository: Repository in "owner/repo" format
+            title: Issue title
+            body: Issue body/description
+            labels: List of label names
+            assignees: List of GitHub usernames to assign
+
+        Returns:
+            Created issue information.
+        """
+        owner, repo = self._parse_repository(repository)
+        return await self.create_issue(owner, repo, title, body, labels, assignees)
+
+    async def create_pull_request_from_repository_string(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+    ) -> Dict[str, Any]:
+        """
+        Create a pull request using repository string.
+
+        Args:
+            repository: Repository in "owner/repo" format
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+
+        Returns:
+            Created pull request information.
+        """
+        owner, repo = self._parse_repository(repository)
+        return await self.create_pull_request(
+            owner, repo, title, body, head_branch, base_branch
+        )

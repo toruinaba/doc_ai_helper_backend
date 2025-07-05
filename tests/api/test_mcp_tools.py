@@ -123,8 +123,7 @@ class TestMCPToolsAPI:
             "document_tools",
             "feedback_tools",
             "analysis_tools",
-            "github_tools",
-            "utility_tools",
+            "git_tools",
         ]
         for feature in expected_features:
             assert feature in features

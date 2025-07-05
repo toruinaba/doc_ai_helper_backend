@@ -423,3 +423,139 @@ class ForgejoService(GitServiceBase):
             raise
         except Exception as e:
             raise GitServiceException(f"Error creating issue: {str(e)}")
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+    ) -> Dict[str, Any]:
+        """
+        Create a pull request in the repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+
+        Returns:
+            Created pull request information.
+
+        Raises:
+            GitServiceException: If there is an error creating the PR
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        pr_data = {
+            "title": title,
+            "body": body,
+            "head": head_branch,
+            "base": base_branch,
+        }
+
+        try:
+            headers = self._get_default_headers()
+            async with httpx.AsyncClient() as client:
+                url = f"{self.api_base_url}/repos/{owner}/{repo}/pulls"
+                response = await self._make_request(
+                    client, "POST", url, headers=headers, json=pr_data
+                )
+
+                if response.status_code == 201:
+                    return response.json()
+                elif response.status_code == 404:
+                    raise NotFoundException(f"Repository {owner}/{repo} not found")
+                elif response.status_code == 401:
+                    raise UnauthorizedException("Authentication failed")
+                else:
+                    raise GitServiceException(
+                        f"Failed to create pull request: HTTP {response.status_code} - {response.text}"
+                    )
+
+        except (NotFoundException, UnauthorizedException, GitServiceException):
+            raise
+        except Exception as e:
+            raise GitServiceException(f"Error creating pull request: {str(e)}")
+
+    def _parse_repository(self, repository: str) -> Tuple[str, str]:
+        """
+        Parse repository string into owner and repo name.
+
+        Args:
+            repository: Repository in "owner/repo" format.
+
+        Returns:
+            Tuple of (owner, repo).
+
+        Raises:
+            ValueError: If repository format is invalid.
+        """
+        if "/" not in repository:
+            raise ValueError(
+                f"Invalid repository format: {repository}. Expected 'owner/repo'"
+            )
+
+        parts = repository.split("/")
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(
+                f"Invalid repository format: {repository}. Expected 'owner/repo'"
+            )
+
+        return parts[0], parts[1]
+
+    # Convenience methods that take repository string
+    async def create_issue_from_repository_string(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        labels: Optional[List[str]] = None,
+        assignees: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create an issue using repository string.
+
+        Args:
+            repository: Repository in "owner/repo" format
+            title: Issue title
+            body: Issue body/description
+            labels: List of label names
+            assignees: List of GitHub usernames to assign
+
+        Returns:
+            Created issue information.
+        """
+        owner, repo = self._parse_repository(repository)
+        return await self.create_issue(repository, title, body, labels, assignees)
+
+    async def create_pull_request_from_repository_string(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+    ) -> Dict[str, Any]:
+        """
+        Create a pull request using repository string.
+
+        Args:
+            repository: Repository in "owner/repo" format
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+
+        Returns:
+            Created pull request information.
+        """
+        owner, repo = self._parse_repository(repository)
+        return await self.create_pull_request(
+            owner, repo, title, body, head_branch, base_branch
+        )
