@@ -43,16 +43,21 @@ class HTMLAnalyzer:
         return soup
 
     @staticmethod
-    def extract_meta_tags(soup: BeautifulSoup) -> Dict[str, str]:
+    def extract_meta_tags(content_or_soup) -> Dict[str, str]:
         """
         HTMLからmetaタグの情報を抽出する。
 
         Args:
-            soup: BeautifulSoupオブジェクト
+            content_or_soup: HTMLコンテンツ文字列またはBeautifulSoupオブジェクト
 
         Returns:
             metaタグの辞書（name/property -> content）
         """
+        if isinstance(content_or_soup, str):
+            soup = HTMLAnalyzer.parse_html_safely(content_or_soup)
+        else:
+            soup = content_or_soup
+
         meta_info = {}
 
         # metaタグを検索
@@ -65,19 +70,30 @@ class HTMLAnalyzer:
         return meta_info
 
     @staticmethod
-    def extract_title(soup: BeautifulSoup) -> Optional[str]:
+    def extract_title(content_or_soup) -> Optional[str]:
         """
         HTMLからタイトルを抽出する。
 
         Args:
-            soup: BeautifulSoupオブジェクト
+            content_or_soup: HTMLコンテンツ文字列またはBeautifulSoupオブジェクト
 
         Returns:
             ドキュメントのタイトル
         """
+        if isinstance(content_or_soup, str):
+            soup = HTMLAnalyzer.parse_html_safely(content_or_soup)
+        else:
+            soup = content_or_soup
+
         title_tag = soup.find("title")
         if title_tag and title_tag.string:
             return title_tag.string.strip()
+
+        # フォールバック: h1タグを探す
+        h1_tag = soup.find("h1")
+        if h1_tag and h1_tag.get_text():
+            return h1_tag.get_text().strip()
+
         return None
 
     @staticmethod

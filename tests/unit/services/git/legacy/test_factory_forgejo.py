@@ -1,9 +1,19 @@
 """
 Tests for Git service factory with Forgejo support.
+
+LEGACY TEST: This test file has been moved to legacy/ because it violates the 1:1 correspondence principle.
+The functionality is now covered by:
+- test_factory.py (general factory tests)
+- test_forgejo_service.py (Forgejo-specific tests)
 """
 
 import pytest
 from unittest.mock import patch, MagicMock
+
+# Skip all tests in this legacy file
+pytestmark = pytest.mark.skip(
+    reason="Legacy test file - functionality moved to test_factory.py and test_forgejo_service.py"
+)
 
 from doc_ai_helper_backend.core.exceptions import GitServiceException
 from doc_ai_helper_backend.services.git.factory import GitServiceFactory
