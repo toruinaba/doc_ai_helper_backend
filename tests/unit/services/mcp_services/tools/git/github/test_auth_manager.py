@@ -4,8 +4,8 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from doc_ai_helper_backend.services.github.auth_manager import GitHubAuthManager
-from doc_ai_helper_backend.services.github.exceptions import GitHubAuthError
+from doc_ai_helper_backend.services.mcp.tools.git.auth_manager import GitHubAuthManager
+from doc_ai_helper_backend.core.exceptions import GitHubAuthError
 
 
 class TestGitHubAuthManager:

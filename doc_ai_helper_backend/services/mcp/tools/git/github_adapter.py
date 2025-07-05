@@ -10,8 +10,8 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from .base import MCPGitClientBase, MCPGitToolsBase
-from ....github.github_client import GitHubClient
-from ....github.exceptions import (
+from .github_client import GitHubClient
+from doc_ai_helper_backend.core.exceptions import (
     GitHubException,
     GitHubRepositoryNotFoundError,
     GitHubPermissionError,

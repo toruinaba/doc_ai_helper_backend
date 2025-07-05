@@ -4,7 +4,7 @@ import os
 from typing import Optional, Dict, Any
 import logging
 
-from .exceptions import GitHubAuthError
+from doc_ai_helper_backend.core.exceptions import GitHubAuthError
 
 logger = logging.getLogger(__name__)
 

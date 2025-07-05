@@ -32,7 +32,7 @@ class TestMCPGitHubClient:
 
     def test_init_without_token_raises_error(self):
         """Test that initialization without token raises GitHubAuthError."""
-        from doc_ai_helper_backend.services.github.exceptions import GitHubAuthError
+        from doc_ai_helper_backend.core.exceptions import GitHubAuthError
 
         with pytest.raises(GitHubAuthError):
             MCPGitHubClient()
@@ -80,7 +80,7 @@ class TestMCPGitHubClient:
         """Test issue creation with error response."""
         client = MCPGitHubClient(access_token="test_token")
 
-        from doc_ai_helper_backend.services.github.exceptions import GitHubException
+        from doc_ai_helper_backend.core.exceptions import GitHubException
 
         # Mock the GitHub client to raise an exception
         with patch.object(

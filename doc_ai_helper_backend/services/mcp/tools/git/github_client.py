@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import httpx
 
 from .auth_manager import GitHubAuthManager
-from .exceptions import (
+from doc_ai_helper_backend.core.exceptions import (
     GitHubAPIError,
     GitHubAuthError,
     GitHubRateLimitError,

@@ -5,8 +5,8 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 
-from doc_ai_helper_backend.services.github.github_client import GitHubClient
-from doc_ai_helper_backend.services.github.exceptions import (
+from doc_ai_helper_backend.services.mcp.tools.git.github_client import GitHubClient
+from doc_ai_helper_backend.core.exceptions import (
     GitHubAPIError,
     GitHubAuthError,
     GitHubRateLimitError,
