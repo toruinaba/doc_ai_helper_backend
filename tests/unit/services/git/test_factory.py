@@ -243,10 +243,7 @@ class TestGitServiceFactory:
 
     def test_create_with_config_forgejo(self):
         """Test creating Forgejo service with config."""
-        config = {
-            "access_token": "test_token",
-            "base_url": "https://git.example.com"
-        }
+        config = {"access_token": "test_token", "base_url": "https://git.example.com"}
         service = GitServiceFactory.create_with_config("forgejo", config)
 
         assert isinstance(service, ForgejoService)
