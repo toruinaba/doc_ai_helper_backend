@@ -165,7 +165,7 @@ class TestMCPForgejoClient:
             "state": "open",
         }
 
-        with patch.object(client, "_make_request", return_value=mock_response):
+        with patch("httpx.AsyncClient.post", return_value=mock_response):
             result = await client.create_issue(
                 repository="owner/repo",
                 title="Test Issue",
@@ -174,10 +174,10 @@ class TestMCPForgejoClient:
                 assignees=["user1"],
             )
 
-            assert result["number"] == 123
+            assert result["issue_number"] == 123
             assert result["title"] == "Test Issue"
             assert (
-                result["html_url"]
+                result["issue_url"]
                 == "https://forgejo.example.com/owner/repo/issues/123"
             )
 
@@ -199,7 +199,7 @@ class TestMCPForgejoClient:
             "state": "open",
         }
 
-        with patch.object(client, "_make_request", return_value=mock_response):
+        with patch("httpx.AsyncClient.post", return_value=mock_response):
             result = await client.create_issue(
                 repository="owner/repo",
                 title="Test Issue",
@@ -208,7 +208,7 @@ class TestMCPForgejoClient:
                 assignees=["user2"],
             )
 
-            assert result["number"] == 456
+            assert result["issue_number"] == 456
 
     @pytest.mark.asyncio
     async def test_create_issue_error(self):
@@ -243,7 +243,7 @@ class TestMCPForgejoClient:
             "state": "open",
         }
 
-        with patch.object(client, "_make_request", return_value=mock_response):
+        with patch("httpx.AsyncClient.post", return_value=mock_response):
             result = await client.create_pull_request(
                 repository="owner/repo",
                 title="Test PR",
@@ -252,7 +252,7 @@ class TestMCPForgejoClient:
                 base_branch="main",
             )
 
-            assert result["number"] == 789
+            assert result["pr_number"] == 789
             assert result["title"] == "Test PR"
 
     @pytest.mark.asyncio
@@ -272,7 +272,7 @@ class TestMCPForgejoClient:
             }
         }
 
-        with patch.object(client, "_make_request", return_value=mock_response):
+        with patch("httpx.AsyncClient.get", return_value=mock_response):
             result = await client.check_repository_permissions(repository="owner/repo")
 
             assert result["permissions"]["push"] is True
