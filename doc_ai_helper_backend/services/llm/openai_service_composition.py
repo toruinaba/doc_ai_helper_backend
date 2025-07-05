@@ -39,7 +39,7 @@ from doc_ai_helper_backend.core.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class OpenAIService(LLMServiceBase):
+class OpenAIServiceComposition(LLMServiceBase):
     """
     OpenAI implementation of the LLM service using composition pattern.
 
@@ -89,7 +89,7 @@ class OpenAIService(LLMServiceBase):
             self._token_encoder = tiktoken.get_encoding("cl100k_base")
 
         logger.info(
-            f"Initialized OpenAIService with default model {default_model}"
+            f"Initialized OpenAIServiceComposition with default model {default_model}"
             f"{' and custom base URL' if base_url else ''}"
         )
 
@@ -460,20 +460,3 @@ class OpenAIService(LLMServiceBase):
             return tool_choice.value
         else:
             return tool_choice
-
-    # === Property accessors for backward compatibility ===
-
-    @property
-    def function_handler(self):
-        """Access to function handler for backward compatibility."""
-        return self._common.function_manager
-
-    @property
-    def cache_service(self):
-        """Access to cache service for backward compatibility."""
-        return self._common.cache_service
-
-    @property
-    def template_manager(self):
-        """Access to template manager for backward compatibility."""
-        return self._common.template_manager

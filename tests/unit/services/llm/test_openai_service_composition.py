@@ -1,16 +1,7 @@
 """
 Tests for OpenAI LLM service composition implementation.
 
-This module tests the NEW composition-based OpenAI service implementation.
-
-⚠️  IMPORTANT:
-- These are the ACTIVE tests for the current OpenAI service
-- Legacy tests (old modular architecture) are in tests/unit/services/llm/legacy/
-- Legacy tests are intentionally skipped and expected to fail
-
-✅ Architecture: Composition pattern with LLMServiceCommon
-✅ Status: All tests passing (17 tests)
-✅ Coverage: Complete OpenAI service functionality
+This module tests the new composition-based OpenAI service implementation.
 """
 
 import json
@@ -245,19 +236,9 @@ class TestOpenAIService:
         # Common service should be private
         assert hasattr(openai_service, "_common")
 
-        # Property accessors should be available for backward compatibility
-        assert hasattr(openai_service, "cache_service")
-        assert hasattr(openai_service, "template_manager")
-        assert hasattr(openai_service, "function_handler")
-
-        # But the actual objects should be delegated from _common
-        assert openai_service.cache_service is openai_service._common.cache_service
-        assert (
-            openai_service.template_manager is openai_service._common.template_manager
-        )
-        assert (
-            openai_service.function_handler is openai_service._common.function_manager
-        )
+        # Should not expose implementation details of common service
+        assert not hasattr(openai_service, "cache_service")
+        assert not hasattr(openai_service, "template_manager")
 
     @pytest.mark.asyncio
     async def test_error_handling_in_provider_methods(self, openai_service):

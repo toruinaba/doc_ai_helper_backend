@@ -24,3 +24,6 @@ filterwarnings = [
     "ignore::DeprecationWarning:pytest.*",
     "ignore::DeprecationWarning:pydantic.*"
 ]
+
+# Note: Legacy tests in tests/unit/services/llm/legacy/ are automatically skipped
+# To run only active tests: pytest tests/unit/services/llm/ --ignore=tests/unit/services/llm/legacy/
