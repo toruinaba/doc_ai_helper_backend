@@ -51,17 +51,19 @@ class TestOpenAIService:
         def mock_sync_openai(**kwargs):
             return mock_sync_client
 
-        monkeypatch.setattr("openai.AsyncOpenAI", mock_async_openai)
-        monkeypatch.setattr("openai.OpenAI", mock_sync_openai)
+        # Patch the openai imports in the client module
+        monkeypatch.setattr(
+            "doc_ai_helper_backend.services.llm.openai_client.AsyncOpenAI",
+            mock_async_openai,
+        )
+        monkeypatch.setattr(
+            "doc_ai_helper_backend.services.llm.openai_client.OpenAI", mock_sync_openai
+        )
         monkeypatch.setattr("tiktoken.encoding_for_model", lambda model: mock_encoder)
         monkeypatch.setattr("tiktoken.get_encoding", lambda encoding: mock_encoder)
 
         # サービスインスタンス作成
         service = OpenAIService(api_key="test-api-key", default_model="gpt-3.5-turbo")
-
-        # 既存のクライアントをモックで上書き（念のため）
-        service.async_client = mock_async_client
-        service.sync_client = mock_sync_client
 
         # テスト用にキャッシュをクリア
         service.cache_service.clear()

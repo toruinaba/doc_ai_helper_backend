@@ -1,0 +1,29 @@
+{
+    "id": "function_calling_assistant",
+    "name": "Function Calling Assistant",
+    "description": "Template for LLM services with function calling capabilities",
+    "template": "{{system_prompt}}\n\n{{#if context}}コンテキスト:\n{{context}}\n\n{{/if}}{{#if available_functions}}利用可能な機能:\n{{available_functions}}\n\n{{/if}}質問: {{query}}",
+    "variables": [
+        {
+            "name": "system_prompt",
+            "description": "The system prompt to guide the LLM behavior",
+            "required": true,
+            "default": "あなたは利用可能な機能を活用して、ユーザーの要求に応える専門的なアシスタントです。必要に応じて適切な機能を呼び出し、正確で有用な情報を提供してください。"
+        },
+        {
+            "name": "context",
+            "description": "Optional document or repository context",
+            "required": false
+        },
+        {
+            "name": "available_functions",
+            "description": "List of available functions and their descriptions",
+            "required": false
+        },
+        {
+            "name": "query",
+            "description": "The user's query or request",
+            "required": true
+        }
+    ]
+}

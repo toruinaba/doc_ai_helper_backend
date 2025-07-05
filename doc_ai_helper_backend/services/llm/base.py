@@ -238,36 +238,3 @@ class LLMServiceBase(ABC):
             LLMResponse: The final response from the LLM after tool execution
         """
         pass
-
-    def build_system_prompt_with_context(
-        self,
-        repository_context: Optional["RepositoryContext"] = None,
-        document_metadata: Optional["DocumentMetadata"] = None,
-        document_content: Optional[str] = None,
-        template_id: str = "contextual_document_assistant_ja",
-    ) -> Optional[str]:
-        """
-        Build system prompt with repository and document context.
-
-        This method provides a default implementation that can be overridden
-        by specific LLM service implementations.
-
-        Args:
-            repository_context: Repository context information
-            document_metadata: Document metadata
-            document_content: Document content to include in prompt
-            template_id: Template identifier for prompt generation
-
-        Returns:
-            Generated system prompt or None if context is insufficient
-        """
-        # Default implementation - can be overridden by subclasses
-        if not repository_context:
-            return None
-
-        # Basic template without specialized prompt builder
-        return f"""あなたは {repository_context.owner}/{repository_context.repo} リポジトリを扱うアシスタントです。
-
-現在作業中のリポジトリ: {repository_context.owner}/{repository_context.repo}
-
-GitHubツールを使用する際は、特に指定がない限り自動的に "{repository_context.owner}/{repository_context.repo}" リポジトリを使用してください。"""
