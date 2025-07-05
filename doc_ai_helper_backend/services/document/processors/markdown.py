@@ -9,13 +9,13 @@ from typing import Dict, List, Optional, Any, Tuple
 from doc_ai_helper_backend.models.document import DocumentContent, DocumentType
 from doc_ai_helper_backend.models.link_info import LinkInfo
 from doc_ai_helper_backend.models.frontmatter import ExtendedDocumentMetadata
-from doc_ai_helper_backend.services.document.processors.base_processor import (
+from doc_ai_helper_backend.services.document.processors.base import (
     DocumentProcessorBase,
 )
-from doc_ai_helper_backend.services.document.processors.frontmatter_parser import (
+from doc_ai_helper_backend.services.document.utils.frontmatter import (
     parse_frontmatter,
 )
-from doc_ai_helper_backend.services.document.processors.link_transformer import (
+from doc_ai_helper_backend.services.document.utils.links import (
     LinkTransformer,
 )
 

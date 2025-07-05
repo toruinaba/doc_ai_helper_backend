@@ -15,10 +15,10 @@ from doc_ai_helper_backend.models.document import (
     HTMLMetadata,
 )
 from doc_ai_helper_backend.models.link_info import LinkInfo
-from doc_ai_helper_backend.services.document.processors.base_processor import (
+from doc_ai_helper_backend.services.document.processors.base import (
     DocumentProcessorBase,
 )
-from doc_ai_helper_backend.services.document.processors.html_analyzer import (
+from doc_ai_helper_backend.services.document.utils.html_analyzer import (
     HTMLAnalyzer,
 )
 

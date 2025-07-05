@@ -4,7 +4,7 @@
 
 import pytest
 
-from doc_ai_helper_backend.services.document.processors.frontmatter_parser import (
+from doc_ai_helper_backend.services.document.utils.frontmatter import (
     parse_frontmatter,
 )
 
