@@ -358,7 +358,8 @@ class ForgejoService(GitServiceBase):
 
     async def create_issue(
         self,
-        repository: str,
+        owner: str,
+        repo: str,
         title: str,
         body: str,
         labels: Optional[List[str]] = None,
@@ -367,7 +368,8 @@ class ForgejoService(GitServiceBase):
         """Create an issue in the specified repository.
 
         Args:
-            repository: Repository name in format "owner/repo"
+            owner: Repository owner
+            repo: Repository name
             title: Issue title
             body: Issue description/body
             labels: List of label names (optional)
@@ -378,16 +380,9 @@ class ForgejoService(GitServiceBase):
 
         Raises:
             GitServiceException: If creation fails
-            NotFoundException: If repository not found
-            UnauthorizedException: If authentication fails
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
         """
-        if "/" not in repository:
-            raise ValueError(
-                f"Repository must be in 'owner/repo' format, got: {repository}"
-            )
-
-        owner, repo = repository.split("/", 1)
-
         # Prepare issue data
         issue_data: Dict[str, Any] = {
             "title": title,
@@ -411,7 +406,7 @@ class ForgejoService(GitServiceBase):
                 if response.status_code == 201:
                     return response.json()
                 elif response.status_code == 404:
-                    raise NotFoundException(f"Repository {repository} not found")
+                    raise NotFoundException(f"Repository {owner}/{repo} not found")
                 elif response.status_code == 401:
                     raise UnauthorizedException("Authentication failed")
                 else:
@@ -432,6 +427,7 @@ class ForgejoService(GitServiceBase):
         body: str,
         head_branch: str,
         base_branch: str = "main",
+        draft: bool = False,
     ) -> Dict[str, Any]:
         """
         Create a pull request in the repository.
@@ -532,7 +528,7 @@ class ForgejoService(GitServiceBase):
             Created issue information.
         """
         owner, repo = self._parse_repository(repository)
-        return await self.create_issue(repository, title, body, labels, assignees)
+        return await self.create_issue(owner, repo, title, body, labels, assignees)
 
     async def create_pull_request_from_repository_string(
         self,
@@ -541,6 +537,7 @@ class ForgejoService(GitServiceBase):
         body: str,
         head_branch: str,
         base_branch: str = "main",
+        draft: bool = False,
     ) -> Dict[str, Any]:
         """
         Create a pull request using repository string.
@@ -551,11 +548,112 @@ class ForgejoService(GitServiceBase):
             body: PR description
             head_branch: Source branch name
             base_branch: Target branch name
+            draft: Whether to create as draft PR
+
+        Returns:
+            Created pull request information.
+        """
+
+    async def create_pull_request_from_repository_string(
+        self,
+        repository: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+        draft: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Create a pull request using repository string.
+
+        Args:
+            repository: Repository in "owner/repo" format
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+            draft: Whether to create as draft PR
 
         Returns:
             Created pull request information.
         """
         owner, repo = self._parse_repository(repository)
         return await self.create_pull_request(
-            owner, repo, title, body, head_branch, base_branch
+            owner, repo, title, body, head_branch, base_branch, draft
         )
+
+    async def check_repository_permissions(
+        self, owner: str, repo: str
+    ) -> Dict[str, Any]:
+        """Check repository permissions.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Dictionary with permission flags
+
+        Raises:
+            GitServiceException: If there is an error checking permissions
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        try:
+            repo_info = await self.get_repository_info(owner, repo)
+            permissions = repo_info.get("permissions", {})
+
+            return {
+                "read": permissions.get(
+                    "pull", True
+                ),  # Forgejo typically allows reading
+                "write": permissions.get("push", False),
+                "admin": permissions.get("admin", False),
+                "issues": repo_info.get("has_issues", True),
+                "pull_requests": True,  # Most repos allow PRs
+            }
+        except NotFoundException:
+            return {
+                "read": False,
+                "write": False,
+                "admin": False,
+                "issues": False,
+                "pull_requests": False,
+            }
+
+    async def get_repository_info(self, owner: str, repo: str) -> Dict[str, Any]:
+        """Get repository information.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Repository information
+
+        Raises:
+            GitServiceException: If there is an error getting repository info
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        try:
+            headers = self._get_default_headers()
+            async with httpx.AsyncClient() as client:
+                url = f"{self.api_base_url}/repos/{owner}/{repo}"
+                response = await self._make_request(client, "GET", url, headers=headers)
+
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 404:
+                    raise NotFoundException(f"Repository {owner}/{repo} not found")
+                elif response.status_code == 401:
+                    raise UnauthorizedException("Authentication failed")
+                else:
+                    raise GitServiceException(
+                        f"Failed to get repository info: HTTP {response.status_code} - {response.text}"
+                    )
+
+        except (NotFoundException, UnauthorizedException, GitServiceException):
+            raise
+        except Exception as e:
+            raise GitServiceException(f"Error getting repository info: {str(e)}")

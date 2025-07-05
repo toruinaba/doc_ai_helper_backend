@@ -336,3 +336,169 @@ class TestGitHubService:
 
         # 結果を検証
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_create_issue(self, github_service):
+        """Issue作成のテスト"""
+        # モックデータ
+        mock_response = {
+            "id": 123,
+            "number": 123,
+            "title": "Test Issue",
+            "body": "Test description",
+            "state": "open",
+            "html_url": "https://github.com/octocat/Hello-World/issues/123",
+            "labels": [{"name": "bug"}],
+            "assignees": [{"login": "octocat"}],
+        }
+
+        with patch.object(
+            github_service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = (mock_response, {})
+
+            result = await github_service.create_issue(
+                "octocat",
+                "Hello-World",
+                "Test Issue",
+                "Test description",
+                labels=["bug"],
+                assignees=["octocat"],
+            )
+
+        # 結果を検証
+        assert result["id"] == 123
+        assert result["title"] == "Test Issue"
+        mock_make_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request(self, github_service):
+        """Pull Request作成のテスト"""
+        # モックデータ
+        mock_response = {
+            "id": 456,
+            "number": 456,
+            "title": "Test PR",
+            "body": "Test PR description",
+            "state": "open",
+            "draft": False,
+            "html_url": "https://github.com/octocat/Hello-World/pull/456",
+            "head": {"ref": "feature-branch"},
+            "base": {"ref": "main"},
+        }
+
+        with patch.object(
+            github_service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = (mock_response, {})
+
+            result = await github_service.create_pull_request(
+                "octocat",
+                "Hello-World",
+                "Test PR",
+                "Test PR description",
+                "feature-branch",
+                "main",
+                draft=False,
+            )
+
+        # 結果を検証
+        assert result["id"] == 456
+        assert result["title"] == "Test PR"
+        assert result["draft"] is False
+        mock_make_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request_draft(self, github_service):
+        """Draft Pull Request作成のテスト"""
+        # モックデータ
+        mock_response = {
+            "id": 789,
+            "number": 789,
+            "title": "Draft PR",
+            "body": "Draft PR description",
+            "state": "open",
+            "draft": True,
+            "html_url": "https://github.com/octocat/Hello-World/pull/789",
+            "head": {"ref": "draft-branch"},
+            "base": {"ref": "main"},
+        }
+
+        with patch.object(
+            github_service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = (mock_response, {})
+
+            result = await github_service.create_pull_request(
+                "octocat",
+                "Hello-World",
+                "Draft PR",
+                "Draft PR description",
+                "draft-branch",
+                "main",
+                draft=True,
+            )
+
+        # 結果を検証
+        assert result["id"] == 789
+        assert result["title"] == "Draft PR"
+        assert result["draft"] is True
+        mock_make_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_check_repository_permissions(self, github_service):
+        """リポジトリ権限確認のテスト"""
+        # モックデータ
+        mock_repo_info = {
+            "permissions": {
+                "pull": True,
+                "push": True,
+                "admin": False,
+            },
+            "has_issues": True,
+        }
+
+        with patch.object(
+            github_service, "get_repository_info", new_callable=AsyncMock
+        ) as mock_get_repo_info:
+            mock_get_repo_info.return_value = mock_repo_info
+
+            result = await github_service.check_repository_permissions(
+                "octocat", "Hello-World"
+            )
+
+        # 結果を検証
+        assert result["read"] is True
+        assert result["write"] is True
+        assert result["admin"] is False
+        assert result["issues"] is True
+        assert result["pull_requests"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_repository_info(self, github_service):
+        """リポジトリ情報取得のテスト"""
+        # モックデータ
+        mock_response = {
+            "id": 12345,
+            "name": "Hello-World",
+            "full_name": "octocat/Hello-World",
+            "owner": {"login": "octocat"},
+            "description": "My first repository",
+            "private": False,
+            "html_url": "https://github.com/octocat/Hello-World",
+            "clone_url": "https://github.com/octocat/Hello-World.git",
+            "default_branch": "main",
+        }
+
+        with patch.object(
+            github_service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = (mock_response, {})
+
+            result = await github_service.get_repository_info("octocat", "Hello-World")
+
+        # 結果を検証
+        assert result["id"] == 12345
+        assert result["name"] == "Hello-World"
+        assert result["full_name"] == "octocat/Hello-World"
+        mock_make_request.assert_called_once()

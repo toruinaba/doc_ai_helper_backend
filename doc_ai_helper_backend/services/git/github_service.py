@@ -652,6 +652,7 @@ class GitHubService(GitServiceBase):
         body: str,
         head_branch: str,
         base_branch: str = "main",
+        draft: bool = False,
     ) -> Dict[str, Any]:
         """
         Create a pull request in the repository.
@@ -663,6 +664,7 @@ class GitHubService(GitServiceBase):
             body: PR description
             head_branch: Source branch name
             base_branch: Target branch name
+            draft: Whether to create as draft PR
 
         Returns:
             Created pull request information.
@@ -679,6 +681,7 @@ class GitHubService(GitServiceBase):
             "body": body,
             "head": head_branch,
             "base": base_branch,
+            "draft": draft,
         }
 
         logger.info(f"Creating pull request in {owner}/{repo}: {title}")
@@ -722,6 +725,7 @@ class GitHubService(GitServiceBase):
         body: str,
         head_branch: str,
         base_branch: str = "main",
+        draft: bool = False,
     ) -> Dict[str, Any]:
         """
         Create a pull request using repository string.
@@ -732,11 +736,12 @@ class GitHubService(GitServiceBase):
             body: PR description
             head_branch: Source branch name
             base_branch: Target branch name
+            draft: Whether to create as draft PR
 
         Returns:
             Created pull request information.
         """
         owner, repo = self._parse_repository(repository)
         return await self.create_pull_request(
-            owner, repo, title, body, head_branch, base_branch
+            owner, repo, title, body, head_branch, base_branch, draft
         )

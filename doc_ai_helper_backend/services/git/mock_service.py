@@ -425,3 +425,148 @@ class MockGitService(GitServiceBase):
             ref=ref,
             links=processor.extract_links(content, path),
         )
+
+    async def create_issue(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        labels: Optional[List[str]] = None,
+        assignees: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Create a mock issue.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            title: Issue title
+            body: Issue body/description
+            labels: List of label names
+            assignees: List of usernames to assign
+
+        Returns:
+            Mock issue information
+        """
+        # Check if repository exists
+        repo_key = f"{owner}/{repo}"
+        if repo_key not in self.existing_repos:
+            raise NotFoundException(f"Repository {repo_key} not found")
+
+        issue_id = 123  # Mock issue ID
+        return {
+            "id": issue_id,
+            "number": issue_id,
+            "title": title,
+            "body": body,
+            "state": "open",
+            "html_url": f"https://github.com/{owner}/{repo}/issues/{issue_id}",
+            "labels": [{"name": label} for label in (labels or [])],
+            "assignees": [{"login": assignee} for assignee in (assignees or [])],
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+        draft: bool = False,
+    ) -> Dict[str, Any]:
+        """Create a mock pull request.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            title: PR title
+            body: PR description
+            head_branch: Source branch name
+            base_branch: Target branch name
+            draft: Whether to create as draft PR
+
+        Returns:
+            Mock pull request information
+        """
+        # Check if repository exists
+        repo_key = f"{owner}/{repo}"
+        if repo_key not in self.existing_repos:
+            raise NotFoundException(f"Repository {repo_key} not found")
+
+        pr_id = 456  # Mock PR ID
+        return {
+            "id": pr_id,
+            "number": pr_id,
+            "title": title,
+            "body": body,
+            "state": "open",
+            "draft": draft,
+            "head": {"ref": head_branch},
+            "base": {"ref": base_branch},
+            "html_url": f"https://github.com/{owner}/{repo}/pull/{pr_id}",
+            "diff_url": f"https://github.com/{owner}/{repo}/pull/{pr_id}.diff",
+            "patch_url": f"https://github.com/{owner}/{repo}/pull/{pr_id}.patch",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def check_repository_permissions(
+        self, owner: str, repo: str
+    ) -> Dict[str, Any]:
+        """Check mock repository permissions.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Mock permission information
+        """
+        repo_key = f"{owner}/{repo}"
+        if repo_key not in self.existing_repos:
+            raise NotFoundException(f"Repository {repo_key} not found")
+
+        return {
+            "admin": True,
+            "push": True,
+            "pull": True,
+            "write": True,
+            "read": True,
+            "issues": True,
+            "pull_requests": True,
+        }
+
+    async def get_repository_info(self, owner: str, repo: str) -> Dict[str, Any]:
+        """Get mock repository information.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Mock repository information
+        """
+        repo_key = f"{owner}/{repo}"
+        if repo_key not in self.existing_repos:
+            raise NotFoundException(f"Repository {repo_key} not found")
+
+        return {
+            "id": 12345,
+            "name": repo,
+            "full_name": repo_key,
+            "owner": {"login": owner},
+            "description": f"Mock repository for {repo_key}",
+            "private": False,
+            "html_url": f"https://github.com/{repo_key}",
+            "clone_url": f"https://github.com/{repo_key}.git",
+            "default_branch": "main",
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": datetime.utcnow().isoformat(),
+            "stargazers_count": 42,
+            "watchers_count": 10,
+            "forks_count": 5,
+            "open_issues_count": 3,
+        }
