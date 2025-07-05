@@ -22,20 +22,18 @@ class ConcreteDocumentProcessor(DocumentProcessorBase):
 
     def process_content(self, content: str, path: str, **kwargs) -> DocumentContent:
         """Process document content - test implementation."""
-        return DocumentContent(
-            content=content,
-            encoding="utf-8"
-        )
+        return DocumentContent(content=content, encoding="utf-8")
 
     def extract_metadata(self, content: str, path: str, **kwargs) -> DocumentMetadata:
         """Extract metadata from document - test implementation."""
         from datetime import datetime
+
         return DocumentMetadata(
             size=len(content),
             last_modified=datetime.now(),
             content_type="text/plain",
             sha="test_sha",
-            extra={"test": "data"}
+            extra={"test": "data"},
         )
 
     def extract_links(self, content: str, path: str, **kwargs) -> list:
@@ -57,9 +55,7 @@ class ConcreteDocumentProcessor(DocumentProcessorBase):
             )
         return links
 
-    def transform_links(
-        self, content: str, path: str, base_url: str, **kwargs
-    ) -> str:
+    def transform_links(self, content: str, path: str, base_url: str, **kwargs) -> str:
         """Transform links in document - test implementation."""
         # Simple test implementation - replace relative links
         import re

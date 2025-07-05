@@ -61,10 +61,7 @@ class TestDocumentProcessorFactory:
         processor_2 = DocumentProcessorFactory.create(DocumentType.MARKDOWN)
 
         assert type(processor_1) == type(processor_2)
-        assert all(
-            isinstance(p, MarkdownProcessor)
-            for p in [processor_1, processor_2]
-        )
+        assert all(isinstance(p, MarkdownProcessor) for p in [processor_1, processor_2])
 
     def test_unsupported_file_type(self):
         """Test handling of unsupported document types."""
