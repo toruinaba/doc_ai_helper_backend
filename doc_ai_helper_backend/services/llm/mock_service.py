@@ -30,9 +30,11 @@ from doc_ai_helper_backend.models.llm import (
     ToolCall,
 )
 from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase
-from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
-from doc_ai_helper_backend.services.llm.system_prompt_builder import SystemPromptBuilder
-from doc_ai_helper_backend.services.llm.utils import optimize_conversation_history
+from doc_ai_helper_backend.services.llm.utils import (
+    PromptTemplateManager,
+    SystemPromptBuilder,
+    optimize_conversation_history,
+)
 
 
 class MockLLMService(LLMServiceBase):
@@ -965,9 +967,7 @@ class MockLLMService(LLMServiceBase):
         all_functions = []
 
         # Add utility functions
-        from doc_ai_helper_backend.services.llm.utils import (
-            get_utility_functions,
-        )
+        from doc_ai_helper_backend.services.llm.utils import get_utility_functions
 
         all_functions.extend(get_utility_functions())
 

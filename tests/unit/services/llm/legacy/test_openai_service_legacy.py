@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skip(
 
 
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
-from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
+from doc_ai_helper_backend.services.llm.utils import LLMCacheService
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage, ProviderCapabilities
 from doc_ai_helper_backend.models.repository_context import (
     RepositoryContext,

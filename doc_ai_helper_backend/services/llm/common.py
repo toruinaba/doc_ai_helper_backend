@@ -42,14 +42,10 @@ class LLMServiceCommon:
     def __init__(self):
         """Initialize common components."""
         # Import here to avoid circular imports
-        from doc_ai_helper_backend.services.llm.template_manager import (
+        from doc_ai_helper_backend.services.llm.utils import (
             PromptTemplateManager,
-        )
-        from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
-        from doc_ai_helper_backend.services.llm.system_prompt_builder import (
+            LLMCacheService,
             JapaneseSystemPromptBuilder,
-        )
-        from doc_ai_helper_backend.services.llm.function_manager import (
             FunctionCallManager,
         )
 

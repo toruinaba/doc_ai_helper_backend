@@ -27,9 +27,6 @@ from doc_ai_helper_backend.models.document import (
     FileTreeItem,
     RepositoryStructureResponse,
 )
-from doc_ai_helper_backend.services.document.processors.factory import (
-    DocumentProcessorFactory,
-)
 from doc_ai_helper_backend.services.git.base import GitServiceBase
 
 # Logger
@@ -215,6 +212,10 @@ class ForgejoService(GitServiceBase):
                 document_type = self.detect_document_type(path)
 
                 # Process document
+                # Import here to avoid circular import
+                from doc_ai_helper_backend.services.document.processors.factory import (
+                    DocumentProcessorFactory,
+                )
                 processor = DocumentProcessorFactory.create(document_type)
                 document_content = processor.process_content(content, path)
                 extended_metadata = processor.extract_metadata(content, path)

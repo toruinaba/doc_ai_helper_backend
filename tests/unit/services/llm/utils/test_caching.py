@@ -1,5 +1,5 @@
 """
-Tests for the LLM cache service.
+Tests for the LLM cache utility functions.
 """
 
 import pytest
@@ -7,7 +7,7 @@ import time
 from unittest.mock import MagicMock
 
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
-from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
+from doc_ai_helper_backend.services.llm.utils.caching import LLMCacheService
 
 
 class TestLLMCacheService:

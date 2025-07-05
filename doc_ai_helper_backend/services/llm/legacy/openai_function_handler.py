@@ -291,9 +291,7 @@ class OpenAIFunctionHandler:
 
         try:
             # Import here to avoid circular imports
-            from doc_ai_helper_backend.services.llm.system_prompt_builder import (
-                JapaneseSystemPromptBuilder,
-            )
+            from doc_ai_helper_backend.services.llm.utils import JapaneseSystemPromptBuilder
 
             system_prompt_builder = JapaneseSystemPromptBuilder()
             return system_prompt_builder.build_system_prompt(

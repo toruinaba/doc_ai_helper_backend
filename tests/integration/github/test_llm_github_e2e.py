@@ -9,7 +9,7 @@ import json
 import os
 from typing import Dict, Any, Optional
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.function_manager import FunctionRegistry
+from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
 from doc_ai_helper_backend.models.repository_context import RepositoryContext
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 from doc_ai_helper_backend.services.mcp.function_adapter import MCPFunctionAdapter

@@ -35,9 +35,7 @@ def test_streaming_system_prompt_verification():
         print("=== MockLLMService ストリーミング機能直接テスト ===")
 
         # SystemPromptBuilderをMockServiceに設定
-        from doc_ai_helper_backend.services.llm.system_prompt_builder import (
-            SystemPromptBuilder,
-        )
+        from doc_ai_helper_backend.services.llm.utils import SystemPromptBuilder
 
         mock_service.system_prompt_builder = SystemPromptBuilder()
 

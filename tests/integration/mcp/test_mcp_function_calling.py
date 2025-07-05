@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 from unittest.mock import AsyncMock, patch
 
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.function_manager import FunctionRegistry
+from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 
 

@@ -54,7 +54,7 @@ class TestMockLLMService:
     async def test_format_prompt(self, mock_service):
         """Test prompt formatting."""
         with patch(
-            "doc_ai_helper_backend.services.llm.template_manager.PromptTemplateManager.format_template"
+            "doc_ai_helper_backend.services.llm.utils.templating.PromptTemplateManager.format_template"
         ) as mock_format:
             mock_format.return_value = "Formatted prompt"
 

@@ -24,8 +24,7 @@ if TYPE_CHECKING:
     )
 
 from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase
-from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
-from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
+from doc_ai_helper_backend.services.llm.utils import PromptTemplateManager, LLMCacheService
 from doc_ai_helper_backend.services.llm.legacy.openai_client import OpenAIAPIClient
 from doc_ai_helper_backend.services.llm.legacy.openai_options_builder import (
     OpenAIOptionsBuilder,
@@ -97,9 +96,7 @@ class OpenAIService(LLMServiceBase):
         self.response_converter = OpenAIResponseConverter()
 
         # Initialize system prompt builder
-        from doc_ai_helper_backend.services.llm.system_prompt_builder import (
-            JapaneseSystemPromptBuilder,
-        )
+        from doc_ai_helper_backend.services.llm.utils import JapaneseSystemPromptBuilder
 
         self.system_prompt_builder = JapaneseSystemPromptBuilder()
 
