@@ -29,7 +29,7 @@ from doc_ai_helper_backend.models.llm import (
     ToolChoice,
     ToolCall,
 )
-from doc_ai_helper_backend.services.llm.base import LLMServiceBase
+from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
 from doc_ai_helper_backend.services.llm.system_prompt_builder import SystemPromptBuilder
 from doc_ai_helper_backend.services.llm.utils import optimize_conversation_history

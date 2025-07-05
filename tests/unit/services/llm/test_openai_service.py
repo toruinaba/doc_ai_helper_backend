@@ -19,7 +19,7 @@ from typing import Dict, Any, List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
-from doc_ai_helper_backend.services.llm.base_composition import LLMServiceBase
+from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
@@ -235,7 +235,7 @@ class TestOpenAIService:
         """Test that the service doesn't use multiple inheritance."""
         # Check MRO (Method Resolution Order) - should be simple
         mro = type(openai_service).__mro__
-        assert len(mro) == 4  # OpenAIServiceComposition, LLMServiceBase, ABC, object
+        assert len(mro) == 4  # OpenAIService, LLMServiceBase, ABC, object
         assert mro[0] == OpenAIService
         assert mro[1] == LLMServiceBase
         # ABC and object are expected due to abstract base class

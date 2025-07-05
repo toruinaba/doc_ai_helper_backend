@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         DocumentMetadata,
     )
 
-from doc_ai_helper_backend.services.llm.base_composition import LLMServiceBase
+from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,

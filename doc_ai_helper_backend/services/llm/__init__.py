@@ -4,14 +4,13 @@ LLM service package.
 This package provides LLM service implementations and utilities.
 """
 
-# New composition-based architecture
-from doc_ai_helper_backend.services.llm.base_composition import LLMServiceBase
+# New composition-based architecture (now main implementation)
+from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
 
 # Legacy classes (for backward compatibility during transition)
-# Temporarily commented out to avoid import issues
-# from doc_ai_helper_backend.services.llm.base import LLMServiceBase as LegacyLLMServiceBase
+# from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase as LegacyLLMServiceBase
 # from doc_ai_helper_backend.services.llm.legacy.openai_service_legacy import OpenAIService as LegacyOpenAIService
 
 # Factory and utilities

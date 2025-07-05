@@ -23,7 +23,7 @@ if TYPE_CHECKING:
         DocumentMetadata,
     )
 
-from doc_ai_helper_backend.services.llm.base import LLMServiceBase
+from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase
 from doc_ai_helper_backend.services.llm.template_manager import PromptTemplateManager
 from doc_ai_helper_backend.services.llm.cache_service import LLMCacheService
 from doc_ai_helper_backend.services.llm.legacy.openai_client import OpenAIAPIClient
