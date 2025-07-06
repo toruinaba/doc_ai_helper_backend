@@ -85,9 +85,13 @@ class LLMServiceCommon:
         Returns:
             LLMResponse: The response from the LLM
         """
-        logger.info(f"Starting query with prompt length: {len(prompt)}")
+        logger.info(f"Starting query with prompt length: {len(prompt or '')}")
 
         try:
+            # Validate prompt
+            if prompt is None or not prompt.strip():
+                raise LLMServiceException("Prompt cannot be empty")
+
             # 1. Check cache first
             cache_key = self._generate_cache_key(
                 prompt,
@@ -153,9 +157,13 @@ class LLMServiceCommon:
         """
         Common implementation of streaming query method.
         """
-        logger.info(f"Starting streaming query with prompt length: {len(prompt)}")
+        logger.info(f"Starting streaming query with prompt length: {len(prompt or '')}")
 
         try:
+            # Validate prompt
+            if prompt is None or not prompt.strip():
+                raise LLMServiceException("Prompt cannot be empty")
+
             # 1. Generate system prompt if needed
             system_prompt = await self._generate_system_prompt(
                 repository_context=repository_context,
@@ -304,11 +312,11 @@ class LLMServiceCommon:
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
         """Format a prompt template with variables."""
-        return await self.template_manager.format_prompt(template_id, variables)
+        return self.template_manager.format_template(template_id, variables)
 
     async def get_available_templates(self) -> List[str]:
         """Get available template IDs."""
-        return await self.template_manager.get_available_templates()
+        return self.template_manager.list_templates()
 
     async def execute_function_call(
         self,
@@ -341,7 +349,7 @@ class LLMServiceCommon:
             if not include_document_in_system_prompt:
                 return None
 
-            return await self.system_prompt_builder.build_system_prompt(
+            return self.system_prompt_builder.build_system_prompt(
                 repository_context=repository_context,
                 document_metadata=document_metadata,
                 document_content=document_content,

@@ -152,14 +152,6 @@ class FunctionCallManager:
                     "result": None,
                 }
 
-            # 引数を検証
-            if not validate_function_call_arguments(function_call, function_def):
-                return {
-                    "success": False,
-                    "error": f"Invalid arguments for function '{function_call.name}'",
-                    "result": None,
-                }
-
             # 引数をパース
             try:
                 arguments = json.loads(function_call.arguments)
@@ -167,6 +159,16 @@ class FunctionCallManager:
                 return {
                     "success": False,
                     "error": f"Invalid JSON in function arguments: {str(e)}",
+                    "result": None,
+                }
+
+            # 引数を検証（パース済み引数を使用）
+            if not validate_parsed_function_arguments(
+                arguments, function_call.name, function_def
+            ):
+                return {
+                    "success": False,
+                    "error": f"Invalid arguments for function '{function_call.name}'",
                     "result": None,
                 }
 
@@ -251,6 +253,55 @@ class FunctionCallManager:
 
 
 # Function call validation and execution utilities
+
+
+def validate_parsed_function_arguments(
+    arguments: Dict[str, Any],
+    function_name: str,
+    function_definition: FunctionDefinition,
+) -> bool:
+    """
+    パース済みの引数が関数定義に適合するかを検証する。
+
+    Args:
+        arguments: パース済みの引数辞書
+        function_name: 関数名
+        function_definition: 関数定義
+
+    Returns:
+        bool: 引数が有効かどうか
+    """
+    try:
+        # 関数名の確認
+        if function_name != function_definition.name:
+            logger.warning(
+                f"Function name mismatch: {function_name} != {function_definition.name}"
+            )
+            return False
+
+        # パラメータ定義がない場合は引数も空である必要がある
+        if not function_definition.parameters:
+            return len(arguments) == 0
+
+        # 必須パラメータの確認
+        required_params = function_definition.parameters.get("required", [])
+        for param in required_params:
+            if param not in arguments:
+                logger.warning(f"Required parameter missing: {param}")
+                return False
+
+        # 未知のパラメータの確認
+        properties = function_definition.parameters.get("properties", {})
+        for param in arguments:
+            if param not in properties:
+                logger.warning(f"Unknown parameter: {param}")
+                return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error validating function call arguments: {e}")
+        return False
 
 
 def validate_function_call_arguments(

@@ -406,3 +406,276 @@ class TestSystemPromptBuilderWithDocumentContent:
 
         # Should be different prompts
         assert prompt1 != prompt2
+
+
+class TestHelperUtilities:
+    """Test utility functions in helpers module."""
+
+    def test_get_current_timestamp(self):
+        """Test current timestamp utility."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            get_current_timestamp,
+        )
+
+        timestamp = get_current_timestamp()
+        assert isinstance(timestamp, str)
+        assert len(timestamp) > 0
+        # Should be in ISO format
+        assert "T" in timestamp
+
+    def test_safe_get_nested_value_basic(self):
+        """Test safe nested value retrieval - basic case."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            safe_get_nested_value,
+        )
+
+        data = {"level1": {"level2": {"target": "found"}}}
+
+        # Test successful retrieval
+        result = safe_get_nested_value(data, ["level1", "level2", "target"])
+        assert result == "found"
+
+    def test_safe_get_nested_value_missing(self):
+        """Test safe nested value retrieval - missing path."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            safe_get_nested_value,
+        )
+
+        data = {"level1": {"level2": {"target": "found"}}}
+
+        # Test missing path with default
+        result = safe_get_nested_value(data, ["level1", "missing", "target"], "default")
+        assert result == "default"
+
+        # Test missing path without default
+        result = safe_get_nested_value(data, ["missing", "path"], None)
+        assert result is None
+
+    def test_safe_get_nested_value_edge_cases(self):
+        """Test safe nested value retrieval - edge cases."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            safe_get_nested_value,
+        )
+
+        # Test with empty dict
+        result = safe_get_nested_value({}, ["key"], "default")
+        assert result == "default"
+
+        # Test with None input
+        result = safe_get_nested_value(None, ["key"], "default")
+        assert result == "default"
+
+        # Test with non-dict value in path
+        data = {"level1": "not_a_dict"}
+        result = safe_get_nested_value(data, ["level1", "nested"], "default")
+        assert result == "default"
+
+
+class TestSystemPromptBuilderEnhanced:
+    """Additional tests for SystemPromptBuilder."""
+
+    def test_builder_without_context(self):
+        """Test SystemPromptBuilder without context."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptBuilder
+
+        builder = SystemPromptBuilder()
+        prompt = builder.build_prompt()
+
+        assert isinstance(prompt, str)
+        assert len(prompt) > 0
+        assert prompt == builder.base_prompt
+
+    def test_builder_with_repository_context(self):
+        """Test SystemPromptBuilder with repository context."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptBuilder
+
+        builder = SystemPromptBuilder()
+        context = {"repository": "test-repo", "document_type": "markdown"}
+
+        prompt = builder.build_prompt(context)
+
+        assert isinstance(prompt, str)
+        assert "test-repo" in prompt
+        assert "markdown" in prompt
+
+    def test_builder_caching_mechanism(self):
+        """Test SystemPromptBuilder caching."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptBuilder
+
+        builder = SystemPromptBuilder()
+        context = {"repository": "test-repo"}
+
+        # First call
+        prompt1 = builder.build_prompt(context)
+
+        # Second call with same context (should use cache)
+        prompt2 = builder.build_prompt(context)
+
+        assert prompt1 == prompt2
+
+    def test_builder_cache_key_generation(self):
+        """Test SystemPromptBuilder cache key generation."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptBuilder
+
+        builder = SystemPromptBuilder()
+
+        # Different contexts should generate different cache keys
+        context1 = {"repository": "repo1"}
+        context2 = {"repository": "repo2"}
+
+        prompt1 = builder.build_prompt(context1)
+        prompt2 = builder.build_prompt(context2)
+
+        assert prompt1 != prompt2
+
+
+class TestJapaneseSystemPromptBuilderEnhanced:
+    """Additional tests for JapaneseSystemPromptBuilder."""
+
+    def test_japanese_builder_without_context(self):
+        """Test JapaneseSystemPromptBuilder without context."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            JapaneseSystemPromptBuilder,
+        )
+
+        builder = JapaneseSystemPromptBuilder()
+        prompt = builder.build_prompt()
+
+        assert isinstance(prompt, str)
+        assert len(prompt) > 0
+        assert prompt == builder.base_prompt
+        # Should contain Japanese text
+        assert "あなた" in prompt or "AI" in prompt
+
+    def test_japanese_builder_with_context(self):
+        """Test JapaneseSystemPromptBuilder with context."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            JapaneseSystemPromptBuilder,
+        )
+
+        builder = JapaneseSystemPromptBuilder()
+        context = {"repository": "test-repo", "document_type": "markdown"}
+
+        prompt = builder.build_prompt(context)
+
+        assert isinstance(prompt, str)
+        assert "test-repo" in prompt
+        assert "markdown" in prompt
+        # Should contain Japanese labels
+        assert "リポジトリ" in prompt
+        assert "ドキュメントタイプ" in prompt
+
+    def test_japanese_builder_cache_prefix(self):
+        """Test JapaneseSystemPromptBuilder uses different cache prefix."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            SystemPromptBuilder,
+            JapaneseSystemPromptBuilder,
+        )
+
+        en_builder = SystemPromptBuilder()
+        ja_builder = JapaneseSystemPromptBuilder()
+
+        context = {"repository": "test-repo"}
+
+        en_prompt = en_builder.build_prompt(context)
+        ja_prompt = ja_builder.build_prompt(context)
+
+        # Should generate different prompts
+        assert en_prompt != ja_prompt
+        # Japanese should contain Japanese text
+        assert "リポジトリ" in ja_prompt
+
+    def test_japanese_builder_inheritance(self):
+        """Test JapaneseSystemPromptBuilder properly inherits from SystemPromptBuilder."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import (
+            SystemPromptBuilder,
+            JapaneseSystemPromptBuilder,
+        )
+
+        builder = JapaneseSystemPromptBuilder()
+
+        # Should be instance of both classes
+        assert isinstance(builder, JapaneseSystemPromptBuilder)
+        assert isinstance(builder, SystemPromptBuilder)
+
+        # Should have cache
+        assert hasattr(builder, "cache")
+        assert hasattr(builder, "base_prompt")
+
+
+class TestSystemPromptCacheEnhanced:
+    """Additional tests for SystemPromptCache."""
+
+    def test_cache_ttl_initialization(self):
+        """Test cache TTL initialization."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptCache
+
+        # Test default TTL
+        cache1 = SystemPromptCache()
+        assert cache1.ttl_seconds == 3600  # Default 1 hour
+
+        # Test custom TTL
+        cache2 = SystemPromptCache(ttl_seconds=7200)
+        assert cache2.ttl_seconds == 7200
+
+    def test_cache_stats_with_expired_items(self):
+        """Test cache stats with expired items."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptCache
+
+        cache = SystemPromptCache(ttl_seconds=1)
+
+        # Add items
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+
+        # Wait for expiration
+        time.sleep(1.1)
+
+        # Add a new item
+        cache.set("key3", "value3")
+
+        stats = cache.get_stats()
+        assert stats["total_items"] == 3
+        assert stats["valid_items"] == 1  # Only key3 should be valid
+        assert stats["expired_items"] == 2  # key1 and key2 should be expired
+
+    def test_cache_cleanup_on_get(self):
+        """Test that expired items are cleaned up on get."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptCache
+
+        cache = SystemPromptCache(ttl_seconds=1)
+
+        # Add an item
+        cache.set("expiring_key", "value")
+
+        # Verify it's there
+        assert cache.get("expiring_key") == "value"
+
+        # Wait for expiration
+        time.sleep(1.1)
+
+        # Try to get expired item
+        result = cache.get("expiring_key")
+        assert result is None
+
+    def test_cache_multiple_operations(self):
+        """Test multiple cache operations."""
+        from doc_ai_helper_backend.services.llm.utils.helpers import SystemPromptCache
+
+        cache = SystemPromptCache(ttl_seconds=3600)
+
+        # Test setting multiple values
+        values = {"key1": "value1", "key2": "value2", "key3": "value3"}
+        for key, value in values.items():
+            cache.set(key, value)
+
+        # Test getting all values
+        for key, expected_value in values.items():
+            assert cache.get(key) == expected_value
+
+        # Test clearing
+        cache.clear()
+
+        # All values should be gone
+        for key in values.keys():
+            assert cache.get(key) is None

@@ -151,6 +151,27 @@ class SystemPromptCache:
         self.cache.clear()
         self.cache_times.clear()
 
+    def get_stats(self) -> Dict[str, int]:
+        """Get cache statistics including expired items."""
+        import time
+
+        current_time = time.time()
+        total_items = len(self.cache)
+        valid_items = 0
+        expired_items = 0
+
+        for key in list(self.cache.keys()):
+            if current_time - self.cache_times[key] < self.ttl_seconds:
+                valid_items += 1
+            else:
+                expired_items += 1
+
+        return {
+            "total_items": total_items,
+            "valid_items": valid_items,
+            "expired_items": expired_items,
+        }
+
 
 class SystemPromptBuilder:
     """Builder for system prompts with context awareness."""
