@@ -1,8 +1,8 @@
 """
-Mock LLM service for development and testing using composition pattern.
+Mock LLM service for development and testing using pure delegation pattern.
 
 This module provides a mock implementation of the LLM service interface
-using composition with LLMServiceCommon for shared functionality.
+using pure delegation to individual components for maximum modularity.
 
 The service has been refactored to use separate modules for better maintainability:
 - mock.constants: Response patterns and keyword lists
@@ -36,7 +36,6 @@ from doc_ai_helper_backend.models.llm import (
     ToolCall,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
-from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 
 # Import refactored components
 from doc_ai_helper_backend.services.llm.mock.constants import (
@@ -53,10 +52,10 @@ from doc_ai_helper_backend.services.llm.utils.simulation import SimulationUtils
 
 class MockLLMService(LLMServiceBase):
     """
-    Mock implementation of the LLM service using pure composition pattern.
+    Mock implementation of the LLM service using pure delegation pattern.
 
     This service returns predefined responses for testing and development.
-    All shared functionality is delegated to LLMServiceCommon components.
+    All shared functionality is delegated to individual component instances.
 
     Refactored to use separate modules for better maintainability:
     - Response generation is handled by MockResponseGenerator
@@ -75,13 +74,38 @@ class MockLLMService(LLMServiceBase):
             default_model: Default model name to use
             **kwargs: Additional configuration options
         """
-        # Initialize common functionality through composition
-        self._common = LLMServiceCommon()
+        # Initialize components directly using pure composition
+        from doc_ai_helper_backend.services.llm.components import (
+            PromptTemplateManager,
+            LLMCacheService,
+            SystemPromptBuilder,
+            FunctionCallManager,
+            ResponseBuilder,
+            StreamingUtils,
+            QueryManager,
+        )
+
+        # Direct component composition - no intermediate layer
+        self.template_manager = PromptTemplateManager()
+        self.cache_service = LLMCacheService()
+        self.system_prompt_builder = SystemPromptBuilder()
+        self.function_manager = FunctionCallManager()
+        self.response_builder = ResponseBuilder()
+        self.streaming_utils = StreamingUtils()
+
+        # Query manager with dependency injection
+        self.query_manager = QueryManager(
+            cache_service=self.cache_service,
+            system_prompt_builder=self.system_prompt_builder,
+        )
 
         # Store service-specific properties using delegation
         self.set_service_property("response_delay", response_delay)
         self.set_service_property("default_model", default_model)
         self.set_service_property("default_options", kwargs)
+
+        # Initialize MCP adapter as None (can be set later)
+        self._mcp_adapter = None
 
     def set_service_property(self, property_name: str, value):
         """Set a service-specific property."""
@@ -108,47 +132,12 @@ class MockLLMService(LLMServiceBase):
         """Access to default options."""
         return self.get_service_property("default_options", {})
 
-    # === Component delegation for shared functionality ===
-
-    @property
-    def cache_service(self):
-        """Access to cache service."""
-        return self._common.cache_service
-
-    @property
-    def template_manager(self):
-        """Access to template manager."""
-        return self._common.template_manager
-
-    @property
-    def system_prompt_builder(self):
-        """Access to system prompt builder."""
-        return self._common.system_prompt_builder
-
-    @property
-    def function_manager(self):
-        """Access to function manager."""
-        return self._common.function_manager
+    # === Component access properties (direct access, no intermediate layer) ===
 
     @property
     def function_handler(self):
         """Access to function manager (backward compatibility alias)."""
-        return self._common.function_manager
-
-    @property
-    def response_builder(self):
-        """Access to response builder."""
-        return self._common.response_builder
-
-    @property
-    def streaming_utils(self):
-        """Access to streaming utils."""
-        return self._common.streaming_utils
-
-    @property
-    def query_manager(self):
-        """Access to query manager."""
-        return self._common.query_manager
+        return self.function_manager
 
     # === Interface methods (delegated to common implementation) ===
 
@@ -166,9 +155,9 @@ class MockLLMService(LLMServiceBase):
         """
         Send a query to the mock LLM.
 
-        This method delegates to LLMServiceCommon for standard processing.
+        Direct delegation to query manager.
         """
-        return await self._common.query(
+        return await self.query_manager.orchestrate_query(
             service=self,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -194,9 +183,9 @@ class MockLLMService(LLMServiceBase):
         """
         Stream a query to the mock LLM.
 
-        This method delegates to LLMServiceCommon for standard processing.
+        Direct delegation to query manager.
         """
-        async for chunk in self._common.stream_query(
+        async for chunk in self.query_manager.orchestrate_streaming_query(
             service=self,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -223,11 +212,11 @@ class MockLLMService(LLMServiceBase):
         include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
-        Query with tools using LLMServiceCommon.
+        Query with tools using Query Manager.
 
-        This method delegates to LLMServiceCommon for standard processing.
+        Direct delegation to query manager.
         """
-        return await self._common.query_with_tools(
+        return await self.query_manager.orchestrate_query_with_tools(
             service=self,
             prompt=prompt,
             tools=tools,
@@ -255,11 +244,11 @@ class MockLLMService(LLMServiceBase):
         include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
         """
-        Query with tools and followup using LLMServiceCommon.
+        Query with tools and followup using Query Manager.
 
-        This method delegates to LLMServiceCommon for standard processing.
+        Direct delegation to query manager.
         """
-        return await self._common.query_with_tools_and_followup(
+        return await self.query_manager.orchestrate_query_with_tools(
             service=self,
             prompt=prompt,
             tools=tools,
@@ -276,20 +265,20 @@ class MockLLMService(LLMServiceBase):
     async def execute_function_call(
         self, function_call: FunctionCall, available_functions: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Execute function call using LLMServiceCommon."""
-        return await self._common.execute_function_call(
+        """Execute function call using function manager."""
+        return await self.function_manager.execute_function_call(
             function_call, available_functions
         )
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
-        """Get available functions using LLMServiceCommon."""
-        return await self._common.get_available_functions()
+        """Get available functions using function manager."""
+        return self.function_manager.get_available_functions()
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
-        """Format prompt using mock implementation."""
+        """Format prompt using template manager."""
         try:
-            # Try using the common implementation first
-            return await self._common.format_prompt(template_id, variables)
+            # Try using the template manager
+            return self.template_manager.format_template(template_id, variables)
         except Exception as e:
             # If template not found or error, provide mock formatting
             if "not found" in str(e).lower():
@@ -301,10 +290,10 @@ class MockLLMService(LLMServiceBase):
                 return f"Error formatting template '{template_id}': {str(e)}. Variables: {variables}"
 
     async def get_available_templates(self) -> List[str]:
-        """Get available templates using mock implementation."""
+        """Get available templates using template manager."""
         try:
-            # Try using the common implementation first
-            return await self._common.get_available_templates()
+            # Try using the template manager
+            return self.template_manager.list_templates()
         except Exception:
             # If error, return mock template list
             return MOCK_TEMPLATE_NAMES
@@ -469,16 +458,16 @@ class MockLLMService(LLMServiceBase):
 
     @property
     def mcp_adapter(self):
-        """Get the MCP adapter from common implementation."""
-        return self._common.get_mcp_adapter()
+        """Get the MCP adapter."""
+        return self._mcp_adapter
 
     def set_mcp_adapter(self, adapter):
-        """Set the MCP adapter through common implementation."""
-        self._common.set_mcp_adapter(adapter)
+        """Set the MCP adapter."""
+        self._mcp_adapter = adapter
 
     def get_mcp_adapter(self):
-        """Get the MCP adapter from common implementation."""
-        return self._common.get_mcp_adapter()
+        """Get the MCP adapter."""
+        return self._mcp_adapter
 
     # === Test utility methods (for backward compatibility) ===
 

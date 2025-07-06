@@ -1455,13 +1455,13 @@ class TestMockLLMServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_format_prompt_with_other_error(self, service):
         """Test format_prompt with non-'not found' error."""
-        # Mock the common implementation to raise a different error
-        original_format = service._common.format_prompt
+        # Mock the template manager to raise a different error
+        original_format = service.template_manager.format_template
 
-        async def mock_format_with_error(template_id, variables):
+        def mock_format_with_error(template_id, variables):
             raise ValueError("Some other error occurred")
 
-        service._common.format_prompt = mock_format_with_error
+        service.template_manager.format_template = mock_format_with_error
 
         try:
             result = await service.format_prompt("test_template", {"var": "value"})
@@ -1470,7 +1470,7 @@ class TestMockLLMServiceErrorHandling:
             assert "var" in result
         finally:
             # Restore original method
-            service._common.format_prompt = original_format
+            service.template_manager.format_prompt = original_format
 
 
 class TestMockLLMServiceUtilityFunctions:

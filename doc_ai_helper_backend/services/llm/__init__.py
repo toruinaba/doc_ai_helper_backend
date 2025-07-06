@@ -6,7 +6,6 @@ This package provides LLM service implementations and utilities.
 
 # New composition-based architecture (now main implementation)
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
-from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
 
 # Legacy classes (for backward compatibility during transition)
@@ -31,7 +30,6 @@ LLMServiceFactory.register("openai", OpenAIService)
 __all__ = [
     # New composition-based architecture
     "LLMServiceBase",
-    "LLMServiceCommon",
     "OpenAIService",
     # Factory and utilities
     "LLMServiceFactory",

@@ -1,9 +1,8 @@
 """
-OpenAI LLM service using composition pattern.
+OpenAI LLM service using pure delegation pattern.
 
 This module provides an implementation of the LLM service using OpenAI's API
-with composition pattern instead of multiple inheritance. It delegates common
-functionality to LLMServiceCommon while implementing only OpenAI-specific logic.
+with pure delegation pattern to individual components for maximum modularity and testability.
 """
 
 import logging
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
     )
 
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
-from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
@@ -41,10 +39,10 @@ logger = logging.getLogger(__name__)
 
 class OpenAIService(LLMServiceBase):
     """
-    OpenAI implementation of the LLM service using pure composition pattern.
+    OpenAI implementation of the LLM service using pure delegation pattern.
 
     This service uses OpenAI's API to provide LLM functionality.
-    All shared functionality is delegated to LLMServiceCommon components.
+    All shared functionality is delegated to individual component instances.
     It can be configured to use OpenAI directly or a LiteLLM proxy server.
     """
 
@@ -64,14 +62,39 @@ class OpenAIService(LLMServiceBase):
             base_url: Optional base URL for the API (e.g., LiteLLM proxy URL)
             **kwargs: Additional configuration options
         """
-        # Initialize common functionality through composition
-        self._common = LLMServiceCommon()
+        # Initialize components directly using pure composition
+        from doc_ai_helper_backend.services.llm.components import (
+            PromptTemplateManager,
+            LLMCacheService,
+            SystemPromptBuilder,
+            FunctionCallManager,
+            ResponseBuilder,
+            StreamingUtils,
+            QueryManager,
+        )
+
+        # Direct component composition - no intermediate layer
+        self.template_manager = PromptTemplateManager()
+        self.cache_service = LLMCacheService()
+        self.system_prompt_builder = SystemPromptBuilder()
+        self.function_manager = FunctionCallManager()
+        self.response_builder = ResponseBuilder()
+        self.streaming_utils = StreamingUtils()
+
+        # Query manager with dependency injection
+        self.query_manager = QueryManager(
+            cache_service=self.cache_service,
+            system_prompt_builder=self.system_prompt_builder,
+        )
 
         # Store service-specific properties using delegation
         self.set_service_property("api_key", api_key)
         self.set_service_property("default_model", default_model)
         self.set_service_property("base_url", base_url)
         self.set_service_property("default_options", kwargs)
+
+        # Initialize MCP adapter as None (can be set later)
+        self._mcp_adapter = None
 
         self._initialize_clients_and_encoder()
 
@@ -110,47 +133,29 @@ class OpenAIService(LLMServiceBase):
         """Access to default options."""
         return self.get_service_property("default_options", {})
 
-    # === Component delegation for shared functionality ===
-
-    @property
-    def cache_service(self):
-        """Access to cache service."""
-        return self._common.cache_service
-
-    @property
-    def template_manager(self):
-        """Access to template manager."""
-        return self._common.template_manager
-
-    @property
-    def system_prompt_builder(self):
-        """Access to system prompt builder."""
-        return self._common.system_prompt_builder
-
-    @property
-    def function_manager(self):
-        """Access to function manager."""
-        return self._common.function_manager
+    # === Component access properties (direct access, no intermediate layer) ===
 
     @property
     def function_handler(self):
         """Access to function manager (backward compatibility alias)."""
-        return self._common.function_manager
+        return self.function_manager
+
+    # === MCP adapter methods ===
 
     @property
-    def response_builder(self):
-        """Access to response builder."""
-        return self._common.response_builder
+    def mcp_adapter(self):
+        """Get the MCP adapter."""
+        return self._mcp_adapter
 
-    @property
-    def streaming_utils(self):
-        """Access to streaming utils."""
-        return self._common.streaming_utils
+    def set_mcp_adapter(self, adapter):
+        """Set the MCP adapter."""
+        self._mcp_adapter = adapter
 
-    @property
-    def query_manager(self):
-        """Access to query manager."""
-        return self._common.query_manager
+    def get_mcp_adapter(self):
+        """Get the MCP adapter."""
+        return self._mcp_adapter
+
+    # === Service initialization and client management ===
 
     def _initialize_clients_and_encoder(self):
         """Initialize OpenAI clients and token encoder."""
@@ -184,8 +189,8 @@ class OpenAIService(LLMServiceBase):
         system_prompt_template: str = "contextual_document_assistant_ja",
         include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
-        """Delegate to common implementation."""
-        return await self._common.query(
+        """Direct delegation to query manager."""
+        return await self.query_manager.orchestrate_query(
             service=self,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -208,8 +213,8 @@ class OpenAIService(LLMServiceBase):
         system_prompt_template: str = "contextual_document_assistant_ja",
         include_document_in_system_prompt: bool = True,
     ) -> AsyncGenerator[str, None]:
-        """Delegate to common implementation."""
-        async for chunk in self._common.stream_query(
+        """Direct delegation to query manager."""
+        async for chunk in self.query_manager.orchestrate_streaming_query(
             service=self,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -235,8 +240,8 @@ class OpenAIService(LLMServiceBase):
         system_prompt_template: str = "contextual_document_assistant_ja",
         include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
-        """Delegate to common implementation."""
-        return await self._common.query_with_tools(
+        """Direct delegation to query manager."""
+        return await self.query_manager.orchestrate_query_with_tools(
             service=self,
             prompt=prompt,
             tools=tools,
@@ -263,8 +268,8 @@ class OpenAIService(LLMServiceBase):
         system_prompt_template: str = "contextual_document_assistant_ja",
         include_document_in_system_prompt: bool = True,
     ) -> LLMResponse:
-        """Delegate to common implementation."""
-        return await self._common.query_with_tools_and_followup(
+        """Direct delegation to query manager."""
+        return await self.query_manager.orchestrate_query_with_tools(
             service=self,
             prompt=prompt,
             tools=tools,
@@ -283,22 +288,22 @@ class OpenAIService(LLMServiceBase):
         function_call: FunctionCall,
         available_functions: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Delegate to common implementation."""
-        return await self._common.execute_function_call(
+        """Direct delegation to function manager."""
+        return await self.function_manager.execute_function_call(
             function_call, available_functions
         )
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
-        """Delegate to common implementation."""
-        return await self._common.get_available_functions()
+        """Direct delegation to function manager."""
+        return self.function_manager.get_available_functions()
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
-        """Delegate to common implementation."""
-        return await self._common.format_prompt(template_id, variables)
+        """Direct delegation to template manager."""
+        return self.template_manager.format_template(template_id, variables)
 
     async def get_available_templates(self) -> List[str]:
-        """Delegate to common implementation."""
-        return await self._common.get_available_templates()
+        """Direct delegation to template manager."""
+        return self.template_manager.list_templates()
 
     # === Provider-specific implementations ===
 
@@ -355,7 +360,7 @@ class OpenAIService(LLMServiceBase):
         options = options or {}
 
         # Build conversation messages in standard format
-        messages = self._common.build_conversation_messages(
+        messages = self.query_manager.build_conversation_messages(
             prompt, conversation_history, system_prompt
         )
 

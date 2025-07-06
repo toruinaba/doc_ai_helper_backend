@@ -4,7 +4,25 @@ Tests for OpenAI LLM service composition implementation.
 This module tests the NEW composition-based OpenAI service implementation.
 
 ⚠️  IMPORTANT:
-- These are the ACTIVE tests for the current OpenAI service
+- These are the ACTIVE tests for the current        with patch.object(
+            o        with patch.object(
+            openai_service.query_manager, "orchestrate_query_with_tools", return_value=expected_response
+        ) as mock_query_tools:
+            result = await openai_service.query_with_tools(
+                "Test prompt", [{"name": "test_function"}]
+            )
+
+            # Verify delegation occurred
+            mock_query_tools.assert_called_once()
+            assert result == expected_responseice.query_manager, "orchestrate_streaming_query", return_value=mock_stream()
+        ) as mock_stream_query:
+            chunks = []
+            async for chunk in openai_service.stream_query("Test prompt"):
+                chunks.append(chunk)
+
+            # Verify delegation occurred
+            mock_stream_query.assert_called_once()
+            assert chunks == ["chunk1", "chunk2", "chunk3"]rvice
 - Legacy tests (old modular architecture) are in tests/unit/services/llm/legacy/
 - Legacy tests are intentionally skipped and expected to fail
 
@@ -20,7 +38,6 @@ from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
 from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
-from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
@@ -73,7 +90,10 @@ class TestOpenAIService:
         assert service.api_key == "test_key"
         assert service.model == "gpt-4"  # Using delegation property
         assert service.base_url == "https://custom.url"
-        assert isinstance(service._common, LLMServiceCommon)
+        # Verify pure composition pattern - direct component access
+        assert hasattr(service, "cache_service")
+        assert hasattr(service, "template_manager")
+        assert hasattr(service, "query_manager")
         assert service.sync_client is not None
         assert service.async_client is not None
 
@@ -82,12 +102,15 @@ class TestOpenAIService:
         assert isinstance(openai_service, LLMServiceBase)
 
     def test_composition_pattern(self, openai_service):
-        """Test that the service uses composition correctly."""
-        # Should have a common service instance
-        assert hasattr(openai_service, "_common")
-        assert isinstance(openai_service._common, LLMServiceCommon)
+        """Test that the service uses pure composition pattern."""
+        # Should have direct component instances (no _common intermediate layer)
+        assert hasattr(openai_service, "cache_service")
+        assert hasattr(openai_service, "template_manager")
+        assert hasattr(openai_service, "query_manager")
+        assert hasattr(openai_service, "function_manager")
+        assert hasattr(openai_service, "response_builder")
 
-        # Common methods should delegate to the common service
+        # Common methods should be available through direct delegation
         assert hasattr(openai_service, "query")
         assert hasattr(openai_service, "stream_query")
         assert hasattr(openai_service, "query_with_tools")
@@ -165,7 +188,9 @@ class TestOpenAIService:
         )
 
         with patch.object(
-            openai_service._common, "query", return_value=expected_response
+            openai_service.query_manager,
+            "orchestrate_query",
+            return_value=expected_response,
         ) as mock_query:
             result = await openai_service.query("Test prompt")
 
@@ -190,7 +215,9 @@ class TestOpenAIService:
             yield "chunk2"
 
         with patch.object(
-            openai_service._common, "stream_query", return_value=mock_stream()
+            openai_service.query_manager,
+            "orchestrate_streaming_query",
+            return_value=mock_stream(),
         ) as mock_stream_query:
             chunks = []
             async for chunk in openai_service.stream_query("Test prompt"):
@@ -221,7 +248,9 @@ class TestOpenAIService:
         )
 
         with patch.object(
-            openai_service._common, "query_with_tools", return_value=expected_response
+            openai_service.query_manager,
+            "orchestrate_query_with_tools",
+            return_value=expected_response,
         ) as mock_query_tools:
             result = await openai_service.query_with_tools(
                 "Test prompt", tools, tool_choice="auto"
@@ -240,36 +269,31 @@ class TestOpenAIService:
         assert mro[0] == OpenAIService
         assert any("LLMServiceBase" in cls.__name__ for cls in mro)
         # PropertyAccessors mixin should NOT be in the inheritance chain anymore
-        assert not any("PropertyAccessors" in cls.__name__ for cls in mro)
-
-        # Verify composition pattern provides expected functionality through delegation
+        assert not any(
+            "PropertyAccessors" in cls.__name__ for cls in mro
+        )  # Verify composition pattern provides expected functionality through delegation
         assert hasattr(openai_service, "cache_service")
         assert hasattr(openai_service, "template_manager")
         assert hasattr(openai_service, "response_builder")
         assert hasattr(openai_service, "streaming_utils")
 
-        # Verify components are delegated from _common
-        assert hasattr(openai_service, "_common")
-        assert openai_service.cache_service is openai_service._common.cache_service
+        # Verify components are directly owned (not delegated through _common)
+        assert not hasattr(openai_service, "_common")
+        assert openai_service.cache_service is not None
 
     def test_encapsulation(self, openai_service):
-        """Test that internal composition is properly encapsulated."""
-        # Common service should be private
-        assert hasattr(openai_service, "_common")
+        """Test that pure composition is properly encapsulated."""
+        # No intermediate _common layer in pure composition
+        assert not hasattr(openai_service, "_common")
 
-        # Property accessors should be available for backward compatibility
+        # Component accessors should be available for direct access
         assert hasattr(openai_service, "cache_service")
         assert hasattr(openai_service, "template_manager")
         assert hasattr(openai_service, "function_handler")
-
-        # But the actual objects should be delegated from _common
-        assert openai_service.cache_service is openai_service._common.cache_service
-        assert (
-            openai_service.template_manager is openai_service._common.template_manager
-        )
-        assert (
-            openai_service.function_handler is openai_service._common.function_manager
-        )
+        # Verify components are directly accessible (pure composition)
+        assert openai_service.cache_service is not None
+        assert openai_service.template_manager is not None
+        assert openai_service.function_handler is openai_service.function_manager
 
     @pytest.mark.asyncio
     async def test_error_handling_in_provider_methods(self, openai_service):
@@ -373,7 +397,7 @@ class TestOpenAIServiceExtended:
         messages = [MessageItem(role=MessageRole.USER, content="Hello")]
 
         with patch.object(
-            service._common, "build_conversation_messages", return_value=messages
+            service.query_manager, "build_conversation_messages", return_value=messages
         ):
             options = await service._prepare_provider_options(
                 "Hello", None, None, None, None
@@ -403,7 +427,7 @@ class TestOpenAIServiceExtended:
         tool_choice = ToolChoice(type="required", function="get_weather")
 
         with patch.object(
-            service._common, "build_conversation_messages", return_value=messages
+            service.query_manager, "build_conversation_messages", return_value=messages
         ):
             options = await service._prepare_provider_options(
                 "What's the weather?",
@@ -439,7 +463,7 @@ class TestOpenAIServiceExtended:
         }
 
         with patch.object(
-            service._common, "build_conversation_messages", return_value=messages
+            service.query_manager, "build_conversation_messages", return_value=messages
         ):
             options = await service._prepare_provider_options(
                 "Hello", None, custom_options, None, None, None
@@ -699,8 +723,8 @@ class TestOpenAIServiceExtended:
 
     async def test_full_query_with_provider_specific_features(self, service):
         """Test complete query flow with OpenAI-specific features."""
-        # Mock the common service methods
-        with patch.object(service._common, "query") as mock_query:
+        # Mock the query manager method
+        with patch.object(service.query_manager, "orchestrate_query") as mock_query:
             mock_response = LLMResponse(
                 content="OpenAI response",
                 model="gpt-4",
@@ -722,9 +746,11 @@ class TestOpenAIServiceExtended:
             assert call_args[1]["service"] == service
 
     async def test_error_handling_in_delegated_methods(self, service):
-        """Test error handling in methods that delegate to common."""
+        """Test error handling in methods that delegate to query manager."""
         with patch.object(
-            service._common, "query", side_effect=LLMServiceException("Common error")
+            service.query_manager,
+            "orchestrate_query",
+            side_effect=LLMServiceException("Query manager error"),
         ):
             with pytest.raises(LLMServiceException):
                 await service.query("Test prompt")
