@@ -202,28 +202,26 @@ class TestLLMServiceCommon:
     def test_common_service_composition(self, common_service):
         """Test that common service has expected composition components."""
         # Verify template manager
-        from doc_ai_helper_backend.services.llm.utils.templating import (
+        from doc_ai_helper_backend.services.llm.components.templates import (
             PromptTemplateManager,
         )
 
         assert isinstance(common_service.template_manager, PromptTemplateManager)
 
         # Verify cache service
-        from doc_ai_helper_backend.services.llm.utils.caching import LLMCacheService
+        from doc_ai_helper_backend.services.llm.components.cache import LLMCacheService
 
         assert isinstance(common_service.cache_service, LLMCacheService)
 
         # Verify system prompt builder
-        from doc_ai_helper_backend.services.llm.utils.messaging import (
-            JapaneseSystemPromptBuilder,
+        from doc_ai_helper_backend.services.llm.components.messaging import (
+            SystemPromptBuilder,
         )
 
-        assert isinstance(
-            common_service.system_prompt_builder, JapaneseSystemPromptBuilder
-        )
+        assert isinstance(common_service.system_prompt_builder, SystemPromptBuilder)
 
         # Verify function manager
-        from doc_ai_helper_backend.services.llm.utils.functions import (
+        from doc_ai_helper_backend.services.llm.components.functions import (
             FunctionCallManager,
         )
 

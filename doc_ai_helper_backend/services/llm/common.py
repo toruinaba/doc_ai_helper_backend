@@ -44,27 +44,27 @@ class LLMServiceCommon:
     def __init__(self):
         """Initialize common components."""
         # Import here to avoid circular imports
-        from doc_ai_helper_backend.services.llm.utils import (
+        from doc_ai_helper_backend.services.llm.components import (
             PromptTemplateManager,
             LLMCacheService,
-            JapaneseSystemPromptBuilder,
+            SystemPromptBuilder,
             FunctionCallManager,
-            LLMResponseBuilder,
+            ResponseBuilder,
             StreamingUtils,
-            QueryOrchestrator,
+            QueryManager,
         )
 
         self.template_manager = PromptTemplateManager()
         self.cache_service = LLMCacheService()
-        self.system_prompt_builder = JapaneseSystemPromptBuilder()
+        self.system_prompt_builder = SystemPromptBuilder()
         self.function_manager = FunctionCallManager()
 
         # Add new utility classes
-        self.response_builder = LLMResponseBuilder()
+        self.response_builder = ResponseBuilder()
         self.streaming_utils = StreamingUtils()
 
         # Add query orchestrator for workflow management
-        self.query_orchestrator = QueryOrchestrator(
+        self.query_manager = QueryManager(
             cache_service=self.cache_service,
             system_prompt_builder=self.system_prompt_builder,
         )
@@ -86,7 +86,7 @@ class LLMServiceCommon:
         """
         Common implementation of query method (delegated to query orchestrator).
         """
-        return await self.query_orchestrator.orchestrate_query(
+        return await self.query_manager.orchestrate_query(
             service=service,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -113,7 +113,7 @@ class LLMServiceCommon:
         """
         Common implementation of streaming query method (delegated to query orchestrator).
         """
-        async for chunk in self.query_orchestrator.orchestrate_streaming_query(
+        async for chunk in self.query_manager.orchestrate_streaming_query(
             service=service,
             prompt=prompt,
             conversation_history=conversation_history,
@@ -143,7 +143,7 @@ class LLMServiceCommon:
         """
         Common implementation of query with tools (delegated to query orchestrator).
         """
-        return await self.query_orchestrator.orchestrate_query_with_tools(
+        return await self.query_manager.orchestrate_query_with_tools(
             service=service,
             prompt=prompt,
             tools=tools,
@@ -255,7 +255,7 @@ class LLMServiceCommon:
         include_document_in_system_prompt: bool = True,
     ) -> Optional[str]:
         """Generate system prompt using the system prompt builder (delegated to orchestrator)."""
-        return await self.query_orchestrator._generate_system_prompt(
+        return await self.query_manager._generate_system_prompt(
             repository_context=repository_context,
             document_metadata=document_metadata,
             document_content=document_content,
@@ -274,7 +274,7 @@ class LLMServiceCommon:
         system_prompt_template: str = "contextual_document_assistant_ja",
     ) -> str:
         """Generate a cache key for the query (delegated to orchestrator)."""
-        return self.query_orchestrator._generate_cache_key(
+        return self.query_manager._generate_cache_key(
             prompt=prompt,
             conversation_history=conversation_history,
             options=options,
@@ -293,7 +293,7 @@ class LLMServiceCommon:
         """
         Build conversation messages in standard format (delegated to query orchestrator).
         """
-        return self.query_orchestrator.build_conversation_messages(
+        return self.query_manager.build_conversation_messages(
             prompt=prompt,
             conversation_history=conversation_history,
             system_prompt=system_prompt,

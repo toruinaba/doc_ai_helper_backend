@@ -3,25 +3,27 @@ LLM utility modules.
 
 This package provides utility functions and classes for LLM services,
 organized by functionality for better maintainability.
+
+Note: Many utilities have been migrated to the components package for better
+organization. This module now provides backward compatibility imports.
 """
 
-# Messaging utilities (conversation history, system prompts)
-from .messaging import (
+# Backward compatibility imports from components
+from ..components.messaging import (
     summarize_conversation_history,
     format_conversation_for_provider,
     SystemPromptCache,
     SystemPromptBuilder,
-    JapaneseSystemPromptBuilder,
 )
 
 # Template utilities
-from .templating import PromptTemplateManager
+from ..components.templates import PromptTemplateManager
 
 # Caching utilities
-from .caching import LLMCacheService
+from ..components.cache import LLMCacheService
 
 # Function calling utilities
-from .functions import (
+from ..components.functions import (
     FunctionRegistry,
     FunctionCallManager,
     validate_function_call_arguments,
@@ -33,7 +35,7 @@ from .functions import (
 )
 
 # Token utilities
-from .tokens import (
+from ..components.tokens import (
     estimate_message_tokens,
     estimate_conversation_tokens,
     estimate_tokens_for_messages,
@@ -41,10 +43,10 @@ from .tokens import (
 )
 
 # Response building utilities
-from .response_builder import LLMResponseBuilder
+from ..components.response_builder import LLMResponseBuilder
 
 # Streaming utilities
-from .streaming import StreamingUtils
+from ..components.streaming_utils import StreamingUtils
 
 # Property accessor mixins
 from .mixins import (
@@ -55,8 +57,8 @@ from .mixins import (
     ServiceDelegationMixin,
 )
 
-# Query orchestration utilities
-from .query_orchestrator import QueryOrchestrator
+# Query orchestration utilities (backward compatibility)
+from ..components.query_manager import QueryManager as QueryOrchestrator
 
 # Simulation utilities
 from .simulation import SimulationUtils
@@ -78,7 +80,6 @@ __all__ = [
     "format_conversation_for_provider",
     "SystemPromptBuilder",
     "SystemPromptCache",
-    "JapaneseSystemPromptBuilder",
     # Templates
     "PromptTemplateManager",
     # Caching

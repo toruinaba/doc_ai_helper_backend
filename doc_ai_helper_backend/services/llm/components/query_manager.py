@@ -1,8 +1,8 @@
 """
-Query orchestration utilities for LLM services.
+Query management utilities for LLM services.
 
-This module provides orchestration utilities that manage the complete workflow
-of LLM queries, including caching, system prompt generation, and response processing.
+This module provides query management utilities that coordinate the complete workflow
+of LLM queries, including caching, response processing, and provider coordination.
 """
 
 import hashlib
@@ -25,22 +25,23 @@ from doc_ai_helper_backend.models.llm import (
     ToolChoice,
 )
 from doc_ai_helper_backend.core.exceptions import LLMServiceException
+from .messaging import optimize_conversation_history
 
 logger = logging.getLogger(__name__)
 
 
-class QueryOrchestrator:
+class QueryManager:
     """
-    Orchestrates the complete workflow of LLM queries.
+    Manages the complete workflow of LLM queries.
 
-    This class manages the query lifecycle including caching, system prompt generation,
+    This class coordinates the query lifecycle including caching, system prompt generation,
     provider communication, and response processing. It acts as a coordinator between
     different utility classes and the LLM service implementation.
     """
 
     def __init__(self, cache_service, system_prompt_builder):
         """
-        Initialize the query orchestrator.
+        Initialize the query manager.
 
         Args:
             cache_service: Cache service for response caching
@@ -127,7 +128,21 @@ class QueryOrchestrator:
                 raw_response, provider_options
             )
 
-            # 6. Cache result
+            # 6. Set conversation history optimization information
+            if conversation_history:
+                optimized_history, optimization_info = optimize_conversation_history(
+                    conversation_history, max_tokens=4000
+                )
+                llm_response.optimized_conversation_history = optimized_history
+                llm_response.history_optimization_info = optimization_info
+            else:
+                llm_response.optimized_conversation_history = []
+                llm_response.history_optimization_info = {
+                    "was_optimized": False,
+                    "reason": "No conversation history provided",
+                }
+
+            # 7. Cache result
             self.cache_service.set(cache_key, llm_response)
 
             logger.info(
@@ -239,6 +254,20 @@ class QueryOrchestrator:
                 raw_response, provider_options
             )
 
+            # 5. Set conversation history optimization information
+            if conversation_history:
+                optimized_history, optimization_info = optimize_conversation_history(
+                    conversation_history, max_tokens=4000
+                )
+                llm_response.optimized_conversation_history = optimized_history
+                llm_response.history_optimization_info = optimization_info
+            else:
+                llm_response.optimized_conversation_history = []
+                llm_response.history_optimization_info = {
+                    "was_optimized": False,
+                    "reason": "No conversation history provided",
+                }
+
             logger.info(
                 f"Query with tools orchestration completed successfully, model: {llm_response.model}"
             )
@@ -294,7 +323,7 @@ class QueryOrchestrator:
             return self.system_prompt_builder.build_system_prompt(
                 repository_context=repository_context,
                 document_metadata=document_metadata,
-                document_content=document_content,
+                custom_instructions=None,
                 template_id=system_prompt_template,
             )
         except Exception as e:
@@ -334,3 +363,7 @@ class QueryOrchestrator:
 
         key_string = str(sorted(key_data.items()))
         return hashlib.md5(key_string.encode()).hexdigest()
+
+
+# Backward compatibility alias
+QueryOrchestrator = QueryManager

@@ -336,9 +336,12 @@ class MockLLMService(
     ) -> LLMResponse:
         """Convert mock provider response to LLMResponse using response builder."""
         # Use the response builder from common utilities
-        return self.response_builder.build_from_mock_response(
-            raw_response=raw_response,
-            default_model=self.model,
+        return self.response_builder.build_mock_response(
+            content=raw_response.get("content", ""),
+            model=raw_response.get("model", self.model),
+            prompt=raw_response.get("prompt"),
+            options=options,
+            usage=raw_response.get("usage"),
         )
 
     def _generate_simple_response(

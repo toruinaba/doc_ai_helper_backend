@@ -1,14 +1,14 @@
 """
-Tests for the QueryOrchestrator utility class.
+Tests for the QueryManager utility class.
 
-This module tests the QueryOrchestrator class which manages the complete
+This module tests the QueryManager class which manages the complete
 workflow of LLM queries including caching, system prompt generation, and response processing.
 """
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from doc_ai_helper_backend.services.llm.utils.query_orchestrator import (
-    QueryOrchestrator,
+from doc_ai_helper_backend.services.llm.components.query_manager import (
+    QueryManager,
 )
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
@@ -36,7 +36,7 @@ def mock_system_prompt_builder():
 @pytest.fixture
 def query_orchestrator(mock_cache_service, mock_system_prompt_builder):
     """Query orchestrator instance for testing."""
-    return QueryOrchestrator(
+    return QueryManager(
         cache_service=mock_cache_service,
         system_prompt_builder=mock_system_prompt_builder,
     )
@@ -61,8 +61,8 @@ def mock_service():
     return mock
 
 
-class TestQueryOrchestrator:
-    """Test cases for the QueryOrchestrator class."""
+class TestQueryManager:
+    """Test cases for the QueryManager class."""
 
     @pytest.mark.asyncio
     async def test_orchestrate_query_basic(

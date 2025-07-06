@@ -389,9 +389,9 @@ class OpenAIService(
         """
         try:
             # Use the response builder from common utilities
-            return self.response_builder.build_from_openai_response(
-                raw_response=raw_response,
-                model=options["model"],
+            return self.response_builder.build_response_from_openai(
+                response_data=raw_response,
+                model=options.get("model"),
             )
         except Exception as e:
             logger.error(f"Failed to convert OpenAI response: {str(e)}")

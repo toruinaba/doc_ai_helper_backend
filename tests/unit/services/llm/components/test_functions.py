@@ -6,7 +6,7 @@ import pytest
 import json
 from typing import Dict, Any
 
-from doc_ai_helper_backend.services.llm.utils.functions import (
+from doc_ai_helper_backend.services.llm.components.functions import (
     FunctionRegistry,
     FunctionCallManager,
     validate_function_call_arguments,

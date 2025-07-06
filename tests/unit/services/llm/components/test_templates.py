@@ -1,5 +1,5 @@
 """
-Tests for the template management utility functions.
+Tests for the template management component.
 """
 
 import pytest
@@ -8,7 +8,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from doc_ai_helper_backend.services.llm.utils.templating import PromptTemplateManager
+from doc_ai_helper_backend.services.llm.components.templates import (
+    PromptTemplateManager,
+)
 from doc_ai_helper_backend.models.llm import PromptTemplate, TemplateVariable
 from doc_ai_helper_backend.core.exceptions import (
     TemplateNotFoundError,

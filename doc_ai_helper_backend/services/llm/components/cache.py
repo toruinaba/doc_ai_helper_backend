@@ -1,7 +1,10 @@
 """
-Cache service for LLM responses.
+キャッシュサービス (Cache Service)
 
-This module provides a simple in-memory cache for LLM responses.
+LLMレスポンスのインメモリキャッシュを提供します。
+元ファイル: utils/caching.py
+
+このコンポーネントは純粋な委譲パターンで使用され、mixin継承は使用しません。
 """
 
 import time
@@ -15,58 +18,58 @@ from doc_ai_helper_backend.core.config import settings
 
 class LLMCacheService:
     """
-    Cache service for LLM responses.
+    LLMレスポンスのキャッシュサービス
 
-    This service provides caching functionality for LLM responses to reduce
-    API calls and improve performance.
+    LLMレスポンスをキャッシュしてAPI呼び出しを削減し、パフォーマンスを向上させます。
     """
 
     def __init__(self, ttl_seconds: int = None):
         """
-        Initialize the cache service.
+        キャッシュサービスの初期化
 
         Args:
-            ttl_seconds: Cache TTL in seconds (default: from settings)
+            ttl_seconds: キャッシュのTTL（秒）、デフォルトは設定値を使用
         """
         self._cache: Dict[str, Tuple[LLMResponse, float]] = {}
         self.ttl_seconds = ttl_seconds or settings.llm_cache_ttl
 
     def generate_key(self, prompt: str, options: Dict[str, Any]) -> str:
         """
-        Generate a cache key from prompt and options.
+        プロンプトとオプションからキャッシュキーを生成
 
         Args:
-            prompt: The prompt text
-            options: The query options
+            prompt: プロンプトテキスト
+            options: クエリオプション
 
         Returns:
-            str: A hash key for the cache
-        """  # Create a deterministic representation of the input
+            str: キャッシュ用のハッシュキー
+        """
+        # 入力の決定論的な表現を作成
         key_data = {
             "prompt": prompt,
             "options": self._serialize_options(options),
         }
 
-        # Convert to JSON and hash
+        # JSONに変換してハッシュ化
         serialized = json.dumps(key_data, sort_keys=True)
         return hashlib.md5(serialized.encode()).hexdigest()
 
     def _serialize_options(self, options: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Serialize options for cache key generation.
+        キャッシュキー生成用にオプションをシリアライズ
 
         Args:
-            options: The query options
+            options: クエリオプション
 
         Returns:
-            Dict with serializable values
+            Dict: シリアライズ可能な値を持つ辞書
         """
         serialized = {}
         for k, v in sorted(options.items()):
             if k == "stream":
-                continue  # Skip stream option for caching
+                continue  # ストリームオプションはキャッシュでは無視
             elif k == "functions" and isinstance(v, list):
-                # Serialize function definitions
+                # 関数定義をシリアライズ
                 serialized[k] = [
                     {
                         "name": func.name if hasattr(func, "name") else str(func),
@@ -80,10 +83,10 @@ class LLMCacheService:
                     for func in v
                 ]
             elif hasattr(v, "dict"):
-                # Pydantic model
+                # Pydanticモデル
                 serialized[k] = v.dict()
             elif hasattr(v, "__dict__"):
-                # Regular object with attributes
+                # 属性を持つ通常のオブジェクト
                 serialized[k] = str(v)
             else:
                 serialized[k] = v
@@ -91,20 +94,20 @@ class LLMCacheService:
 
     def get(self, key: str) -> Optional[LLMResponse]:
         """
-        Get an item from the cache.
+        キャッシュからアイテムを取得
 
         Args:
-            key: The cache key
+            key: キャッシュキー
 
         Returns:
-            Optional[LLMResponse]: The cached response or None if not found or expired
+            Optional[LLMResponse]: キャッシュされたレスポンス、見つからないか期限切れの場合はNone
         """
         if key not in self._cache:
             return None
 
         response, expiry_time = self._cache[key]
 
-        # Check if expired
+        # 期限切れチェック
         if time.time() > expiry_time:
             del self._cache[key]
             return None
@@ -113,27 +116,27 @@ class LLMCacheService:
 
     def set(self, key: str, response: LLMResponse) -> None:
         """
-        Store an item in the cache.
+        キャッシュにアイテムを保存
 
         Args:
-            key: The cache key
-            response: The LLM response to cache
+            key: キャッシュキー
+            response: キャッシュするLLMレスポンス
         """
         expiry_time = time.time() + self.ttl_seconds
         self._cache[key] = (response, expiry_time)
 
     def clear(self) -> None:
         """
-        Clear all items from the cache.
+        キャッシュの全アイテムをクリア
         """
         self._cache.clear()
 
     def clear_expired(self) -> int:
         """
-        Clear expired items from the cache.
+        期限切れアイテムをキャッシュからクリア
 
         Returns:
-            int: Number of items cleared
+            int: クリアされたアイテム数
         """
         now = time.time()
         expired_keys = [
@@ -144,3 +147,31 @@ class LLMCacheService:
             del self._cache[key]
 
         return len(expired_keys)
+
+    def size(self) -> int:
+        """
+        現在のキャッシュサイズを取得
+
+        Returns:
+            int: キャッシュされているアイテム数
+        """
+        return len(self._cache)
+
+    def stats(self) -> Dict[str, Any]:
+        """
+        キャッシュ統計情報を取得
+
+        Returns:
+            Dict: キャッシュ統計情報
+        """
+        now = time.time()
+        expired_count = sum(
+            1 for _, expiry_time in self._cache.values() if now > expiry_time
+        )
+
+        return {
+            "total_items": len(self._cache),
+            "expired_items": expired_count,
+            "active_items": len(self._cache) - expired_count,
+            "ttl_seconds": self.ttl_seconds,
+        }

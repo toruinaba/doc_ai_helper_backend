@@ -16,7 +16,7 @@ from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
 )
-from doc_ai_helper_backend.services.llm.utils.messaging import (
+from doc_ai_helper_backend.services.llm.components.messaging import (
     format_conversation_for_provider,
     summarize_conversation_history,
 )
