@@ -313,7 +313,7 @@ class TestLLMServiceCommon:
         with pytest.raises(LLMServiceException) as exc_info:
             await common_service.query(service=mock_service, prompt="Error prompt")
 
-        assert "Query failed" in str(exc_info.value)
+        assert "Query orchestration failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_stream_query(self, common_service, mock_service):
@@ -351,7 +351,7 @@ class TestLLMServiceCommon:
             ):
                 pass  # Should not reach here
 
-        assert "Streaming query failed" in str(exc_info.value)
+        assert "Streaming query orchestration failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_query_with_tools(self, common_service, mock_service, sample_tools):
@@ -405,7 +405,7 @@ class TestLLMServiceCommon:
                 service=mock_service, prompt="Error prompt", tools=sample_tools
             )
 
-        assert "Query with tools failed" in str(exc_info.value)
+        assert "Query with tools orchestration failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_generate_system_prompt(self, common_service):

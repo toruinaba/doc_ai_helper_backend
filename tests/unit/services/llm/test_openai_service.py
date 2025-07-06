@@ -231,14 +231,21 @@ class TestOpenAIService:
             mock_query_tools.assert_called_once()
             assert result == expected_response
 
-    def test_no_multiple_inheritance(self, openai_service):
-        """Test that the service doesn't use multiple inheritance."""
-        # Check MRO (Method Resolution Order) - should be simple
+    def test_mixin_composition_pattern(self, openai_service):
+        """Test that the service uses composition pattern with mixins appropriately."""
+        # Check MRO (Method Resolution Order) - should include mixins
         mro = type(openai_service).__mro__
-        assert len(mro) == 4  # OpenAIService, LLMServiceBase, ABC, object
+
+        # Should include OpenAIService, LLMServiceBase, and mixin classes
         assert mro[0] == OpenAIService
-        assert mro[1] == LLMServiceBase
-        # ABC and object are expected due to abstract base class
+        assert any("LLMServiceBase" in cls.__name__ for cls in mro)
+        assert any("PropertyAccessors" in cls.__name__ for cls in mro)
+
+        # Verify mixins provide expected functionality
+        assert hasattr(openai_service, "cache_service")
+        assert hasattr(openai_service, "template_manager")
+        assert hasattr(openai_service, "response_builder")
+        assert hasattr(openai_service, "streaming_utils")
 
     def test_encapsulation(self, openai_service):
         """Test that internal composition is properly encapsulated."""

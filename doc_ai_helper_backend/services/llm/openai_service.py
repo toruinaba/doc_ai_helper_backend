@@ -21,6 +21,12 @@ if TYPE_CHECKING:
 
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
+from doc_ai_helper_backend.services.llm.utils.mixins import (
+    CommonPropertyAccessors,
+    BackwardCompatibilityAccessors,
+    ErrorHandlingMixin,
+    ConfigurationMixin,
+)
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
@@ -39,14 +45,21 @@ from doc_ai_helper_backend.core.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class OpenAIService(LLMServiceBase):
+class OpenAIService(
+    LLMServiceBase,
+    CommonPropertyAccessors,
+    BackwardCompatibilityAccessors,
+    ErrorHandlingMixin,
+    ConfigurationMixin,
+):
     """
-    OpenAI implementation of the LLM service using composition pattern.
+    OpenAI implementation of the LLM service using composition pattern with mixins.
 
     This service uses OpenAI's API to provide LLM functionality.
     It can be configured to use OpenAI directly or a LiteLLM proxy server.
 
-    Uses composition pattern with LLMServiceCommon for shared functionality.
+    Uses composition pattern with LLMServiceCommon for shared functionality
+    and mixins for common property accessors and utilities.
     """
 
     def __init__(
@@ -369,53 +382,14 @@ class OpenAIService(LLMServiceBase):
         self, raw_response: Any, options: Dict[str, Any]
     ) -> LLMResponse:
         """
-        Convert OpenAI response to standardized LLMResponse.
+        Convert OpenAI response to standardized LLMResponse using response builder.
         """
         try:
-            # Extract content from the response
-            message = raw_response.choices[0].message
-            content = message.content or ""
-
-            # Handle function/tool calls if present
-            tool_calls = []
-            if hasattr(message, "tool_calls") and message.tool_calls:
-                for tool_call in message.tool_calls:
-                    if tool_call.type == "function":
-                        function_call = FunctionCall(
-                            name=tool_call.function.name,
-                            arguments=tool_call.function.arguments,
-                        )
-                        tool_call_obj = ToolCall(
-                            id=tool_call.id, type="function", function=function_call
-                        )
-                        tool_calls.append(tool_call_obj)
-
-            # Create usage information
-            usage = LLMUsage(
-                prompt_tokens=(
-                    raw_response.usage.prompt_tokens if raw_response.usage else 0
-                ),
-                completion_tokens=(
-                    raw_response.usage.completion_tokens if raw_response.usage else 0
-                ),
-                total_tokens=(
-                    raw_response.usage.total_tokens if raw_response.usage else 0
-                ),
-            )
-
-            # Create and return the response
-            llm_response = LLMResponse(
-                content=content,
+            # Use the response builder from common utilities
+            return self.response_builder.build_from_openai_response(
+                raw_response=raw_response,
                 model=options["model"],
-                provider="openai",
-                usage=usage,
-                raw_response=raw_response.model_dump(),
-                tool_calls=tool_calls if tool_calls else None,
             )
-
-            logger.info(f"Converted OpenAI response, content length: {len(content)}")
-            return llm_response
-
         except Exception as e:
             logger.error(f"Failed to convert OpenAI response: {str(e)}")
             raise LLMServiceException(f"Response conversion failed: {str(e)}")
@@ -460,20 +434,3 @@ class OpenAIService(LLMServiceBase):
             return tool_choice.value
         else:
             return tool_choice
-
-    # === Property accessors for backward compatibility ===
-
-    @property
-    def function_handler(self):
-        """Access to function handler for backward compatibility."""
-        return self._common.function_manager
-
-    @property
-    def cache_service(self):
-        """Access to cache service for backward compatibility."""
-        return self._common.cache_service
-
-    @property
-    def template_manager(self):
-        """Access to template manager for backward compatibility."""
-        return self._common.template_manager

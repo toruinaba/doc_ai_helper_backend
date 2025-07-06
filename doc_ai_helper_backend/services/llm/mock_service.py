@@ -37,6 +37,12 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
+from doc_ai_helper_backend.services.llm.utils.mixins import (
+    CommonPropertyAccessors,
+    BackwardCompatibilityAccessors,
+    ErrorHandlingMixin,
+    ConfigurationMixin,
+)
 
 # Import refactored components
 from doc_ai_helper_backend.services.llm.mock.constants import (
@@ -51,12 +57,19 @@ from doc_ai_helper_backend.services.llm.mock.test_utilities import MockTestUtili
 from doc_ai_helper_backend.services.llm.utils.simulation import SimulationUtils
 
 
-class MockLLMService(LLMServiceBase):
+class MockLLMService(
+    LLMServiceBase,
+    CommonPropertyAccessors,
+    BackwardCompatibilityAccessors,
+    ErrorHandlingMixin,
+    ConfigurationMixin,
+):
     """
-    Mock implementation of the LLM service using composition pattern.
+    Mock implementation of the LLM service using composition pattern with mixins.
 
     This service returns predefined responses for testing and development.
-    Uses composition pattern with LLMServiceCommon for shared functionality.
+    Uses composition pattern with LLMServiceCommon for shared functionality
+    and mixins for common property accessors and utilities.
 
     Refactored to use separate modules for better maintainability:
     - Response generation is handled by MockResponseGenerator
@@ -305,44 +318,23 @@ class MockLLMService(LLMServiceBase):
         response = await self._call_provider_api(options)
         content = response["content"]
 
-        # Split into chunks
-        chunk_size = DEFAULT_CHUNK_SIZE
-        for i in range(0, len(content), chunk_size):
-            chunk = content[i : i + chunk_size]
-            delay = min(0.1, self.response_delay / (len(content) / chunk_size))
-            await asyncio.sleep(delay)
+        # Use streaming utils to chunk content
+        async for chunk in self.streaming_utils.chunk_content(
+            content=content,
+            chunk_size=DEFAULT_CHUNK_SIZE,
+            total_delay=self.response_delay,
+        ):
             yield chunk
 
     async def _convert_provider_response(
         self, raw_response: Dict[str, Any], options: Dict[str, Any]
     ) -> LLMResponse:
-        """Convert mock provider response to LLMResponse."""
-        usage_data = raw_response.get("usage", {})
-
-        response = LLMResponse(
-            content=raw_response.get("content", ""),
-            model=raw_response.get("model", self.default_model),
-            provider="mock",
-            usage=LLMUsage(
-                prompt_tokens=usage_data.get("prompt_tokens", 0),
-                completion_tokens=usage_data.get("completion_tokens", 0),
-                total_tokens=usage_data.get("total_tokens", 0),
-            ),
+        """Convert mock provider response to LLMResponse using response builder."""
+        # Use the response builder from common utilities
+        return self.response_builder.build_from_mock_response(
             raw_response=raw_response,
+            default_model=self.default_model,
         )
-
-        # Add conversation history optimization info for test compatibility
-        response.history_optimization_info = {
-            "was_optimized": False,
-            "reason": "Mock service does not optimize conversation history",
-            "original_length": 0,
-            "optimized_length": 0,
-        }
-
-        # Set optimized_conversation_history for test compatibility
-        response.optimized_conversation_history = []
-
-        return response
 
     def _generate_simple_response(
         self, prompt: str, system_prompt: Optional[str] = None
@@ -411,34 +403,12 @@ class MockLLMService(LLMServiceBase):
         """Simulate network and processing delay (for backward compatibility)."""
         await SimulationUtils.simulate_delay(self.response_delay)
 
-    # === Property accessors for compatibility ===
-
-    @property
-    def function_manager(self):
-        """Get the function manager from common implementation."""
-        return self._common.function_manager
-
-    @property
-    def cache_service(self):
-        """Get the cache service from common implementation."""
-        return self._common.cache_service
-
-    @property
-    def template_manager(self):
-        """Get the template manager from common implementation."""
-        return self._common.template_manager
-
-    @property
-    def system_prompt_builder(self):
-        """Get the system prompt builder from common implementation."""
-        return self._common.system_prompt_builder
+    # === MCP adapter methods (delegated to common) ===
 
     @property
     def mcp_adapter(self):
         """Get the MCP adapter from common implementation."""
         return self._common.get_mcp_adapter()
-
-    # === MCP adapter methods (delegated to common) ===
 
     def set_mcp_adapter(self, adapter):
         """Set the MCP adapter through common implementation."""
