@@ -223,15 +223,15 @@ class TestOpenAIService:
             assert result == expected_response
 
     def test_no_multiple_inheritance(self, openai_service):
-        """Test that the service uses composition with mixins pattern."""
-        # Check MRO (Method Resolution Order) - includes base class, mixins, and built-ins
+        """Test that the service uses pure composition pattern (no mixin inheritance)."""
+        # Check MRO (Method Resolution Order) - should only include base classes
         mro = type(openai_service).__mro__
-        # Expected: OpenAIService, LLMServiceBase, ABC, 5 mixins, object
-        assert len(mro) == 9
+        # Expected: OpenAIService, LLMServiceBase, ABC, object (4 classes total)
+        assert len(mro) == 4
         assert mro[0] == OpenAIService
         assert mro[1] == LLMServiceBase
         assert mro[2].__name__ == "ABC"  # abc.ABC
-        # The remaining classes are mixins and object
+        assert mro[3].__name__ == "object"  # object
 
     def test_encapsulation(self, openai_service):
         """Test that composition with mixins provides controlled access."""

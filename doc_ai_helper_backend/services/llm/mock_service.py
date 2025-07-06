@@ -37,13 +37,6 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
-from doc_ai_helper_backend.services.llm.utils.mixins import (
-    CommonPropertyAccessors,
-    BackwardCompatibilityAccessors,
-    ErrorHandlingMixin,
-    ConfigurationMixin,
-    ServiceDelegationMixin,
-)
 
 # Import refactored components
 from doc_ai_helper_backend.services.llm.mock.constants import (
@@ -58,20 +51,12 @@ from doc_ai_helper_backend.services.llm.mock.test_utilities import MockTestUtili
 from doc_ai_helper_backend.services.llm.utils.simulation import SimulationUtils
 
 
-class MockLLMService(
-    LLMServiceBase,
-    CommonPropertyAccessors,
-    BackwardCompatibilityAccessors,
-    ErrorHandlingMixin,
-    ConfigurationMixin,
-    ServiceDelegationMixin,
-):
+class MockLLMService(LLMServiceBase):
     """
-    Mock implementation of the LLM service using composition pattern with mixins.
+    Mock implementation of the LLM service using pure composition pattern.
 
     This service returns predefined responses for testing and development.
-    Uses composition pattern with LLMServiceCommon for shared functionality
-    and mixins for common property accessors and utilities.
+    All shared functionality is delegated to LLMServiceCommon components.
 
     Refactored to use separate modules for better maintainability:
     - Response generation is handled by MockResponseGenerator
@@ -97,6 +82,73 @@ class MockLLMService(
         self.set_service_property("response_delay", response_delay)
         self.set_service_property("default_model", default_model)
         self.set_service_property("default_options", kwargs)
+
+    def set_service_property(self, property_name: str, value):
+        """Set a service-specific property."""
+        setattr(self, f"_{property_name}", value)
+
+    def get_service_property(self, property_name: str, default=None):
+        """Get a service-specific property."""
+        return getattr(self, f"_{property_name}", default)
+
+    # === Property delegation for backward compatibility ===
+
+    @property
+    def model(self) -> str:
+        """Access to default model."""
+        return self.get_service_property("default_model")
+
+    @property
+    def response_delay(self) -> float:
+        """Access to response delay."""
+        return self.get_service_property("response_delay")
+
+    @property
+    def default_options(self) -> Dict[str, Any]:
+        """Access to default options."""
+        return self.get_service_property("default_options", {})
+
+    # === Component delegation for shared functionality ===
+
+    @property
+    def cache_service(self):
+        """Access to cache service."""
+        return self._common.cache_service
+
+    @property
+    def template_manager(self):
+        """Access to template manager."""
+        return self._common.template_manager
+
+    @property
+    def system_prompt_builder(self):
+        """Access to system prompt builder."""
+        return self._common.system_prompt_builder
+
+    @property
+    def function_manager(self):
+        """Access to function manager."""
+        return self._common.function_manager
+
+    @property
+    def function_handler(self):
+        """Access to function manager (backward compatibility alias)."""
+        return self._common.function_manager
+
+    @property
+    def response_builder(self):
+        """Access to response builder."""
+        return self._common.response_builder
+
+    @property
+    def streaming_utils(self):
+        """Access to streaming utils."""
+        return self._common.streaming_utils
+
+    @property
+    def query_manager(self):
+        """Access to query manager."""
+        return self._common.query_manager
 
     # === Interface methods (delegated to common implementation) ===
 

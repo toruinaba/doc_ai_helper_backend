@@ -21,13 +21,6 @@ if TYPE_CHECKING:
 
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.common import LLMServiceCommon
-from doc_ai_helper_backend.services.llm.utils.mixins import (
-    CommonPropertyAccessors,
-    BackwardCompatibilityAccessors,
-    ErrorHandlingMixin,
-    ConfigurationMixin,
-    ServiceDelegationMixin,
-)
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     LLMUsage,
@@ -46,22 +39,13 @@ from doc_ai_helper_backend.core.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class OpenAIService(
-    LLMServiceBase,
-    CommonPropertyAccessors,
-    BackwardCompatibilityAccessors,
-    ErrorHandlingMixin,
-    ConfigurationMixin,
-    ServiceDelegationMixin,
-):
+class OpenAIService(LLMServiceBase):
     """
-    OpenAI implementation of the LLM service using composition pattern with mixins.
+    OpenAI implementation of the LLM service using pure composition pattern.
 
     This service uses OpenAI's API to provide LLM functionality.
+    All shared functionality is delegated to LLMServiceCommon components.
     It can be configured to use OpenAI directly or a LiteLLM proxy server.
-
-    Uses composition pattern with LLMServiceCommon for shared functionality
-    and mixins for common property accessors and utilities.
     """
 
     def __init__(
@@ -89,25 +73,103 @@ class OpenAIService(
         self.set_service_property("base_url", base_url)
         self.set_service_property("default_options", kwargs)
 
+        self._initialize_clients_and_encoder()
+
+        logger.info(
+            f"Initialized OpenAIService with default model {default_model}"
+            f"{' and custom base URL' if base_url else ''}"
+        )
+
+    def set_service_property(self, property_name: str, value):
+        """Set a service-specific property."""
+        setattr(self, f"_{property_name}", value)
+
+    def get_service_property(self, property_name: str, default=None):
+        """Get a service-specific property."""
+        return getattr(self, f"_{property_name}", default)
+
+    # === Property delegation for backward compatibility ===
+
+    @property
+    def api_key(self) -> str:
+        """Access to API key."""
+        return self.get_service_property("api_key")
+
+    @property
+    def model(self) -> str:
+        """Access to default model."""
+        return self.get_service_property("default_model")
+
+    @property
+    def base_url(self) -> Optional[str]:
+        """Access to base URL."""
+        return self.get_service_property("base_url")
+
+    @property
+    def default_options(self) -> Dict[str, Any]:
+        """Access to default options."""
+        return self.get_service_property("default_options", {})
+
+    # === Component delegation for shared functionality ===
+
+    @property
+    def cache_service(self):
+        """Access to cache service."""
+        return self._common.cache_service
+
+    @property
+    def template_manager(self):
+        """Access to template manager."""
+        return self._common.template_manager
+
+    @property
+    def system_prompt_builder(self):
+        """Access to system prompt builder."""
+        return self._common.system_prompt_builder
+
+    @property
+    def function_manager(self):
+        """Access to function manager."""
+        return self._common.function_manager
+
+    @property
+    def function_handler(self):
+        """Access to function manager (backward compatibility alias)."""
+        return self._common.function_manager
+
+    @property
+    def response_builder(self):
+        """Access to response builder."""
+        return self._common.response_builder
+
+    @property
+    def streaming_utils(self):
+        """Access to streaming utils."""
+        return self._common.streaming_utils
+
+    @property
+    def query_manager(self):
+        """Access to query manager."""
+        return self._common.query_manager
+
+    def _initialize_clients_and_encoder(self):
+        """Initialize OpenAI clients and token encoder."""
         # Initialize OpenAI clients
-        client_params = {"api_key": api_key}
-        if base_url:
-            client_params["base_url"] = base_url
+        client_params = {"api_key": self.get_service_property("api_key")}
+        if self.get_service_property("base_url"):
+            client_params["base_url"] = self.get_service_property("base_url")
 
         self.sync_client = OpenAI(**client_params)
         self.async_client = AsyncOpenAI(**client_params)
 
         # Load token encoder for the default model
         try:
-            self._token_encoder = tiktoken.encoding_for_model(default_model)
+            self._token_encoder = tiktoken.encoding_for_model(
+                self.get_service_property("default_model")
+            )
         except KeyError:
             # Fall back to a common encoding if model-specific one is not available
             self._token_encoder = tiktoken.get_encoding("cl100k_base")
-
-        logger.info(
-            f"Initialized OpenAIService with default model {default_model}"
-            f"{' and custom base URL' if base_url else ''}"
-        )
 
     # === Interface methods (delegated to common implementation) ===
 

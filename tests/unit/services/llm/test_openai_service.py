@@ -232,20 +232,25 @@ class TestOpenAIService:
             assert result == expected_response
 
     def test_mixin_composition_pattern(self, openai_service):
-        """Test that the service uses composition pattern with mixins appropriately."""
-        # Check MRO (Method Resolution Order) - should include mixins
+        """Test that the service uses pure composition pattern (no mixins)."""
+        # Check MRO (Method Resolution Order) - should not include mixin classes
         mro = type(openai_service).__mro__
 
-        # Should include OpenAIService, LLMServiceBase, and mixin classes
+        # Should include OpenAIService and LLMServiceBase only, no mixins
         assert mro[0] == OpenAIService
         assert any("LLMServiceBase" in cls.__name__ for cls in mro)
-        assert any("PropertyAccessors" in cls.__name__ for cls in mro)
+        # PropertyAccessors mixin should NOT be in the inheritance chain anymore
+        assert not any("PropertyAccessors" in cls.__name__ for cls in mro)
 
-        # Verify mixins provide expected functionality
+        # Verify composition pattern provides expected functionality through delegation
         assert hasattr(openai_service, "cache_service")
         assert hasattr(openai_service, "template_manager")
         assert hasattr(openai_service, "response_builder")
         assert hasattr(openai_service, "streaming_utils")
+
+        # Verify components are delegated from _common
+        assert hasattr(openai_service, "_common")
+        assert openai_service.cache_service is openai_service._common.cache_service
 
     def test_encapsulation(self, openai_service):
         """Test that internal composition is properly encapsulated."""
