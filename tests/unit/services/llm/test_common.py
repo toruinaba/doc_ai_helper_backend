@@ -214,7 +214,7 @@ class TestLLMServiceCommon:
         assert isinstance(common_service.cache_service, LLMCacheService)
 
         # Verify system prompt builder
-        from doc_ai_helper_backend.services.llm.utils.helpers import (
+        from doc_ai_helper_backend.services.llm.utils.messaging import (
             JapaneseSystemPromptBuilder,
         )
 

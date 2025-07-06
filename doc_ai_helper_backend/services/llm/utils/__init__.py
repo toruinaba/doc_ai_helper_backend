@@ -9,6 +9,9 @@ organized by functionality for better maintainability.
 from .messaging import (
     summarize_conversation_history,
     format_conversation_for_provider,
+    SystemPromptCache,
+    SystemPromptBuilder,
+    JapaneseSystemPromptBuilder,
 )
 
 # Template utilities
@@ -49,7 +52,7 @@ from .mixins import (
     BackwardCompatibilityAccessors,
     ErrorHandlingMixin,
     ConfigurationMixin,
-    ServicePropertyMixin,
+    ServiceDelegationMixin,
 )
 
 # Query orchestration utilities
@@ -66,9 +69,6 @@ from .helpers import (
     sanitize_filename,
     deep_merge_dicts,
     DEFAULT_MAX_TOKENS,
-    SystemPromptCache,
-    SystemPromptBuilder,
-    JapaneseSystemPromptBuilder,
 )
 
 __all__ = [
@@ -112,7 +112,7 @@ __all__ = [
     "BackwardCompatibilityAccessors",
     "ErrorHandlingMixin",
     "ConfigurationMixin",
-    "ServicePropertyMixin",
+    "ServiceDelegationMixin",
     # Query orchestration
     "QueryOrchestrator",
     # Simulation

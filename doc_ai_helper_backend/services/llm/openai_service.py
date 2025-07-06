@@ -26,6 +26,7 @@ from doc_ai_helper_backend.services.llm.utils.mixins import (
     BackwardCompatibilityAccessors,
     ErrorHandlingMixin,
     ConfigurationMixin,
+    ServiceDelegationMixin,
 )
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
@@ -51,6 +52,7 @@ class OpenAIService(
     BackwardCompatibilityAccessors,
     ErrorHandlingMixin,
     ConfigurationMixin,
+    ServiceDelegationMixin,
 ):
     """
     OpenAI implementation of the LLM service using composition pattern with mixins.
@@ -81,10 +83,11 @@ class OpenAIService(
         # Initialize common functionality through composition
         self._common = LLMServiceCommon()
 
-        self.api_key = api_key
-        self.default_model = default_model
-        self.base_url = base_url
-        self.additional_options = kwargs
+        # Store service-specific properties using delegation
+        self.set_service_property("api_key", api_key)
+        self.set_service_property("default_model", default_model)
+        self.set_service_property("base_url", base_url)
+        self.set_service_property("default_options", kwargs)
 
         # Initialize OpenAI clients
         client_params = {"api_key": api_key}
@@ -322,7 +325,7 @@ class OpenAIService(
 
         # Prepare OpenAI-specific options
         provider_options = {
-            "model": options.get("model", self.default_model),
+            "model": options.get("model", self.model),
             "messages": openai_messages,
             "temperature": options.get("temperature", 0.7),
             "max_tokens": options.get("max_tokens", 1000),

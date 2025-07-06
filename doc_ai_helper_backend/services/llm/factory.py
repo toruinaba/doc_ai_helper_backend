@@ -104,3 +104,27 @@ class LLMServiceFactory:
             list[str]: List of registered provider names
         """
         return list(cls._services.keys())
+
+
+# Register default LLM services
+def _register_default_services():
+    """Register default LLM service implementations."""
+    try:
+        from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
+
+        LLMServiceFactory.register("openai", OpenAIService)
+    except ImportError:
+        # OpenAI not available
+        pass
+
+    try:
+        from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+
+        LLMServiceFactory.register("mock", MockLLMService)
+    except ImportError:
+        # Mock service not available
+        pass
+
+
+# Register services when module is imported
+_register_default_services()

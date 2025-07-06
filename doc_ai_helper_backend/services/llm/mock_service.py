@@ -42,6 +42,7 @@ from doc_ai_helper_backend.services.llm.utils.mixins import (
     BackwardCompatibilityAccessors,
     ErrorHandlingMixin,
     ConfigurationMixin,
+    ServiceDelegationMixin,
 )
 
 # Import refactored components
@@ -63,6 +64,7 @@ class MockLLMService(
     BackwardCompatibilityAccessors,
     ErrorHandlingMixin,
     ConfigurationMixin,
+    ServiceDelegationMixin,
 ):
     """
     Mock implementation of the LLM service using composition pattern with mixins.
@@ -91,9 +93,10 @@ class MockLLMService(
         # Initialize common functionality through composition
         self._common = LLMServiceCommon()
 
-        self.response_delay = response_delay
-        self.default_model = default_model
-        self.additional_options = kwargs
+        # Store service-specific properties using delegation
+        self.set_service_property("response_delay", response_delay)
+        self.set_service_property("default_model", default_model)
+        self.set_service_property("default_options", kwargs)
 
     # === Interface methods (delegated to common implementation) ===
 
@@ -267,7 +270,7 @@ class MockLLMService(
     ) -> Dict[str, Any]:
         """Prepare mock provider options."""
         prepared_options = options.copy() if options else {}
-        prepared_options["model"] = prepared_options.get("model", self.default_model)
+        prepared_options["model"] = prepared_options.get("model", self.model)
         prepared_options["prompt"] = prompt
         prepared_options["system_prompt"] = system_prompt
         prepared_options["tools"] = tools
@@ -286,7 +289,9 @@ class MockLLMService(
     async def _call_provider_api(self, options: Dict[str, Any]) -> Dict[str, Any]:
         """Mock provider API call."""
         # Simulate delay
-        await SimulationUtils.simulate_delay(self.response_delay)
+        await SimulationUtils.simulate_delay(
+            self.get_service_property("response_delay", 1.0)
+        )
 
         prompt = options.get("prompt", "")
 
@@ -302,7 +307,7 @@ class MockLLMService(
             prompt=prompt,
             system_prompt=system_prompt,
             has_system_in_history=has_system_in_history,
-            default_model=options.get("model", self.default_model),
+            default_model=options.get("model", self.model),
         )
 
     async def _stream_provider_api(
@@ -322,7 +327,7 @@ class MockLLMService(
         async for chunk in self.streaming_utils.chunk_content(
             content=content,
             chunk_size=DEFAULT_CHUNK_SIZE,
-            total_delay=self.response_delay,
+            total_delay=self.get_service_property("response_delay", 1.0),
         ):
             yield chunk
 
@@ -333,7 +338,7 @@ class MockLLMService(
         # Use the response builder from common utilities
         return self.response_builder.build_from_mock_response(
             raw_response=raw_response,
-            default_model=self.default_model,
+            default_model=self.model,
         )
 
     def _generate_simple_response(
@@ -401,7 +406,9 @@ class MockLLMService(
 
     async def _simulate_delay(self) -> None:
         """Simulate network and processing delay (for backward compatibility)."""
-        await SimulationUtils.simulate_delay(self.response_delay)
+        await SimulationUtils.simulate_delay(
+            self.get_service_property("response_delay", 1.0)
+        )
 
     # === MCP adapter methods (delegated to common) ===
 

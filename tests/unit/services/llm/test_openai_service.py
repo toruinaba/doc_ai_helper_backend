@@ -71,7 +71,7 @@ class TestOpenAIService:
         )
 
         assert service.api_key == "test_key"
-        assert service.default_model == "gpt-4"
+        assert service.model == "gpt-4"  # Using delegation property
         assert service.base_url == "https://custom.url"
         assert isinstance(service._common, LLMServiceCommon)
         assert service.sync_client is not None
@@ -374,7 +374,7 @@ class TestOpenAIServiceExtended:
                 "Hello", None, None, None, None
             )
 
-        assert options["model"] == service.default_model
+        assert options["model"] == service.model
         assert options["messages"] == [{"role": "user", "content": "Hello"}]
         assert options["temperature"] == 0.7
         assert options["max_tokens"] == 1000
@@ -734,5 +734,5 @@ class TestOpenAIServiceExtended:
             default_model="custom-model",
         )
 
-        assert custom_service.default_model == "custom-model"
+        assert custom_service.model == "custom-model"
         # Note: We can't easily test the base_url without accessing private client attributes

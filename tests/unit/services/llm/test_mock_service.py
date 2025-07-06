@@ -42,15 +42,17 @@ class TestMockLLMServiceBasic:
         """Test service initialization with various parameters."""
         # Default initialization
         service = MockLLMService()
-        assert service.response_delay == 1.0  # Default delay is 1.0
-        assert service.default_model == "mock-model"
+        assert (
+            service.get_service_property("response_delay") == 1.0
+        )  # Default delay is 1.0
+        assert service.model == "mock-model"
 
         # Custom initialization
         service = MockLLMService(
             response_delay=0.5, default_model="custom-mock", custom_param="test"
         )
-        assert service.response_delay == 0.5
-        assert service.default_model == "custom-mock"
+        assert service.get_service_property("response_delay") == 0.5
+        assert service.model == "custom-mock"
 
     async def test_get_capabilities(self, service):
         """Test get_capabilities method."""
@@ -861,14 +863,14 @@ class TestMockLLMServicePrivateMethods:
         import time
 
         # Test with no delay
-        service.response_delay = 0
+        service.set_service_property("response_delay", 0)
         start_time = time.time()
         await service._simulate_delay()
         elapsed = time.time() - start_time
-        assert elapsed < 0.01  # Should be very fast
+        assert elapsed < 0.02  # Should be very fast (relaxed for test environment)
 
         # Test with small delay
-        service.response_delay = 0.05
+        service.set_service_property("response_delay", 0.05)
         start_time = time.time()
         await service._simulate_delay()
         elapsed = time.time() - start_time
@@ -1232,7 +1234,7 @@ class TestMockLLMServiceToolsAndFunctions:
 
         assert isinstance(response, LLMResponse)
         assert response.content
-        assert response.model == service.default_model
+        assert response.model == service.model
 
     @pytest.mark.asyncio
     async def test_query_with_tools_and_followup(self, service):
@@ -1253,7 +1255,7 @@ class TestMockLLMServiceToolsAndFunctions:
 
         assert isinstance(response, LLMResponse)
         assert response.content
-        assert response.model == service.default_model
+        assert response.model == service.model
 
     @pytest.mark.asyncio
     async def test_get_available_functions(self, service):

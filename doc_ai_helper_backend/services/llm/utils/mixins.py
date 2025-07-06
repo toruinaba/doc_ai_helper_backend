@@ -197,56 +197,87 @@ class ConfigurationMixin:
         return common_params
 
 
-class ServicePropertyMixin:
+class ServiceDelegationMixin:
     """
-    Mixin providing service-specific property management.
+    Mixin providing pure delegation pattern for service-specific properties.
 
-    This mixin helps LLM services manage their own properties while
-    maintaining compatibility with common property accessors.
+    This mixin provides a clean delegation interface for service properties,
+    maintaining consistency with the overall delegation pattern.
     """
 
-    def __init__(self):
-        # Initialize common attributes that will be set by the implementing class
-        self._model = None
-        self._temperature = None
-        self._max_tokens = None
-        self._default_options = {}
+    def get_service_property(self, property_name: str, default=None):
+        """
+        Get a service-specific property through delegation.
 
+        Args:
+            property_name: Name of the property to retrieve
+            default: Default value if property not found
+
+        Returns:
+            Property value or default
+        """
+        return getattr(self, f"_{property_name}", default)
+
+    def set_service_property(self, property_name: str, value):
+        """
+        Set a service-specific property through delegation.
+
+        Args:
+            property_name: Name of the property to set
+            value: Value to set
+        """
+        setattr(self, f"_{property_name}", value)
+
+    def has_service_property(self, property_name: str) -> bool:
+        """
+        Check if a service-specific property exists.
+
+        Args:
+            property_name: Name of the property to check
+
+        Returns:
+            bool: True if property exists
+        """
+        return hasattr(self, f"_{property_name}")
+
+    # Standardized property accessors using delegation
     @property
     def model(self) -> Optional[str]:
-        """Get the default model."""
-        return getattr(self, "_model", None) or getattr(self, "default_model", None)
+        """Get the default model through delegation."""
+        return self.get_service_property("model") or self.get_service_property(
+            "default_model"
+        )
 
     @property
     def temperature(self) -> Optional[float]:
-        """Get the default temperature."""
-        return getattr(self, "_temperature", None) or getattr(
-            self, "default_temperature", None
+        """Get the default temperature through delegation."""
+        return self.get_service_property("temperature") or self.get_service_property(
+            "default_temperature"
         )
 
     @property
     def max_tokens(self) -> Optional[int]:
-        """Get the default max tokens."""
-        return getattr(self, "_max_tokens", None) or getattr(
-            self, "default_max_tokens", None
+        """Get the default max tokens through delegation."""
+        return self.get_service_property("max_tokens") or self.get_service_property(
+            "default_max_tokens"
         )
 
     @property
     def default_options(self) -> Dict[str, Any]:
-        """Get the default options."""
-        return getattr(self, "_default_options", {})
+        """Get the default options through delegation."""
+        return self.get_service_property("default_options", {})
 
     @property
     def api_key(self) -> Optional[str]:
-        """Get the API key (backward compatibility)."""
-        return getattr(self, "_api_key", None)
+        """Get the API key through delegation."""
+        return self.get_service_property("api_key")
 
     @property
     def base_url(self) -> Optional[str]:
-        """Get the base URL (backward compatibility)."""
-        return getattr(self, "_base_url", None)
+        """Get the base URL through delegation."""
+        return self.get_service_property("base_url")
 
     @property
     def organization(self) -> Optional[str]:
-        """Get the organization (backward compatibility)."""
-        return getattr(self, "_organization", None)
+        """Get the organization through delegation."""
+        return self.get_service_property("organization")
