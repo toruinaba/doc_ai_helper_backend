@@ -4,7 +4,7 @@ Mock LLM service for development and testing using pure delegation pattern.
 This module provides a mock implementation of the LLM service interface
 using pure delegation to individual components for maximum modularity.
 
-The service has been refactored to use separate modules for better maintainability:
+The service has been refactored to use separate components for better maintainability:
 - mock.constants: Response patterns and keyword lists
 - mock.response_generator: Response generation logic
 - mock.test_utilities: Test utility methods
@@ -271,12 +271,12 @@ class MockLLMService(LLMServiceBase):
         )
 
     async def execute_function_call(
-        self, function_call: FunctionCall, available_functions: Dict[str, Any]
+        self,
+        function_call: FunctionCall,
+        available_functions: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Execute function call using function manager."""
-        return await self.function_manager.execute_function_call(
-            function_call, available_functions
-        )
+        return await self.function_manager.execute_function_call(function_call)
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
         """Get available functions using function manager."""
