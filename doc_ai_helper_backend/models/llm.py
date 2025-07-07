@@ -170,11 +170,11 @@ class ToolChoice(BaseModel):
     Tool choice strategy for function calling.
     """
 
-    type: Literal["auto", "none", "required"] = Field(
+    type: Literal["auto", "none", "required", "function"] = Field(
         ..., description="Tool choice strategy"
     )
-    function: Optional[str] = Field(
-        default=None, description="Specific function name for forced calls"
+    function: Optional[Dict[str, str]] = Field(
+        default=None, description="Function specification for 'function' type"
     )
 
 

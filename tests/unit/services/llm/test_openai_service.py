@@ -424,7 +424,7 @@ class TestOpenAIServiceExtended:
             )
         ]
 
-        tool_choice = ToolChoice(type="required", function="get_weather")
+        tool_choice = ToolChoice(type="required", function={"name": "get_weather"})
 
         with patch.object(
             service.query_manager, "build_conversation_messages", return_value=messages
@@ -699,7 +699,7 @@ class TestOpenAIServiceExtended:
     def test_convert_tool_choice_to_openai_format(self, service):
         """Test tool choice conversion."""
         # Test specific function choice - current implementation returns as-is
-        tool_choice = ToolChoice(type="required", function="get_weather")
+        tool_choice = ToolChoice(type="required", function={"name": "get_weather"})
         converted = service._convert_tool_choice_to_openai_format(tool_choice)
 
         # Current implementation returns the object as-is
