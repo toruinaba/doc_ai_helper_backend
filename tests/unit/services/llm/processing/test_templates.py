@@ -8,7 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from doc_ai_helper_backend.services.llm.components.templates import (
+from doc_ai_helper_backend.services.llm.processing.templates import (
     PromptTemplateManager,
 )
 from doc_ai_helper_backend.models.llm import PromptTemplate, TemplateVariable

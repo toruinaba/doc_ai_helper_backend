@@ -7,7 +7,7 @@ import time
 from unittest.mock import MagicMock
 
 from doc_ai_helper_backend.models.llm import LLMResponse, LLMUsage
-from doc_ai_helper_backend.services.llm.components.cache import LLMCacheService
+from doc_ai_helper_backend.services.llm.processing.cache import LLMCacheService
 
 
 class TestLLMCacheService:

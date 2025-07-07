@@ -63,15 +63,23 @@ class OpenAIService(LLMServiceBase):
             **kwargs: Additional configuration options
         """
         # Initialize components directly using pure composition
-        from doc_ai_helper_backend.services.llm.components import (
+        from doc_ai_helper_backend.services.llm.processing.templates import (
             PromptTemplateManager,
-            LLMCacheService,
-            SystemPromptBuilder,
-            FunctionCallManager,
-            ResponseBuilder,
-            StreamingUtils,
-            QueryManager,
         )
+        from doc_ai_helper_backend.services.llm.processing.cache import LLMCacheService
+        from doc_ai_helper_backend.services.llm.messaging.messaging import (
+            SystemPromptBuilder,
+        )
+        from doc_ai_helper_backend.services.llm.functions.functions import (
+            FunctionCallManager,
+        )
+        from doc_ai_helper_backend.services.llm.processing.response_builder import (
+            ResponseBuilder,
+        )
+        from doc_ai_helper_backend.services.llm.processing.streaming_utils import (
+            StreamingUtils,
+        )
+        from doc_ai_helper_backend.services.llm.query_manager import QueryManager
 
         # Direct component composition - no intermediate layer
         self.template_manager = PromptTemplateManager()

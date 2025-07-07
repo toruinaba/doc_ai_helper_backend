@@ -9,7 +9,7 @@ from typing import List
 from unittest.mock import patch
 
 from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
-from doc_ai_helper_backend.services.llm.components.tokens import (
+from doc_ai_helper_backend.services.llm.processing.tokens import (
     estimate_message_tokens,
     estimate_conversation_tokens,
     optimize_conversation_history,

@@ -7,7 +7,7 @@ workflow of LLM queries including caching, system prompt generation, and respons
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from doc_ai_helper_backend.services.llm.components.query_manager import (
+from doc_ai_helper_backend.services.llm.query_manager import (
     QueryManager,
 )
 from doc_ai_helper_backend.models.llm import (

@@ -2,30 +2,29 @@
 
 このモジュールは、LLMサービスの各機能を独立したコンポーネントとして提供します。
 Pure delegation patternを使用してmixin継承を排除し、明確な責任分離を実現します。
-
-DEPRECATED: このモジュールは後方互換性のために保持されています。
-新しいコードでは、各サブパッケージから直接インポートしてください：
-- from ..processing import cache, templates, response_builder, streaming_utils, tokens
-- from ..messaging import messaging
-- from ..functions import functions
-- from ..query_manager import QueryManager
 """
 
-# 後方互換性のためのインポート（新しい構造から）
-from ..processing.cache import LLMCacheService
-from ..processing.templates import PromptTemplateManager
-from ..messaging.messaging import MessageBuilder, SystemPromptBuilder, SystemPromptCache
-from ..functions.functions import (
+"""LLMサービスの機能コンポーネント
+
+このモジュールは、LLMサービスの各機能を独立したコンポーネントとして提供します。
+Pure delegation patternを使用してmixin継承を排除し、明確な責任分離を実現します。
+"""
+
+# コンポーネントのインポート
+from .cache import LLMCacheService
+from .templates import PromptTemplateManager
+from .messaging import MessageBuilder, SystemPromptBuilder, SystemPromptCache
+from .functions import (
     FunctionService,
     FunctionRegistry,
     FunctionCallManager,
     validate_function_call_arguments,
     execute_function_safely,
 )
-from ..processing.response_builder import ResponseBuilder, LLMResponseBuilder
-from ..processing.tokens import TokenCounter
-from ..processing.streaming_utils import StreamingUtils
-from ..query_manager import QueryManager
+from .response_builder import ResponseBuilder, LLMResponseBuilder
+from .tokens import TokenCounter
+from .streaming_utils import StreamingUtils
+from .query_manager import QueryManager
 
 # エクスポートリスト
 __all__ = [
