@@ -234,10 +234,3 @@ class TestLLMAPIIntegration:
         assert response_data["optimized_conversation_history"] is not None
         assert isinstance(response_data["optimized_conversation_history"], list)
         assert len(response_data["optimized_conversation_history"]) == 0
-
-    @pytest.mark.skip(reason="Streaming test requires complex async setup")
-    def test_api_stream_conversation_history(self):
-        """APIを通じたストリーミングでの会話履歴の処理を確認"""
-        # Note: ストリーミングAPIは現在optimized_conversation_historyを返さない
-        # 将来の拡張として実装可能
-        pass

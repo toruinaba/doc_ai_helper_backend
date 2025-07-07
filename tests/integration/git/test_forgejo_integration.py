@@ -43,7 +43,9 @@ class TestForgejoIntegration:
         service = GitServiceFactory.create("forgejo", **forgejo_config)
 
         assert isinstance(service, ForgejoService)
-        assert service.base_url == forgejo_config["base_url"]
+        # URL正規化を考慮（末尾スラッシュ除去）
+        expected_base_url = forgejo_config["base_url"].rstrip("/")
+        assert service.base_url == expected_base_url
         assert service._get_service_name() == "forgejo"
 
     @pytest.mark.asyncio
@@ -219,6 +221,20 @@ class TestForgejoIntegration:
 @pytest.mark.slow
 class TestForgejoPerformance:
     """Forgejoパフォーマンステスト"""
+
+    @pytest.fixture(scope="class")
+    def forgejo_service(self, forgejo_config: Dict[str, str]) -> ForgejoService:
+        """Forgejoサービスのフィクスチャ"""
+        return GitServiceFactory.create("forgejo", **forgejo_config)
+
+    @pytest.fixture(scope="class")
+    def test_repository(self) -> Dict[str, str]:
+        """テスト用リポジトリ情報"""
+        return {
+            "owner": os.getenv("FORGEJO_TEST_OWNER", "testowner"),
+            "repo": os.getenv("FORGEJO_TEST_REPO", "testrepo"),
+            "ref": "main",
+        }
 
     @pytest.mark.asyncio
     async def test_multiple_requests_performance(

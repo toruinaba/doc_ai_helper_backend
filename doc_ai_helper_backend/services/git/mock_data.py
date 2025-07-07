@@ -888,10 +888,29 @@ HTML_DOCUMENTS = {
     },
 }
 
+# Additional test documents for API integration tests
+TEST_DOCUMENTS = {
+    # Test document that API integration tests expect
+    "test-owner/test-repo/docs/sample.md@main": {
+        "content": MARKDOWN_WITH_LINKS,
+        "metadata": {
+            "size": len(MARKDOWN_WITH_LINKS.encode("utf-8")),
+            "last_modified": datetime(2023, 3, 20, 16, 0, 0),
+            "content_type": "text/markdown",
+            "sha": "testsample123abc",
+            "download_url": "https://example.com/test-owner/test-repo/raw/main/docs/sample.md",
+            "html_url": "https://example.com/test-owner/test-repo/blob/main/docs/sample.md",
+            "raw_url": "https://example.com/test-owner/test-repo/raw/main/docs/sample.md",
+            "encoding": "utf-8",
+        },
+    },
+}
+
 EXTENDED_DOCUMENTS = {
     **DEFAULT_DOCUMENTS,
     **DOCUMENTATION_DOCS,
     **HTML_DOCUMENTS,
+    **TEST_DOCUMENTS,
 }
 
 EXTENDED_STRUCTURES = {
