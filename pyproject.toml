@@ -1,16 +1,20 @@
 [tool.pytest.ini_options]
 markers = [
     "integration: Integration tests",
+    "git: Git service integration tests",
+    "llm: LLM service integration tests",
     "mcp: MCP (Model Context Protocol) related tests",
-    "e2e: End-to-end tests", 
     "function_calling: Function calling related tests",
+    "streaming: Streaming functionality tests",
     "tools: Tool execution tests",
     "performance: Performance tests",
     "slow: Slow running tests",
+    "github: Tests requiring GitHub API access",
+    "forgejo: Tests requiring Forgejo API access", 
+    "openai: Tests requiring OpenAI API access",
     "unit: Unit tests",
-    "api: API tests",
-    "llm: LLM service tests",
-    "git: Git service tests"
+    "e2e: End-to-end tests",
+    "api: API tests"
 ]
 
 testpaths = ["tests"]

@@ -7,7 +7,6 @@ Document/Feedback/GitHub/Utility各ツールの実際の動作をテストしま
 import os
 import pytest
 from typing import Dict, Any, List
-from unittest.mock import patch, AsyncMock
 
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 
@@ -134,13 +133,6 @@ class TestMCPToolsIntegration:
         self, mcp_server_with_github: DocumentAIHelperMCPServer
     ):
         """GitHub toolsの統合テスト（GitHub token必要）。"""
-        # GitHub tools not implemented yet
-        pytest.skip("GitHub tools not implemented yet")
-
-    async def test_github_tools_mock_integration(
-        self, mcp_server: DocumentAIHelperMCPServer
-    ):
-        """GitHub toolsのモック統合テスト（API呼び出しなし）。"""
         # GitHub tools not implemented yet
         pytest.skip("GitHub tools not implemented yet")
 

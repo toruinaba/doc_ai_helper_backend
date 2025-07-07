@@ -7,7 +7,6 @@ LLMサービス経由でのMCPツール呼び出しとFunction Calling機能を�
 import os
 import pytest
 from typing import Dict, Any, List
-from unittest.mock import AsyncMock, patch
 
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
 from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
@@ -19,34 +18,6 @@ from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 @pytest.mark.function_calling
 class TestMCPFunctionCallingIntegration:
     """MCP Function Calling統合テストクラス。"""
-
-    async def test_llm_mcp_tool_integration_mock(
-        self, mcp_server: DocumentAIHelperMCPServer
-    ):
-        """MockLLMサービス経由でのMCPツール統合をテスト。"""
-        # MockLLMサービスを使用（外部API不要）
-        llm_service = LLMServiceFactory.create("mock")
-
-        # Function Callingオプションを設定
-        options = {
-            "enable_function_calling": True,
-            "available_functions": [
-                "extract_document_context",
-                "analyze_document_structure",
-                "calculate",
-            ],
-        }
-
-        prompt = """このMarkdownドキュメントを分析してください：
-        # テストドキュメント
-        これはテスト用のドキュメントです。
-        """
-
-        # MockLLMサービスでのFunction Calling（モック動作）
-        response = await llm_service.query(prompt, None, options)
-
-        assert response is not None
-        assert hasattr(response, "content")
 
     @pytest.mark.skipif(
         not os.getenv("OPENAI_API_KEY"),

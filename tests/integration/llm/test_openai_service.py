@@ -143,9 +143,7 @@ class TestOpenAIServiceRealAPI:
         assert response1.content == response2.content
 
         # キャッシュが機能していれば2回目のクエリは高速になるはず
-        # モックモードでは時間差が小さいかもしれないのでスキップ可能
-        if os.environ.get("TEST_MODE") != "mock":
-            assert second_query_time < first_query_time
+        assert second_query_time < first_query_time
 
     @pytest.mark.asyncio
     async def test_capabilities(self, openai_service: LLMServiceBase):
@@ -164,12 +162,11 @@ class TestOpenAIServiceRealAPI:
         assert len(capabilities.max_tokens) > 0
 
         # デフォルトモデルが利用可能なモデルに含まれていることを確認
-        if os.environ.get("TEST_MODE") != "mock":
-            model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
-            # モデル名が直接含まれているか、または同等のモデルがあるか確認
-            # (LiteLLMではモデル名マッピングがある場合があるため、厳密な比較は行わない)
-            if model.startswith("gpt-"):
-                assert any(m.startswith("gpt-") for m in capabilities.available_models)
+        model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+        # モデル名が直接含まれているか、または同等のモデルがあるか確認
+        # (LiteLLMではモデル名マッピングがある場合があるため、厳密な比較は行わない)
+        if model.startswith("gpt-"):
+            assert any(m.startswith("gpt-") for m in capabilities.available_models)
 
     @pytest.mark.asyncio
     async def test_error_handling(self, openai_service: LLMServiceBase):
@@ -179,9 +176,7 @@ class TestOpenAIServiceRealAPI:
             # 不正な温度値（>2.0）を設定
             invalid_options = {"temperature": 3.0}
             await openai_service.query("Test prompt", None, invalid_options)
-            # エラーが発生しなかった場合はモックモードかもしれない
-            if os.environ.get("TEST_MODE") != "mock":
-                pytest.fail("Expected an exception for invalid temperature")
+            pytest.fail("Expected an exception for invalid temperature")
         except Exception as e:
             # 何らかの例外が発生することを確認
             assert "temperature" in str(e).lower() or "parameter" in str(e).lower()
@@ -215,8 +210,8 @@ class TestOpenAIServiceRealAPI:
         base_url = os.environ.get("OPENAI_BASE_URL")
         api_key = os.environ.get("OPENAI_API_KEY")
 
-        if not base_url or not api_key or os.environ.get("TEST_MODE") == "mock":
-            pytest.skip("OPENAI_BASE_URL or OPENAI_API_KEY not set, or in mock mode")
+        if not base_url or not api_key:
+            pytest.skip("OPENAI_BASE_URL or OPENAI_API_KEY not set")
 
         # 環境変数からモデル名を取得（カスタムモデル対応）
         model = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
@@ -375,18 +370,13 @@ class TestOpenAIServiceRealAPI:
         original_count = len(conversation_history)
         optimized_count = len(response.optimized_conversation_history)
 
-        # モックモードでは必ず最適化が発生する、実際のAPIでは条件によっては最適化されない場合もある
-        if os.environ.get("TEST_MODE") == "mock":
-            assert (
-                optimized_count < original_count
-            ), f"Expected optimization: {optimized_count} < {original_count}"
-            assert response.history_optimization_info["was_optimized"] == True
-        else:
-            # 実際のAPIでは最適化が発生するかはトークン数による
-            # 最適化情報が正しく設定されていることを確認
-            assert isinstance(response.history_optimization_info["was_optimized"], bool)
-            if response.history_optimization_info["was_optimized"]:
-                assert optimized_count < original_count
+        # 実際のAPIでは最適化が発生するかはトークン数による
+        # 長い会話履歴を使用しているため、最適化が発生するはず
+        assert response.history_optimization_info is not None
+        # 最適化情報が正しく設定されていることを確認
+        assert isinstance(response.history_optimization_info["was_optimized"], bool)
+        if response.history_optimization_info["was_optimized"]:
+            assert optimized_count < original_count
 
     @pytest.mark.asyncio
     async def test_conversation_history_with_system_message(

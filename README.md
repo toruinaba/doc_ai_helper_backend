@@ -633,24 +633,68 @@ http://localhost:8000/docs
 
 ## テスト実行
 
+### 基本的なテスト実行
+
 ```bash
+# 全テスト実行
 pytest
+
+# 層別テスト実行
+pytest tests/unit/          # 単体テスト
+pytest tests/integration/   # 統合テスト  
+pytest tests/e2e/           # E2Eテスト
+```
+
+### 層別テスト実行
+
+```bash
+# Git層統合テスト
+pytest tests/integration/git/ -v
+
+# LLM層統合テスト
+pytest tests/integration/llm/ -v
+
+# MCP層統合テスト
+pytest tests/integration/mcp/ -v
+```
+
+### マーカー別テスト実行
+
+```bash
+# Git関連テスト
+pytest -m git -v
+
+# LLM関連テスト
+pytest -m llm -v
+
+# MCP関連テスト
+pytest -m mcp -v
+
+# ストリーミング機能テスト
+pytest -m streaming -v
+
+# 外部API不要テスト（単体テスト）
+pytest -m "not (github or forgejo or openai)" -v
 ```
 
 ### テスト戦略
 
-このプロジェクトでは、2層のテスト戦略を採用しています：
+このプロジェクトでは、3層のテスト戦略を採用しています：
 
-1. **単体テストとAPIテスト** (`tests/unit/` および `tests/api/`)
+1. **単体テスト** (`tests/unit/`)
    - 外部依存関係を排除したテスト
    - Mockサービスを活用した高速テスト
    - 開発中の継続的な実行に適している
 
 2. **統合テスト** (`tests/integration/`)
-   - 実際の外部API（GitHub、OpenAI等）を使用
-   - 実際の動作の検証
+   - 実際の外部API（GitHub、Forgejo、OpenAI等）を使用
+   - サービス層の実際の動作の検証
    - 環境変数による設定が必要
-   - CI/CDでの実行またはリリース前の手動実行
+
+3. **E2Eテスト** (`tests/e2e/`)
+   - API経由のエンドツーエンド動作確認
+   - ワークフローシナリオのテスト
+   - 実際のユーザー利用シナリオの検証
 
 #### 統合テスト実行の要件
 
@@ -662,11 +706,13 @@ export GITHUB_TOKEN="your_github_token"
 
 # OpenAI統合テスト  
 export OPENAI_API_KEY="your_openai_api_key"
-```
 
-統合テストのみを実行する場合：
-```bash
-pytest tests/integration/
+# Forgejo統合テスト（オプション）
+export FORGEJO_BASE_URL="https://your-forgejo-instance.com"
+export FORGEJO_TOKEN="your_forgejo_token"
+# または
+export FORGEJO_USERNAME="your_username"
+export FORGEJO_PASSWORD="your_password"
 ```
 
 ## ブランチ戦略
