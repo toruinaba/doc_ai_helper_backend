@@ -9,7 +9,7 @@ organization. This module now provides backward compatibility imports.
 """
 
 # Backward compatibility imports from new structure
-from ..messaging.messaging import (
+from ..messaging import (
     summarize_conversation_history,
     format_conversation_for_provider,
     SystemPromptCache,
@@ -23,7 +23,7 @@ from ..processing.templates import PromptTemplateManager
 from ..processing.cache import LLMCacheService
 
 # Function calling utilities
-from ..functions.functions import (
+from ..functions import (
     FunctionRegistry,
     FunctionCallManager,
     validate_function_call_arguments,
@@ -35,11 +35,13 @@ from ..functions.functions import (
 )
 
 # Token utilities
-from ..processing.tokens import (
+from ..messaging import (
     estimate_message_tokens,
     estimate_conversation_tokens,
-    estimate_tokens_for_messages,
     optimize_conversation_history,
+)
+from ..processing.tokens import (
+    estimate_tokens_for_messages,
 )
 
 # Response building utilities

@@ -25,7 +25,7 @@ from doc_ai_helper_backend.models.llm import (
     ToolChoice,
 )
 from doc_ai_helper_backend.core.exceptions import LLMServiceException
-from .messaging.messaging import optimize_conversation_history
+from .messaging import optimize_conversation_history
 
 logger = logging.getLogger(__name__)
 

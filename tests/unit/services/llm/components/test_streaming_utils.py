@@ -6,7 +6,7 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock
 
-from doc_ai_helper_backend.services.llm.components.streaming_utils import StreamingUtils
+from doc_ai_helper_backend.services.llm.processing.streaming_utils import StreamingUtils
 
 
 class TestStreamingUtils:

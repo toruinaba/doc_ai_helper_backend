@@ -6,7 +6,7 @@ import pytest
 import time
 from unittest.mock import patch, MagicMock
 
-from doc_ai_helper_backend.services.llm.messaging.messaging import (
+from doc_ai_helper_backend.services.llm.messaging import (
     SystemPromptBuilder,
     SystemPromptCache,
 )

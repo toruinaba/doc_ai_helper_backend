@@ -79,10 +79,10 @@ class MockLLMService(LLMServiceBase):
             PromptTemplateManager,
         )
         from doc_ai_helper_backend.services.llm.processing.cache import LLMCacheService
-        from doc_ai_helper_backend.services.llm.messaging.messaging import (
+        from doc_ai_helper_backend.services.llm.messaging import (
             SystemPromptBuilder,
         )
-        from doc_ai_helper_backend.services.llm.functions.functions import (
+        from doc_ai_helper_backend.services.llm.functions import (
             FunctionCallManager,
         )
         from doc_ai_helper_backend.services.llm.processing.response_builder import (
