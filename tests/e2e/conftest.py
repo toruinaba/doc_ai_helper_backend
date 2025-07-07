@@ -1,15 +1,25 @@
 """
 Pytest configuration and fixtures for E2E tests.
+
+This configuration file provides common fixtures and setup for user story-based E2E tests.
 """
 
 import asyncio
 import pytest
 import logging
+from pathlib import Path
 from typing import AsyncGenerator
 
 from .helpers.api_client import BackendAPIClient
 from .helpers.forgejo_client import ForgejoVerificationClient
 from .helpers.test_data import E2ETestData
+from .helpers import (
+    ScenarioRunner,
+    PerformanceMonitor,
+    DataValidator,
+    TestDataGenerator,
+    FrontendSimulator,
+)
 
 # Configure logging for E2E tests
 logging.basicConfig(
@@ -42,6 +52,37 @@ async def validate_environment():
             logger.info(message)
 
     logger.info("Environment validation passed")
+
+
+@pytest.fixture(scope="session")
+def fixtures_path() -> Path:
+    """Get the path to E2E test fixtures."""
+    return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def scenario_runner(fixtures_path: Path) -> ScenarioRunner:
+    """Create a scenario runner for E2E tests."""
+    return ScenarioRunner(fixtures_path)
+
+
+@pytest.fixture
+def performance_monitor() -> PerformanceMonitor:
+    """Create a performance monitor for E2E tests."""
+    return PerformanceMonitor()
+
+
+@pytest.fixture
+def data_validator(fixtures_path: Path) -> DataValidator:
+    """Create a data validator with schemas for E2E tests."""
+    schemas_path = fixtures_path / "schemas"
+    return DataValidator(schemas_path if schemas_path.exists() else None)
+
+
+@pytest.fixture
+def test_data_generator() -> TestDataGenerator:
+    """Create a test data generator for E2E tests."""
+    return TestDataGenerator(seed=42)  # Fixed seed for reproducible tests
 
 
 @pytest.fixture(scope="session")

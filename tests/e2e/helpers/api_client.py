@@ -42,6 +42,11 @@ class BackendAPIClient:
         """Async context manager exit."""
         await self._client.aclose()
 
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """Get the underlying httpx AsyncClient for direct use."""
+        return self._client
+
     async def health_check(self) -> bool:
         """
         Check if the backend API server is running and healthy.

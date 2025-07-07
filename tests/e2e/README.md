@@ -1,8 +1,55 @@
-# E2E Tests for Document AI Helper Backend
+# E2E Testing for Document AI Helper Backend
 
 このディレクトリには、Document AI Helper BackendのEnd-to-End（E2E）テストが含まれています。
 
-## 概要
+## 新しいユーザーストーリーベースE2Eテスト
+
+Document AI Helper Backendでは、従来のAPI/ワークフロー中心のE2Eテストから、真のユーザージャーニーベースのE2Eテストに移行しました。
+
+### 新しいE2Eテスト構造
+
+```
+tests/e2e/
+├── user_stories/           # ユーザーストーリーベースのテスト
+│   ├── test_onboarding_journey.py
+│   ├── test_document_exploration_journey.py
+│   ├── test_ai_assisted_improvement_journey.py
+│   └── test_team_collaboration_journey.py
+├── helpers/                # ヘルパーモジュール
+│   ├── frontend_simulator.py
+│   ├── user_journey_tracker.py
+│   └── story_assertions.py
+├── fixtures/               # テストデータとフィクスチャ
+│   ├── user_personas.json
+│   ├── story_scenarios.json
+│   └── sample_documents/
+├── pytest.ini             # pytest設定
+└── [従来のテスト]          # 既存のE2Eテスト（共存）
+```
+
+### ユーザーストーリーテスト実行
+
+```bash
+# 全てのユーザーストーリーテストを実行
+pytest tests/e2e/user_stories/ -m e2e_user_story
+
+# 特定のストーリータイプのみ実行
+pytest tests/e2e/user_stories/ -m onboarding
+pytest tests/e2e/user_stories/ -m document_exploration
+pytest tests/e2e/user_stories/ -m ai_assistance
+pytest tests/e2e/user_stories/ -m team_collaboration
+
+# 詳細ログ付きで実行
+pytest tests/e2e/user_stories/ -v --tb=short
+```
+
+詳細な実装内容については、本READMEの下部をご参照ください。
+
+---
+
+## 従来のE2Eテスト（既存）
+
+### 概要
 
 E2Eテストは以下の完全なワークフローを検証します：
 
@@ -10,19 +57,19 @@ E2Eテストは以下の完全なワークフローを検証します：
 2. **LLM処理**: 取得したドキュメント内容をLLMで要約・分析
 3. **MCPツール実行**: LLMの判断に基づいてForgejoにIssueを作成
 
-## 前提条件
+### 前提条件
 
-### 1. バックエンドサーバー
+#### 1. バックエンドサーバー
 - バックエンドAPIサーバーが別プロセスで動作している必要があります
 - デフォルトURL: `http://localhost:8000`
 - 環境変数 `BACKEND_API_URL` で変更可能
 
-### 2. Forgejoインスタンス
+#### 2. Forgejoインスタンス
 - アクセス可能なForgejoインスタンス
 - テスト用リポジトリの存在
 - 適切な認証情報（トークンまたはユーザー名/パスワード）
 
-### 3. 環境設定
+#### 3. 環境設定
 `.env` ファイルに以下の設定が必要です：
 
 ```bash
@@ -46,7 +93,7 @@ FORGEJO_VERIFY_SSL=true
 DEBUG=true
 ```
 
-## テスト実行方法
+### 従来のテスト実行方法
 
 ### 1. 基本実行
 ```bash

@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Document Response Schema",
+  "type": "object",
+  "required": ["path", "name", "type", "content", "metadata"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Document path in the repository"
+    },
+    "name": {
+      "type": "string", 
+      "description": "Document filename"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["markdown", "html", "text"],
+      "description": "Document type"
+    },
+    "content": {
+      "type": "object",
+      "required": ["raw"],
+      "properties": {
+        "raw": {
+          "type": "string",
+          "description": "Raw document content"
+        },
+        "processed": {
+          "type": "string",
+          "description": "Processed document content"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["filename", "extension", "size"],
+      "properties": {
+        "filename": {
+          "type": "string"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frontmatter": {
+          "type": "object"
+        }
+      }
+    },
+    "repository": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "service": {
+      "type": "string"
+    },
+    "ref": {
+      "type": "string"
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/link"
+      }
+    },
+    "transformed_content": {
+      "type": ["string", "null"]
+    }
+  },
+  "definitions": {
+    "link": {
+      "type": "object",
+      "required": ["text", "url", "is_image", "is_external"],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "is_image": {
+          "type": "boolean"
+        },
+        "is_external": {
+          "type": "boolean"
+        },
+        "position": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    }
+  }
+}
