@@ -371,3 +371,4 @@ Once the server is running, comprehensive API documentation is available at:
 - **Development Guide**: docs/DEVELOPMENT.md  
 - **Setup Guide**: docs/SETUP_GUIDE.md
 - **API Reference**: docs/API_REFERENCE.md
+- **LLM Enhanced MCP Tools Design**: docs/LLM_ENHANCED_MCP_TOOLS_DESIGN.md
