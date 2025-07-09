@@ -296,14 +296,32 @@ class OpenAIService(LLMServiceBase):
         function_call: FunctionCall,
         available_functions: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Direct delegation to function manager."""
+        """Execute function call, trying MCP adapter first if available."""
+        # Try MCP adapter first if available
+        if self._mcp_adapter:
+            try:
+                result = await self._mcp_adapter.execute_function_call(function_call)
+                if result.get("success"):
+                    return result
+            except Exception as e:
+                logger.warning(f"MCP adapter execution failed: {e}")
+        
+        # Fall back to function manager
         return await self.function_manager.execute_function_call(
             function_call, available_functions
         )
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
-        """Direct delegation to function manager."""
-        return self.function_manager.get_available_functions()
+        """Get available functions including MCP tools."""
+        # Get regular functions
+        functions = self.function_manager.get_available_functions()
+        
+        # Add MCP functions if adapter is available
+        if self._mcp_adapter:
+            mcp_functions = await self._mcp_adapter.get_available_functions()
+            functions.extend(mcp_functions)
+        
+        return functions
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
         """Direct delegation to template manager."""
@@ -510,5 +528,16 @@ class OpenAIService(LLMServiceBase):
             return tool_choice
         elif hasattr(tool_choice, "value"):
             return tool_choice.value
+        elif hasattr(tool_choice, "type"):
+            # Handle our ToolChoice model
+            if tool_choice.type in ["auto", "none", "required"]:
+                return tool_choice.type
+            elif tool_choice.type == "function" and tool_choice.function:
+                return {
+                    "type": "function",
+                    "function": tool_choice.function
+                }
+            else:
+                return tool_choice.type
         else:
             return tool_choice

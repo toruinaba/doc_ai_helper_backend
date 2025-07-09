@@ -38,13 +38,14 @@ class FunctionCallManager:
         self.function_registry = function_registry or FunctionRegistry()
 
     async def execute_function_call(
-        self, function_call: FunctionCall
+        self, function_call: FunctionCall, available_functions: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Execute a function call from an LLM response.
 
         Args:
             function_call: The function call to execute
+            available_functions: Optional dict of available functions (for compatibility)
 
         Returns:
             Dict[str, Any]: The result of the function execution

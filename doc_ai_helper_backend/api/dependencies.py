@@ -47,5 +47,5 @@ def get_llm_service() -> LLMServiceBase:
         if settings.openai_base_url:
             config["base_url"] = settings.openai_base_url
 
-    # Create service instance
-    return LLMServiceFactory.create(provider, **config)
+    # Create service instance with MCP integration
+    return LLMServiceFactory.create_with_mcp(provider, **config)

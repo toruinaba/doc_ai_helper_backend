@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     default_llm_provider: str = Field(default="openai", alias="DEFAULT_LLM_PROVIDER")
     llm_cache_ttl: int = Field(default=3600, alias="LLM_CACHE_TTL")  # 1 hour in seconds
 
+    # E2E Test settings - minimal additions for test target repositories
+    e2e_github_owner: str = Field(default="octocat", alias="E2E_GITHUB_OWNER")
+    e2e_github_repo: str = Field(default="Hello-World", alias="E2E_GITHUB_REPO")
+    e2e_forgejo_owner: str = Field(default="", alias="E2E_FORGEJO_OWNER")
+    e2e_forgejo_repo: str = Field(default="", alias="E2E_FORGEJO_REPO")
+    e2e_llm_provider: str = Field(default="", alias="E2E_LLM_PROVIDER")
+    e2e_api_base_url: str = Field(default="http://localhost:8000", alias="E2E_API_BASE_URL")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

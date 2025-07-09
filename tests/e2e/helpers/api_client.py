@@ -16,10 +16,7 @@ logger = logging.getLogger(__name__)
 
 class BackendAPIClient:
     """
-    Client for communicating with the Document AI Helper backend API.
-
-    This client is designed for E2E tests where the backend server is running
-    in a separate process.
+    Simplified client for communicating with the Document AI Helper backend API.
     """
 
     def __init__(self, base_url: str = "http://localhost:8000", timeout: int = 30):
@@ -41,11 +38,6 @@ class BackendAPIClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self._client.aclose()
-
-    @property
-    def client(self) -> httpx.AsyncClient:
-        """Get the underlying httpx AsyncClient for direct use."""
-        return self._client
 
     async def health_check(self) -> bool:
         """
@@ -107,10 +99,9 @@ class BackendAPIClient:
         prompt: str,
         context: Optional[Dict[str, Any]] = None,
         tools_enabled: bool = True,
-        provider: str = "mock",
+        provider: Optional[str] = None,
         model: Optional[str] = None,
-        stream: bool = False,
-        repository_context=None,
+        repository_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Send a query to the LLM via the backend API.
@@ -121,7 +112,6 @@ class BackendAPIClient:
             tools_enabled: Whether to enable MCP tools
             provider: LLM provider to use
             model: Specific model to use
-            stream: Whether to use streaming response
             repository_context: Repository context for Git operations
 
         Returns:
@@ -133,16 +123,15 @@ class BackendAPIClient:
         url = f"{self.base_url}/api/v1/llm/query"
         payload = {
             "prompt": prompt,
-            "provider": provider,
             "enable_tools": tools_enabled,
         }
 
+        if provider:
+            payload["provider"] = provider
         if context:
             payload["context"] = context
         if model:
             payload["model"] = model
-        if stream:
-            payload["stream"] = stream
         if repository_context:
             payload["repository_context"] = repository_context
 
@@ -157,7 +146,7 @@ class BackendAPIClient:
         prompt: str,
         context: Optional[Dict[str, Any]] = None,
         tools_enabled: bool = True,
-        provider: str = "mock",
+        provider: Optional[str] = None,
         model: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -179,10 +168,11 @@ class BackendAPIClient:
         url = f"{self.base_url}/api/v1/llm/stream"
         payload = {
             "prompt": prompt,
-            "provider": provider,
             "enable_tools": tools_enabled,
         }
 
+        if provider:
+            payload["provider"] = provider
         if context:
             payload["context"] = context
         if model:
