@@ -16,20 +16,11 @@ from doc_ai_helper_backend.models.llm import (
 
 def pytest_configure(config):
     """統合テストの設定"""
-    # 必要な環境変数をチェック
-    required_env_vars = {
-        "OPENAI_API_KEY": "OpenAI API integration tests",
-    }
-
-    missing_vars = []
-    for var, description in required_env_vars.items():
-        if not os.getenv(var):
-            missing_vars.append(f"{var} (for {description})")
-
-    if missing_vars:
-        pytest.skip(
-            f"Integration tests skipped. Missing environment variables: {', '.join(missing_vars)}"
-        )
+    # 設定から必要な変数をチェック
+    from doc_ai_helper_backend.core.config import settings
+    
+    if not settings.openai_api_key:
+        pytest.skip("Integration tests skipped. Missing OPENAI_API_KEY configuration")
 
 
 class TestOpenAIServiceRealAPI:
@@ -38,18 +29,17 @@ class TestOpenAIServiceRealAPI:
     @pytest.fixture
     def openai_service(self):
         """実際のOpenAIサービスのインスタンスを取得する"""
-        # 環境変数からAPIキーを取得
-        api_key = os.environ.get("OPENAI_API_KEY")
+        # 設定からAPIキーを取得
+        from doc_ai_helper_backend.core.config import settings
+        api_key = settings.openai_api_key
         if not api_key:
             pytest.skip("OPENAI_API_KEY environment variable not set")
 
-        # 環境変数からベースURLを取得（LiteLLMなどのプロキシサーバー対応）
-        base_url = os.environ.get("OPENAI_BASE_URL")
+        # 設定からベースURLを取得（LiteLLMなどのプロキシサーバー対応）
+        base_url = settings.openai_base_url
 
-        # 環境変数からモデル名を取得（カスタムモデル対応）
-        model = os.environ.get("DEFAULT_OPENAI_MODEL") or os.environ.get(
-            "OPENAI_MODEL", "gpt-3.5-turbo"
-        )
+        # 設定からモデル名を取得
+        model = settings.default_openai_model
 
         # OpenAIサービスを作成（ベースURLが指定されている場合は設定）
         kwargs = {"api_key": api_key, "default_model": model}

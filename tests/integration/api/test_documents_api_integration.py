@@ -22,7 +22,7 @@ class TestDocumentsAPIIntegration:
         return TestClient(app)
 
     @pytest.mark.skipif(
-        not os.getenv("GITHUB_TOKEN"),
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.github_token,
         reason="GitHub token not available for integration test",
     )
     def test_get_document_github_integration(self, client):
@@ -46,14 +46,15 @@ class TestDocumentsAPIIntegration:
         assert data["repository"] == "vscode"
 
     @pytest.mark.skipif(
-        not os.getenv("FORGEJO_TOKEN"),
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.forgejo_token,
         reason="Forgejo token not available for integration test",
     )
     def test_get_document_forgejo_integration(self, client):
         """Forgejo経由でのドキュメント取得統合テスト"""
-        forgejo_base_url = os.getenv("FORGEJO_BASE_URL")
-        forgejo_owner = os.getenv("FORGEJO_TEST_OWNER")
-        forgejo_repo = os.getenv("FORGEJO_TEST_REPO")
+        from doc_ai_helper_backend.core.config import settings
+        forgejo_base_url = settings.forgejo_base_url
+        forgejo_owner = settings.e2e_forgejo_owner
+        forgejo_repo = settings.e2e_forgejo_repo
 
         if not all([forgejo_base_url, forgejo_owner, forgejo_repo]):
             pytest.skip("Forgejo test configuration not complete")

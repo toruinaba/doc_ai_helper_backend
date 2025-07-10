@@ -21,7 +21,7 @@ class TestMCPFunctionCallingIntegration:
     """MCP Function Calling統合テストクラス。"""
 
     @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"),
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.openai_api_key,
         reason="OpenAI API key not available for integration test",
     )
     async def test_llm_mcp_tool_integration_openai(

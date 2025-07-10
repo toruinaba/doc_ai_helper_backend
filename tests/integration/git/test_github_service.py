@@ -39,8 +39,9 @@ class TestGitHubServiceRealAPI:
     @pytest.fixture
     def github_service(self):
         """実際のGitHubServiceのインスタンスを取得する"""
-        # 環境変数からアクセストークンを取得
-        token = os.environ.get("GITHUB_TOKEN")
+        # 設定からアクセストークンを取得
+        from doc_ai_helper_backend.core.config import settings
+        token = settings.github_token
         if not token:
             pytest.skip("GITHUB_TOKEN environment variable not set")
 

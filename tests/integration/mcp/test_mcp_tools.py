@@ -127,7 +127,7 @@ class TestMCPToolsIntegration:
         assert "Hello World" in format_result_title
 
     @pytest.mark.skipif(
-        not os.getenv("GITHUB_TOKEN"),
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.github_token,
         reason="GitHub token not available for integration test",
     )
     async def test_github_tools_integration(

@@ -5,6 +5,7 @@
 import os
 import pytest
 from typing import Optional, Dict, Any, List
+from doc_ai_helper_backend.core.config import settings
 
 
 def pytest_configure(config):
@@ -27,7 +28,7 @@ def pytest_configure(config):
 @pytest.fixture(scope="session")
 def openai_api_key() -> Optional[str]:
     """OpenAI APIキーのフィクスチャ"""
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = settings.openai_api_key
     if not api_key:
         pytest.skip("OPENAI_API_KEY environment variable not set")
     return api_key
@@ -36,7 +37,7 @@ def openai_api_key() -> Optional[str]:
 @pytest.fixture(scope="session")
 def github_token() -> Optional[str]:
     """GitHub トークンのフィクスチャ"""
-    token = os.getenv("GITHUB_TOKEN")
+    token = settings.github_token
     if not token:
         pytest.skip("GITHUB_TOKEN environment variable not set")
     return token
@@ -45,10 +46,10 @@ def github_token() -> Optional[str]:
 @pytest.fixture(scope="session")
 def forgejo_config() -> Optional[Dict[str, str]]:
     """Forgejo設定のフィクスチャ"""
-    base_url = os.getenv("FORGEJO_BASE_URL")
-    access_token = os.getenv("FORGEJO_TOKEN")
-    username = os.getenv("FORGEJO_USERNAME")
-    password = os.getenv("FORGEJO_PASSWORD")
+    base_url = settings.forgejo_base_url
+    access_token = settings.forgejo_token
+    username = settings.forgejo_username
+    password = settings.forgejo_password
 
     if not base_url:
         pytest.skip("FORGEJO_BASE_URL environment variable not set")
@@ -134,7 +135,7 @@ def sample_conversation_history() -> List[Dict[str, str]]:
 def skip_if_no_openai():
     """OpenAI APIキーがない場合はスキップ"""
     return pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"),
+        not settings.openai_api_key,
         reason="OPENAI_API_KEY environment variable not set",
     )
 
@@ -142,17 +143,17 @@ def skip_if_no_openai():
 def skip_if_no_github():
     """GitHub トークンがない場合はスキップ"""
     return pytest.mark.skipif(
-        not os.getenv("GITHUB_TOKEN"),
+        not settings.github_token,
         reason="GITHUB_TOKEN environment variable not set",
     )
 
 
 def skip_if_no_forgejo():
     """Forgejo設定がない場合はスキップ"""
-    base_url = os.getenv("FORGEJO_BASE_URL")
-    access_token = os.getenv("FORGEJO_TOKEN")
-    username = os.getenv("FORGEJO_USERNAME")
-    password = os.getenv("FORGEJO_PASSWORD")
+    base_url = settings.forgejo_base_url
+    access_token = settings.forgejo_token
+    username = settings.forgejo_username
+    password = settings.forgejo_password
 
     return pytest.mark.skipif(
         not base_url or not (access_token or (username and password)),

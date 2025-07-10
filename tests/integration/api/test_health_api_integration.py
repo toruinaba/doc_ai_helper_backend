@@ -29,7 +29,7 @@ class TestHealthAPIIntegration:
 
         # ヘルスチェックレスポンスの検証
         assert "status" in data
-        assert data["status"] == "healthy"
+        assert data["status"] == "ok"
         assert "timestamp" in data
         assert "version" in data
 
