@@ -83,14 +83,20 @@ class LLMQueryRequest(BaseModel):
         default=None, description="Metadata of currently displayed document"
     )
     document_content: Optional[str] = Field(
-        default=None, description="Current document content for system prompt inclusion"
+        default=None, description="Current document content for system prompt inclusion (DEPRECATED - will be removed)"
     )
     include_document_in_system_prompt: bool = Field(
-        default=True, description="Whether to include document content in system prompt"
+        default=True, description="Whether to include document content in system prompt (DEPRECATED - will be removed)"
     )
     system_prompt_template: Optional[str] = Field(
         default="contextual_document_assistant_ja",
-        description="Template ID for system prompt generation",
+        description="Template ID for system prompt generation (DEPRECATED - will be removed)",
+    )
+    
+    # New document integration approach via conversation history
+    auto_include_document: bool = Field(
+        default=True,
+        description="Whether to automatically fetch document content from repository_context and include in conversation history for initial requests"
     )
 
 

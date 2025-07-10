@@ -8,6 +8,8 @@ from fastapi import Depends
 
 from doc_ai_helper_backend.services.document import DocumentService
 from doc_ai_helper_backend.services.llm import LLMServiceBase, LLMServiceFactory
+from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+from doc_ai_helper_backend.services.git.factory import GitServiceFactory
 from doc_ai_helper_backend.core.config import settings
 
 
@@ -49,3 +51,26 @@ def get_llm_service() -> LLMServiceBase:
 
     # Create service instance with MCP integration
     return LLMServiceFactory.create_with_mcp(provider, **config)
+
+
+def get_git_service_factory() -> GitServiceFactory:
+    """Get Git service factory instance.
+
+    Returns:
+        GitServiceFactory: Git service factory instance
+    """
+    return GitServiceFactory()
+
+
+def get_conversation_manager(
+    git_service_factory: GitServiceFactory = Depends(get_git_service_factory)
+) -> ConversationManager:
+    """Get ConversationManager instance.
+
+    Args:
+        git_service_factory: Git service factory dependency
+
+    Returns:
+        ConversationManager: ConversationManager instance
+    """
+    return ConversationManager(git_service_factory)
