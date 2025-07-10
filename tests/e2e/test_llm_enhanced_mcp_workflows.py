@@ -104,6 +104,67 @@ issueのタイトルには「[{e2e_config.test_issue_marker}] 日本語ドキュ
         assert workflow_response is not None, "Workflow response should not be None"
         assert "content" in workflow_response, "Workflow response should have content"
         
+        # ===== DETAILED TOOL EXECUTION VERIFICATION =====
+        logger.info("🔍 Verifying LLM-enhanced tool execution details")
+        
+        # Check for tool calls (initial LLM response)
+        tool_calls_exist = "tool_calls" in workflow_response and workflow_response["tool_calls"] is not None
+        tool_results_exist = "tool_execution_results" in workflow_response and workflow_response["tool_execution_results"] is not None
+        
+        logger.info(f"Tool calls present: {tool_calls_exist}")
+        logger.info(f"Tool execution results present: {tool_results_exist}")
+        
+        # At least one form of tool interaction should be present
+        assert tool_calls_exist or tool_results_exist, \
+            "Response should contain either 'tool_calls' or 'tool_execution_results' - tools were not invoked"
+        
+        # Expected tools for comprehensive document analysis workflow
+        expected_tools = {"summarize_document_with_llm", "create_improvement_recommendations_with_llm", "create_git_issue"}
+        
+        # If tool_calls exist, verify expected tools are requested
+        if tool_calls_exist:
+            tool_calls = workflow_response["tool_calls"]
+            assert len(tool_calls) > 0, "Should have at least one tool call"
+            
+            requested_tools = set()
+            for tool_call in tool_calls:
+                function_name = tool_call.get("function", {}).get("name", "")
+                requested_tools.add(function_name)
+                logger.info(f"Tool requested: {function_name}")
+                
+                # Verify specific tool arguments
+                if function_name == "create_git_issue":
+                    arguments = tool_call.get("function", {}).get("arguments", "{}")
+                    try:
+                        args_dict = json.loads(arguments) if isinstance(arguments, str) else arguments
+                        assert "title" in args_dict, "create_git_issue should have 'title' argument"
+                        assert "description" in args_dict, "create_git_issue should have 'description' argument"
+                        assert e2e_config.test_issue_marker in args_dict["title"], f"Issue title should contain test marker '{e2e_config.test_issue_marker}'"
+                        logger.info(f"✅ create_git_issue properly requested with title: {args_dict['title'][:50]}...")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Could not parse create_git_issue arguments: {e}")
+                elif function_name == "summarize_document_with_llm":
+                    arguments = tool_call.get("function", {}).get("arguments", "{}")
+                    try:
+                        args_dict = json.loads(arguments) if isinstance(arguments, str) else arguments
+                        assert "document_content" in args_dict, "summarize_document_with_llm should have 'document_content' argument"
+                        logger.info("✅ summarize_document_with_llm properly requested")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Could not parse summarize_document_with_llm arguments: {e}")
+                elif function_name == "create_improvement_recommendations_with_llm":
+                    arguments = tool_call.get("function", {}).get("arguments", "{}")
+                    try:
+                        args_dict = json.loads(arguments) if isinstance(arguments, str) else arguments
+                        assert "document_content" in args_dict, "create_improvement_recommendations_with_llm should have 'document_content' argument"
+                        logger.info("✅ create_improvement_recommendations_with_llm properly requested")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Could not parse create_improvement_recommendations_with_llm arguments: {e}")
+            
+            # Check if at least some expected tools were requested
+            tools_intersection = expected_tools.intersection(requested_tools)
+            assert len(tools_intersection) > 0, f"At least one expected tool should be requested. Expected: {expected_tools}, Requested: {requested_tools}"
+            logger.info(f"✅ Expected tools requested: {tools_intersection}")
+        
         # Check for tool execution results
         tool_results = workflow_response.get("tool_execution_results", [])
         logger.info(f"Tool execution results: {len(tool_results) if tool_results else 0} tools executed")
@@ -111,11 +172,16 @@ issueのタイトルには「[{e2e_config.test_issue_marker}] 日本語ドキュ
         # Verify that our LLM-enhanced tools were used
         tools_used = set()
         issue_created = False
+        summary_created = False
+        recommendations_created = False
         
         if tool_results:
+            assert len(tool_results) > 0, "Should have at least one tool execution result"
+            
             for tool_result in tool_results:
                 function_name = tool_result.get("function_name", "")
                 tools_used.add(function_name)
+                logger.info(f"Tool executed: {function_name}")
                 
                 # Check for successful tool execution 
                 result = tool_result.get("result", {})
@@ -127,21 +193,51 @@ issueのタイトルには「[{e2e_config.test_issue_marker}] 日本語ドキュ
                 
                 if function_name == "summarize_document_with_llm":
                     logger.info("✅ Document summarization tool executed")
+                    summary_created = True
                     if isinstance(result, dict) and result.get("success"):
                         logger.info(f"Summary length: {result.get('summary_length', 'N/A')}")
+                    else:
+                        logger.warning(f"Summary tool failed: {result.get('error', 'Unknown error')}")
                         
                 elif function_name == "create_improvement_recommendations_with_llm":
                     logger.info("✅ Improvement recommendations tool executed")
+                    recommendations_created = True
                     if isinstance(result, dict) and result.get("success"):
                         recommendations = result.get("recommendations", {})
                         high_priority = recommendations.get("high_priority", [])
                         logger.info(f"High priority recommendations: {len(high_priority)}")
+                    else:
+                        logger.warning(f"Recommendations tool failed: {result.get('error', 'Unknown error')}")
                         
                 elif function_name == "create_git_issue":
                     logger.info("✅ Git issue creation tool executed")
                     if isinstance(result, dict) and result.get("success"):
                         issue_created = True
                         logger.info("Issue creation successful")
+                    else:
+                        logger.error(f"Issue creation failed: {result.get('error', 'Unknown error')}")
+            
+            # Verify that at least some expected tools were executed
+            executed_intersection = expected_tools.intersection(tools_used)
+            logger.info(f"Expected tools executed: {executed_intersection}")
+            
+            # Log if expected tools were not executed
+            missing_tools = expected_tools - tools_used
+            if missing_tools:
+                logger.warning(f"⚠️ Expected tools not executed: {missing_tools}")
+        
+        # Final comprehensive verification
+        if not tool_results_exist and not tool_calls_exist:
+            logger.error("❌ No tool interaction detected - this is likely the core issue")
+            logger.info(f"Full workflow response: {json.dumps(workflow_response, indent=2, default=str)}")
+        elif tool_calls_exist and not tool_results_exist:
+            logger.warning("⚠️ Tools were requested but not executed - execution failure")
+        elif not tools_used:
+            logger.warning("⚠️ No tools were executed despite results existing")
+        
+        # Log workflow summary
+        logger.info(f"Workflow summary - Tools used: {list(tools_used)}")
+        logger.info(f"Summary created: {summary_created}, Recommendations created: {recommendations_created}, Issue created: {issue_created}")
 
         # Step 4: Verify comprehensive workflow completion
         logger.info("Step 4: Verifying comprehensive workflow completion")

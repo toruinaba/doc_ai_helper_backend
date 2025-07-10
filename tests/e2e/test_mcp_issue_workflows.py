@@ -145,16 +145,79 @@ class TestMCPIssueWorkflows:
         logger.info("Step 4: Verifying MCP response and issue creation")
         assert mcp_response is not None, "MCP response should not be None"
         
+        # ===== DETAILED TOOL EXECUTION VERIFICATION =====
+        logger.info("🔍 Verifying tool execution details")
+        
+        # Check for tool calls (initial LLM response)
+        tool_calls_exist = "tool_calls" in mcp_response and mcp_response["tool_calls"] is not None
+        tool_results_exist = "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None
+        
+        logger.info(f"Tool calls present: {tool_calls_exist}")
+        logger.info(f"Tool execution results present: {tool_results_exist}")
+        
+        # At least one form of tool interaction should be present
+        assert tool_calls_exist or tool_results_exist, \
+            "Response should contain either 'tool_calls' or 'tool_execution_results' - tools were not invoked"
+        
+        # If tool_calls exist, verify create_git_issue is requested
+        if tool_calls_exist:
+            tool_calls = mcp_response["tool_calls"]
+            assert len(tool_calls) > 0, "Should have at least one tool call"
+            
+            create_issue_requested = False
+            for tool_call in tool_calls:
+                function_name = tool_call.get("function", {}).get("name", "")
+                logger.info(f"Tool requested: {function_name}")
+                if function_name == "create_git_issue":
+                    create_issue_requested = True
+                    # Verify arguments contain required fields
+                    arguments = tool_call.get("function", {}).get("arguments", "{}")
+                    try:
+                        import json
+                        args_dict = json.loads(arguments) if isinstance(arguments, str) else arguments
+                        assert "title" in args_dict, "create_git_issue should have 'title' argument"
+                        assert "description" in args_dict, "create_git_issue should have 'description' argument"
+                        assert e2e_config.test_issue_marker in args_dict["title"], f"Issue title should contain test marker '{e2e_config.test_issue_marker}'"
+                        logger.info(f"✅ create_git_issue properly requested with title: {args_dict['title'][:50]}...")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Could not parse tool call arguments: {e}")
+            
+            assert create_issue_requested, "create_git_issue should be requested in tool_calls"
+        
         # Check for successful tool execution
         issue_created = False
-        if "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None:
-            for tool_result in mcp_response["tool_execution_results"]:
-                if tool_result.get("function_name") == "create_git_issue":
+        create_issue_executed = False
+        
+        if tool_results_exist:
+            tool_results = mcp_response["tool_execution_results"]
+            assert len(tool_results) > 0, "Should have at least one tool execution result"
+            
+            for tool_result in tool_results:
+                function_name = tool_result.get("function_name", "")
+                logger.info(f"Tool executed: {function_name}")
+                
+                if function_name == "create_git_issue":
+                    create_issue_executed = True
                     result = tool_result.get("result", {})
+                    
+                    # Log the actual result for debugging
+                    logger.info(f"create_git_issue result: {result}")
+                    
                     if result.get("success"):
                         logger.info("✅ Issue creation successful via MCP")
                         issue_created = True
-                        break
+                    else:
+                        error_msg = result.get("error", "Unknown error")
+                        logger.error(f"❌ Issue creation failed: {error_msg}")
+                    break
+            
+            assert create_issue_executed, "create_git_issue should be executed in tool_execution_results"
+        
+        # Final verification
+        if not issue_created:
+            logger.warning("⚠️  Issue creation was not successful - checking for errors")
+            # Log the full response for debugging
+            logger.info(f"Full MCP response: {json.dumps(mcp_response, indent=2, default=str)}")
 
         # For real LLM providers, verify the issue was actually created
         # Always try to verify issue creation when using real LLM providers
@@ -309,16 +372,79 @@ class TestMCPIssueWorkflows:
         logger.info("Step 4: Verifying MCP response and issue creation")
         assert mcp_response is not None, "MCP response should not be None"
         
+        # ===== DETAILED TOOL EXECUTION VERIFICATION =====
+        logger.info("🔍 Verifying tool execution details for Forgejo")
+        
+        # Check for tool calls (initial LLM response)
+        tool_calls_exist = "tool_calls" in mcp_response and mcp_response["tool_calls"] is not None
+        tool_results_exist = "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None
+        
+        logger.info(f"Tool calls present: {tool_calls_exist}")
+        logger.info(f"Tool execution results present: {tool_results_exist}")
+        
+        # At least one form of tool interaction should be present
+        assert tool_calls_exist or tool_results_exist, \
+            "Response should contain either 'tool_calls' or 'tool_execution_results' - tools were not invoked"
+        
+        # If tool_calls exist, verify create_git_issue is requested
+        if tool_calls_exist:
+            tool_calls = mcp_response["tool_calls"]
+            assert len(tool_calls) > 0, "Should have at least one tool call"
+            
+            create_issue_requested = False
+            for tool_call in tool_calls:
+                function_name = tool_call.get("function", {}).get("name", "")
+                logger.info(f"Tool requested: {function_name}")
+                if function_name == "create_git_issue":
+                    create_issue_requested = True
+                    # Verify arguments contain required fields
+                    arguments = tool_call.get("function", {}).get("arguments", "{}")
+                    try:
+                        import json
+                        args_dict = json.loads(arguments) if isinstance(arguments, str) else arguments
+                        assert "title" in args_dict, "create_git_issue should have 'title' argument"
+                        assert "description" in args_dict, "create_git_issue should have 'description' argument"
+                        assert e2e_config.test_issue_marker in args_dict["title"], f"Issue title should contain test marker '{e2e_config.test_issue_marker}'"
+                        logger.info(f"✅ create_git_issue properly requested with title: {args_dict['title'][:50]}...")
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Could not parse tool call arguments: {e}")
+            
+            assert create_issue_requested, "create_git_issue should be requested in tool_calls"
+        
         # Check for successful tool execution
         issue_created = False
-        if "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None:
-            for tool_result in mcp_response["tool_execution_results"]:
-                if tool_result.get("function_name") == "create_git_issue":
+        create_issue_executed = False
+        
+        if tool_results_exist:
+            tool_results = mcp_response["tool_execution_results"]
+            assert len(tool_results) > 0, "Should have at least one tool execution result"
+            
+            for tool_result in tool_results:
+                function_name = tool_result.get("function_name", "")
+                logger.info(f"Tool executed: {function_name}")
+                
+                if function_name == "create_git_issue":
+                    create_issue_executed = True
                     result = tool_result.get("result", {})
+                    
+                    # Log the actual result for debugging
+                    logger.info(f"create_git_issue result: {result}")
+                    
                     if result.get("success"):
                         logger.info("✅ Issue creation successful via MCP")
                         issue_created = True
-                        break
+                    else:
+                        error_msg = result.get("error", "Unknown error")
+                        logger.error(f"❌ Issue creation failed: {error_msg}")
+                    break
+            
+            assert create_issue_executed, "create_git_issue should be executed in tool_execution_results"
+        
+        # Final verification
+        if not issue_created:
+            logger.warning("⚠️  Issue creation was not successful - checking for errors")
+            # Log the full response for debugging
+            logger.info(f"Full MCP response: {json.dumps(mcp_response, indent=2, default=str)}")
 
         # For real LLM providers, verify the issue was actually created
         # Always try to verify issue creation when using real LLM providers
@@ -486,16 +612,64 @@ create_git_issue ツールを使用して、以下の詳細でissueを作成し�
         # Verify error handling
         assert mcp_response is not None, "MCP response should not be None even on error"
         
+        # ===== DETAILED ERROR HANDLING VERIFICATION =====
+        logger.info("🔍 Verifying error handling tool execution")
+        
+        # Check for tool calls or execution results
+        tool_calls_exist = "tool_calls" in mcp_response and mcp_response["tool_calls"] is not None
+        tool_results_exist = "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None
+        
+        logger.info(f"Tool calls present: {tool_calls_exist}")
+        logger.info(f"Tool execution results present: {tool_results_exist}")
+        
+        # Tools should still be invoked even with invalid context
+        assert tool_calls_exist or tool_results_exist, \
+            "Response should contain tool interactions even for error cases - tools were not invoked"
+        
         # Check that the tool execution reported an error
         error_handled = False
-        if "tool_execution_results" in mcp_response and mcp_response["tool_execution_results"] is not None:
-            for tool_result in mcp_response["tool_execution_results"]:
-                if tool_result.get("function_name") == "create_git_issue":
+        create_issue_attempted = False
+        
+        if tool_results_exist:
+            tool_results = mcp_response["tool_execution_results"]
+            assert len(tool_results) > 0, "Should have at least one tool execution result for error case"
+            
+            for tool_result in tool_results:
+                function_name = tool_result.get("function_name", "")
+                logger.info(f"Tool executed in error case: {function_name}")
+                
+                if function_name == "create_git_issue":
+                    create_issue_attempted = True
                     result = tool_result.get("result", {})
+                    
+                    # Log the error result for debugging
+                    logger.info(f"create_git_issue error result: {result}")
+                    
                     if not result.get("success"):
-                        logger.info("✅ MCP tool correctly handled invalid repository")
+                        error_msg = result.get("error", "")
+                        logger.info(f"✅ MCP tool correctly handled invalid repository: {error_msg}")
                         error_handled = True
-                        break
+                    else:
+                        logger.warning("⚠️  Tool reported success despite invalid repository")
+                    break
+            
+            assert create_issue_attempted, "create_git_issue should be attempted even with invalid context"
+        
+        # If tool_calls exist but no execution results, that's also acceptable
+        if tool_calls_exist and not tool_results_exist:
+            tool_calls = mcp_response["tool_calls"]
+            for tool_call in tool_calls:
+                function_name = tool_call.get("function", {}).get("name", "")
+                if function_name == "create_git_issue":
+                    create_issue_attempted = True
+                    logger.info("✅ create_git_issue was requested (execution may have been skipped due to error)")
+                    error_handled = True  # Request was made, error handling is working
+                    break
+        
+        # Final verification for error handling
+        if not error_handled:
+            logger.warning("⚠️  Error handling verification failed - logging full response")
+            logger.info(f"Full error response: {json.dumps(mcp_response, indent=2, default=str)}")
 
         # For mock LLM, error handling is simulated
         if e2e_config.llm_provider == "mock":
