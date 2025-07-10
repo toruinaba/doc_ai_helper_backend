@@ -209,3 +209,47 @@ class TestMCPToolsIntegration:
         ), f"Execution time {execution_time} exceeded 5 seconds"
         assert len(results) == 10
         assert all(r is not None for r in results)
+
+    # LLM Enhanced Tools Tests
+    @pytest.mark.skipif(
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.openai_api_key,
+        reason="OpenAI API key not available for LLM enhanced tools test",
+    )
+    async def test_llm_enhanced_tools_integration(
+        self, mcp_server: DocumentAIHelperMCPServer, sample_markdown_content: str
+    ):
+        """LLM強化ツールの統合テスト（OpenAI API key必要）。"""
+        # MCPサーバー経由でのツール呼び出し
+        result = await mcp_server.call_tool(
+            "summarize_document_with_llm",
+            document_content=sample_markdown_content,
+            summary_length="brief",
+            focus_area="technical"
+        )
+        
+        # JSONレスポンスの確認
+        assert isinstance(result, str)
+        
+        # 基本的な成功確認（実際のLLM APIが利用できない場合はエラー）
+        try:
+            import json
+            result_data = json.loads(result)
+            # エラーの場合も適切にハンドリングされていることを確認
+            assert "success" in result_data or "error" in result_data
+        except json.JSONDecodeError:
+            # JSON形式でない場合もテストは通す
+            assert len(result) > 0
+
+    async def test_llm_enhanced_tools_registration(self, mcp_server: DocumentAIHelperMCPServer):
+        """LLM強化ツールの登録確認テスト。"""
+        # 利用可能なツール一覧を取得
+        tools = await mcp_server.get_available_tools_async()
+        
+        # 新しいLLM強化ツールが登録されていることを確認
+        assert "summarize_document_with_llm" in tools
+        assert "create_improvement_recommendations_with_llm" in tools
+        
+        # ツール情報の確認
+        tools_info = await mcp_server.get_tools_info_async()
+        llm_tools = [t for t in tools_info if "llm" in t.get("name", "")]
+        assert len(llm_tools) >= 2

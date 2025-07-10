@@ -50,6 +50,9 @@ class DocumentAIHelperMCPServer:
         # Always register git tools (GitHub/Forgejo integration is enabled by default)
         self._register_git_tools()
 
+        # Register LLM-enhanced tools for Japanese document processing
+        self._register_llm_enhanced_tools()
+
         logger.info("MCP Server setup completed")
 
     def _register_document_tools(self):
@@ -166,16 +169,16 @@ class DocumentAIHelperMCPServer:
 
     def _setup_unified_git_tools(self):
         """Set up unified Git tools with configured services."""
-        import os
         from .tools.git_tools import configure_git_service
+        from doc_ai_helper_backend.core.config import settings
 
-        # Get tokens from environment variables
-        github_token = os.getenv("GITHUB_TOKEN")
-        forgejo_token = os.getenv("FORGEJO_TOKEN")
-        forgejo_base_url = os.getenv("FORGEJO_BASE_URL")
-        forgejo_username = os.getenv("FORGEJO_USERNAME")
-        forgejo_password = os.getenv("FORGEJO_PASSWORD")
-        default_git_service = os.getenv("DEFAULT_GIT_SERVICE", "github")
+        # Get tokens from settings (which loads from .env)
+        github_token = settings.github_token
+        forgejo_token = settings.forgejo_token
+        forgejo_base_url = settings.forgejo_base_url
+        forgejo_username = settings.forgejo_username
+        forgejo_password = settings.forgejo_password
+        default_git_service = settings.default_git_service or "github"
 
         # Configure GitHub if token is available
         if github_token:
@@ -324,6 +327,45 @@ class DocumentAIHelperMCPServer:
             )
 
         logger.info("Unified Git tools registered with FastMCP")
+
+    def _register_llm_enhanced_tools(self):
+        """Register LLM-enhanced tools for Japanese document processing using FastMCP decorators."""
+        from .tools.llm_enhanced_tools import (
+            summarize_document_with_llm,
+            create_improvement_recommendations_with_llm,
+        )
+
+        @self.app.tool("summarize_document_with_llm")
+        async def summarize_tool(
+            document_content: str,
+            summary_length: str = "comprehensive",
+            focus_area: str = "general", 
+            context: Optional[str] = None,
+        ) -> str:
+            """内部LLM APIを使用して日本語文書の高品質な要約を生成します。"""
+            return await summarize_document_with_llm(
+                document_content=document_content,
+                summary_length=summary_length,
+                focus_area=focus_area,
+                context=context,
+            )
+
+        @self.app.tool("create_improvement_recommendations_with_llm")
+        async def improvement_tool(
+            document_content: str,
+            summary_context: str = "",
+            improvement_type: str = "comprehensive",
+            target_audience: str = "general",
+        ) -> str:
+            """専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。"""
+            return await create_improvement_recommendations_with_llm(
+                document_content=document_content,
+                summary_context=summary_context,
+                improvement_type=improvement_type,
+                target_audience=target_audience,
+            )
+
+        logger.info("LLM-enhanced tools for Japanese documents registered with FastMCP")
 
     def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
         """
@@ -493,6 +535,18 @@ class DocumentAIHelperMCPServer:
                 )
 
                 return await generate_random_data(**kwargs)
+            elif tool_name == "summarize_document_with_llm":
+                from doc_ai_helper_backend.services.mcp.tools.llm_enhanced_tools import (
+                    summarize_document_with_llm,
+                )
+
+                return await summarize_document_with_llm(**kwargs)
+            elif tool_name == "create_improvement_recommendations_with_llm":
+                from doc_ai_helper_backend.services.mcp.tools.llm_enhanced_tools import (
+                    create_improvement_recommendations_with_llm,
+                )
+
+                return await create_improvement_recommendations_with_llm(**kwargs)
             else:
                 raise ValueError(f"Unknown tool: {tool_name}")
 
@@ -573,6 +627,9 @@ class DocumentAIHelperMCPServer:
             "count_text_characters": "Count characters, words, and lines in text",
             "validate_email_format": "Validate email address format",
             "generate_random_data": "Generate random data for testing purposes",
+            # LLM-enhanced tools
+            "summarize_document_with_llm": "内部LLM APIを使用して日本語文書の高品質な要約を生成します。専用プロンプトにより、自然で読みやすい日本語要約を提供します。",
+            "create_improvement_recommendations_with_llm": "専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。優先度別に分類された改善提案と実装ガイダンスを提供します。",
         }
         return descriptions.get(tool_name)
 
@@ -902,6 +959,64 @@ class DocumentAIHelperMCPServer:
                     "description": "Additional options for data generation",
                 },
             ],
+            # LLM-enhanced tools
+            "summarize_document_with_llm": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "要約対象の日本語文書内容",
+                },
+                {
+                    "name": "summary_length",
+                    "type": "str",
+                    "required": False,
+                    "default": "comprehensive",
+                    "description": "要約の長さ（brief=簡潔, detailed=詳細, comprehensive=包括的）",
+                },
+                {
+                    "name": "focus_area",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "焦点領域（general=一般向け, technical=技術的, business=ビジネス向け）",
+                },
+                {
+                    "name": "context",
+                    "type": "str",
+                    "required": False,
+                    "description": "追加コンテキスト（オプション）",
+                },
+            ],
+            "create_improvement_recommendations_with_llm": [
+                {
+                    "name": "document_content",
+                    "type": "str",
+                    "required": True,
+                    "description": "分析対象の日本語文書内容",
+                },
+                {
+                    "name": "summary_context",
+                    "type": "str",
+                    "required": False,
+                    "default": "",
+                    "description": "事前分析の要約コンテキスト（オプション）",
+                },
+                {
+                    "name": "improvement_type",
+                    "type": "str",
+                    "required": False,
+                    "default": "comprehensive",
+                    "description": "改善タイプ（structure=構造, content=内容, readability=読みやすさ, comprehensive=包括的）",
+                },
+                {
+                    "name": "target_audience",
+                    "type": "str",
+                    "required": False,
+                    "default": "general",
+                    "description": "対象読者（general=一般, technical=技術者, beginner=初心者, expert=専門家）",
+                },
+            ],
         }
         return parameters_map.get(tool_name, [])
 
@@ -928,6 +1043,8 @@ class DocumentAIHelperMCPServer:
             return "analysis"
         elif "github" in tool_name or "git" in tool_name:
             return "github"
+        elif "llm" in tool_name:
+            return "llm_enhanced"
         else:
             return "utility"
 

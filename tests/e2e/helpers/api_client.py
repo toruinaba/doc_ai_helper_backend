@@ -7,7 +7,7 @@ during end-to-end tests, focusing on core functionality needed for E2E scenarios
 
 import asyncio
 import json
-from typing import Dict, Any, Optional, AsyncGenerator
+from typing import Dict, Any, Optional, AsyncGenerator, List
 import httpx
 import logging
 
@@ -102,6 +102,8 @@ class BackendAPIClient:
         provider: Optional[str] = None,
         model: Optional[str] = None,
         repository_context: Optional[Dict[str, Any]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        auto_include_document: bool = False,
     ) -> Dict[str, Any]:
         """
         Send a query to the LLM via the backend API.
@@ -113,6 +115,8 @@ class BackendAPIClient:
             provider: LLM provider to use
             model: Specific model to use
             repository_context: Repository context for Git operations
+            conversation_history: Previous conversation history
+            auto_include_document: Whether to auto-include document from repository
 
         Returns:
             LLM response as dictionary
@@ -124,6 +128,7 @@ class BackendAPIClient:
         payload = {
             "prompt": prompt,
             "enable_tools": tools_enabled,
+            "complete_tool_flow": False,  # Use legacy flow for reliable execution
         }
 
         if provider:
@@ -134,6 +139,10 @@ class BackendAPIClient:
             payload["model"] = model
         if repository_context:
             payload["repository_context"] = repository_context
+        if conversation_history:
+            payload["conversation_history"] = conversation_history
+        if auto_include_document:
+            payload["auto_include_document"] = auto_include_document
 
         logger.info(f"Sending LLM query: {prompt[:100]}...")
 
@@ -169,6 +178,7 @@ class BackendAPIClient:
         payload = {
             "prompt": prompt,
             "enable_tools": tools_enabled,
+            "complete_tool_flow": False,  # Use legacy flow for reliable execution
         }
 
         if provider:

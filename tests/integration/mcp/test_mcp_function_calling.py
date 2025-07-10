@@ -28,12 +28,12 @@ class TestMCPFunctionCallingIntegration:
         self, mcp_server: DocumentAIHelperMCPServer, sample_markdown_content: str
     ):
         """OpenAIサービス経由でのMCPツール統合をテスト（API key必要）。"""
-        # 環境変数から設定を取得
-        api_key = os.getenv("OPENAI_API_KEY")
-        openai_model = os.getenv("DEFAULT_OPENAI_MODEL") or os.getenv(
-            "OPENAI_MODEL", "gpt-3.5-turbo"
-        )  # 環境変数からモデル名を取得
-        openai_base_url = os.getenv("OPENAI_BASE_URL")  # オプション
+        # settingsから設定を取得
+        from doc_ai_helper_backend.core.config import settings
+        
+        api_key = settings.openai_api_key
+        openai_model = settings.default_openai_model
+        openai_base_url = settings.openai_base_url
 
         # OpenAIサービスの設定
         openai_config = {"api_key": api_key, "default_model": openai_model}
