@@ -14,7 +14,7 @@ from doc_ai_helper_backend.models.llm import (
     FunctionCall,
     ToolCall,
 )
-from doc_ai_helper_backend.services.llm.function_manager import FunctionRegistry
+from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
 from .server import DocumentAIHelperMCPServer
 
 logger = logging.getLogger(__name__)

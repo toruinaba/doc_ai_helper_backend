@@ -1,6 +1,31 @@
-# OpenAIService 単体テスト実行方法
+# LLM Services Unit Tests
 
-このドキュメントでは、OpenAIServiceの単体テストの実行方法について説明します。
+このドキュメントでは、LLMサービスの単体テストの構造と実行方法について説明します。
+
+## テスト構造 - 1:1対応原則
+
+すべてのソースファイルは対応するテストファイルと厳密な1:1対応を維持しています：
+
+### メインLLMサービス
+```
+doc_ai_helper_backend/services/llm/    <->    tests/unit/services/llm/
+├── base.py                           <->    ├── test_base.py
+├── common.py                         <->    ├── test_common.py  
+├── factory.py                        <->    ├── test_factory.py
+├── mock_service.py                   <->    ├── test_mock_service.py
+└── openai_service.py                 <->    └── test_openai_service.py
+```
+
+### ユーティリティモジュール
+```
+doc_ai_helper_backend/services/llm/utils/    <->    tests/unit/services/llm/utils/
+├── caching.py                               <->    ├── test_caching.py
+├── functions.py                             <->    ├── test_functions.py
+├── helpers.py                               <->    ├── test_helpers.py
+├── messaging.py                             <->    ├── test_messaging.py
+├── templating.py                            <->    ├── test_templating.py
+└── tokens.py                                <->    └── test_tokens.py
+```
 
 ## 前提条件
 
@@ -9,7 +34,7 @@
 
 ## 単体テストの特徴
 
-OpenAIServiceの単体テストには以下の特徴があります：
+LLMサービスの単体テストには以下の特徴があります：
 
 1. **外部依存のモック化**:
    - OpenAI APIとの通信を完全にモック化
@@ -17,34 +42,58 @@ OpenAIServiceの単体テストには以下の特徴があります：
    - APIキーなどの認証情報不要
 
 2. **テスト対象**:
-   - OpenAIServiceの内部ロジック
+   - LLMサービスの内部ロジック
    - メッセージ構築処理
    - オプション処理
    - キャッシュ機能
    - エラーハンドリング
    - トークン推定機能
+   - コンポジション設計の正確性
 
 ## テスト実行方法
 
-### 基本的な実行方法
+### 1:1対応テストのみ実行（推奨）
 
-```powershell
+```bash
 # プロジェクトのルートディレクトリから実行
+pytest tests/unit/services/llm/ --ignore=tests/unit/services/llm/legacy/ -v
+```
+
+### 特定のサービステスト実行
+
+```bash
+# OpenAIサービスのテストのみ実行
 pytest tests/unit/services/llm/test_openai_service.py -v
+
+# ファクトリーのテストのみ実行
+pytest tests/unit/services/llm/test_factory.py -v
+
+# ユーティリティのテストのみ実行
+pytest tests/unit/services/llm/utils/ -v
 ```
 
 ### 特定のテストケースのみを実行
 
-```powershell
+```bash
 # 例: 基本的なクエリのテストのみ実行
 pytest tests/unit/services/llm/test_openai_service.py::TestOpenAIService::test_query_basic -v
 ```
 
-### すべての単体テストを実行
+### すべての単体テスト（legacy含む）を実行
 
-```powershell
-pytest tests/unit/ -v
+```bash
+pytest tests/unit/services/llm/ -v
 ```
+
+## レガシーテストについて
+
+`tests/unit/services/llm/legacy/` ディレクトリには古いアーキテクチャ用のテストが含まれています：
+
+- **自動スキップ**: pytest.mark.skipが設定済み
+- **参考用**: 旧実装の参考として保持
+- **実行除外**: 通常のテスト実行からは除外推奨
+
+詳細は [legacy/README.md](legacy/README.md) を参照してください。
 
 ## テスト結果の確認
 

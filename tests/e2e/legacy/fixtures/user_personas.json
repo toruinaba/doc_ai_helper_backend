@@ -1,0 +1,142 @@
+{
+  "personas": {
+    "new_developer": {
+      "id": "new_developer",
+      "name": "新規開発者",
+      "description": "プロジェクトに新しく参加した初心者開発者",
+      "characteristics": {
+        "experience_level": "beginner",
+        "technical_background": "junior",
+        "learning_preference": "guided",
+        "time_constraints": "high",
+        "documentation_familiarity": "low",
+        "ai_tool_experience": "limited"
+      },
+      "goals": [
+        "プロジェクトの全体像を理解する",
+        "必要な開発環境をセットアップする", 
+        "最初のタスクを見つける",
+        "チームメンバーとのコミュニケーションを開始する"
+      ],
+      "pain_points": [
+        "情報が多すぎて何から始めればよいかわからない",
+        "専門用語が理解できない",
+        "質問するのが恥ずかしい"
+      ],
+      "success_metrics": {
+        "onboarding_time": 1800,
+        "understanding_threshold": 0.6,
+        "task_completion_rate": 0.7
+      }
+    },
+    
+    "experienced_developer": {
+      "id": "experienced_developer", 
+      "name": "経験豊富な開発者",
+      "description": "多くのプロジェクト経験を持つシニア開発者",
+      "characteristics": {
+        "experience_level": "senior",
+        "technical_background": "expert", 
+        "learning_preference": "exploration",
+        "time_constraints": "medium",
+        "documentation_familiarity": "high",
+        "ai_tool_experience": "moderate"
+      },
+      "goals": [
+        "効率的に必要な情報を見つける",
+        "アーキテクチャを理解する",
+        "最適化の機会を特定する",
+        "チームの生産性を向上させる"
+      ],
+      "pain_points": [
+        "情報が分散していて見つけにくい",
+        "古い情報と新しい情報が混在している",
+        "詳細すぎる説明が時間の無駄"
+      ],
+      "success_metrics": {
+        "information_discovery_time": 300,
+        "accuracy_threshold": 0.9,
+        "efficiency_score": 0.8
+      }
+    },
+    
+    "technical_writer": {
+      "id": "technical_writer",
+      "name": "テクニカルライター",
+      "description": "ドキュメント品質の向上を専門とするライター",
+      "characteristics": {
+        "experience_level": "intermediate",
+        "technical_background": "documentation_focused",
+        "learning_preference": "structured", 
+        "time_constraints": "low",
+        "documentation_familiarity": "expert",
+        "ai_tool_experience": "high"
+      },
+      "goals": [
+        "ドキュメントの品質を評価する",
+        "改善提案を作成する",
+        "読みやすさを向上させる",
+        "情報の一貫性を保つ"
+      ],
+      "pain_points": [
+        "主観的な評価になりがち",
+        "改善提案の優先順位付けが困難",
+        "技術的な正確性の検証が困難"
+      ],
+      "success_metrics": {
+        "quality_assessment_accuracy": 0.85,
+        "improvement_actionability": 0.9,
+        "review_completion_time": 900
+      }
+    },
+    
+    "team_member": {
+      "id": "team_member", 
+      "name": "チームメンバー",
+      "description": "日常的にプロジェクトに関わるチームメンバー",
+      "characteristics": {
+        "experience_level": "intermediate",
+        "technical_background": "mixed",
+        "learning_preference": "collaborative",
+        "time_constraints": "high", 
+        "documentation_familiarity": "moderate",
+        "ai_tool_experience": "moderate"
+      },
+      "goals": [
+        "チームで問題を解決する",
+        "知識を共有する",
+        "プロセスを改善する",
+        "効率的にコラボレーションする"
+      ],
+      "pain_points": [
+        "コミュニケーションコストが高い",
+        "情報の重複や矛盾",
+        "責任の所在が不明確"
+      ],
+      "success_metrics": {
+        "collaboration_effectiveness": 0.8,
+        "issue_resolution_time": 1200,
+        "team_satisfaction": 0.75
+      }
+    }
+  },
+  
+  "interaction_contexts": {
+    "first_time_access": {
+      "description": "初回アクセス時の状況",
+      "conditions": ["no_prior_context", "high_uncertainty", "need_guidance"]
+    },
+    "focused_search": {
+      "description": "特定の情報を探している状況", 
+      "conditions": ["clear_intent", "time_pressure", "specific_goal"]
+    },
+    "quality_review": {
+      "description": "品質改善を目的とした確認",
+      "conditions": ["improvement_mindset", "analytical_approach", "systematic_review"]
+    },
+    "team_collaboration": {
+      "description": "チームでの協力作業",
+      "conditions": ["shared_responsibility", "communication_needs", "consensus_building"]
+    }
+  }
+}

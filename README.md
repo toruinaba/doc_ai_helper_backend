@@ -24,13 +24,15 @@ GitサービスでホストされたMarkdownドキュメントを取得し、フ
    - リンク情報の抽出と変換
    - 拡張ドキュメントメタデータの提供
 
-2. **拡張機能（フェーズ2）**: その他の機能拡張 [✅大部分完了]
+2. **拡張機能（フェーズ2）**: その他の機能拡張 [✅完了]
    - バックエンド経由LLM API連携の実装 [✅完了]
    - MCP（Model Context Protocol）機能の実装 [✅完了]
    - GitHubツール統合機能の実装 [✅完了]
    - LLMレスポンスキャッシュ機能の実装 [✅完了]
    - ストリーミングレスポンス機能の実装 [✅完了]
-   - Forgejo対応とGitホストサービス抽象化の強化 [🔄次期優先実装]
+   - Forgejo対応とGitホストサービス抽象化の強化 [✅完了]
+
+3. **次期実装予定（フェーズ3）**: 高度な機能拡張 [🔄計画中]
    - HTML対応機能（Quarto準備段階）の実装 [🔄次期優先実装]
    - リポジトリ管理機能の実装 [🔄計画中]
    - 検索機能の実装 [🔄計画中]
@@ -133,8 +135,8 @@ LLMサービス層は、クリーンな抽象化レイヤーを通じて様々�
 - ✅ MCPアダプター（`MCPAdapter`）の完全実装
 - ✅ GitHubツール統合機能（`GitHubTools`）の実装
 - ✅ セキュアなGitHubアクセス機能の実装
-- ✅ 包括的なテストスイート（329の単体テストが通過）
-- 🔄 Forgejo対応とGitホストサービス抽象化の強化 - 次期優先実装
+- ✅ Forgejo対応とGitホストサービス抽象化の強化（完了）
+- ✅ 包括的なテストスイート（230+の単体テストが通過）
 - 🔄 HTML対応機能（Quarto準備段階）- 次期優先実装
 - ⏱️ 追加のLLMプロバイダー実装（Ollama等）- 将来実装予定
 - ⏱️ MCPアダプターの拡張機能（後続フェーズ）
@@ -194,23 +196,23 @@ async def stream_query(
         raise LLMServiceException(f"Streaming error: {str(e)}")
 ```
 
-#### Forgejo対応とGitホストサービス抽象化計画（次期優先実装）
+#### Forgejo対応完了報告
 
-Forgejoサービスの実装は、次期の最優先実装項目として位置づけられています。Forgejoは軽量なGitホスティングサービスであり、以下の特徴があります：
+Forgejoサービスの実装が完了しました。Forgejoは軽量なGitホスティングサービスであり、以下の特徴を持ちます：
 
 1. **セルフホスト対応**: プライベート環境での Git ホスティング
 2. **GitLab/GitHub互換**: 既存のAPIパターンを活用可能
 3. **オープンソース**: カスタマイズ性と透明性
 
-実装アプローチとしては、以下を予定しています：
+完了した実装：
 
 1. **Gitサービス抽象化の強化**
-   - `GitServiceBase` の機能拡張
+   - `GitServiceBase` の機能拡張完了
    - 認証方式の統一化（トークン、基本認証等）
    - エラーハンドリングの標準化
 
 2. **Forgejoサービス実装**
-   - `ForgejoService` クラスの作成（`GitServiceBase` を継承）
+   - `ForgejoService` クラスの完全実装（`GitServiceBase` を継承）
    - Forgejo APIとの通信実装（httpxを使用）
    - リポジトリ操作、ファイル取得機能の実装
 
@@ -218,6 +220,11 @@ Forgejoサービスの実装は、次期の最優先実装項目として位置�
    - 複数ホストの設定管理
    - ホスト固有の認証情報管理
    - サービス自動検出機能
+
+4. **テスト完了**
+   - 54個のユニットテストが全て通過
+   - GitHub、Forgejo、Mockサービスの統合テスト完了
+   - API互換性の確認完了
 
 #### HTML対応機能実装計画（Quarto準備段階）
 
@@ -316,7 +323,6 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
 
 ### 次期優先実装予定の機能
 
-- 🔄 Forgejo対応とGitホストサービスの抽象化強化（最優先）
 - 🔄 HTML対応機能（Quarto対応の準備段階）
 - 🔄 データベース層の本格実装（現在はモック）
 - 🔄 検索API機能
@@ -346,7 +352,7 @@ HTML対応機能は、将来のQuarto完全サポートに向けた準備段階�
 - LLM API連携の基本機能実装 [✅完了]
 - MCP（Model Context Protocol）機能実装 [✅完了]
 - GitHubツール統合機能実装 [✅完了]
-- Forgejo対応とGitホストサービス抽象化の強化 [🔄次期最優先]
+- Forgejo対応とGitホストサービス抽象化の強化 [✅完了]
 - HTML対応機能（Quarto準備段階）の実装 [🔄次期優先]
 - データベース層はモックで実装（APIの仕様が定まりつつある段階）
 - Quarto対応は将来の拡張として位置付け
@@ -627,24 +633,68 @@ http://localhost:8000/docs
 
 ## テスト実行
 
+### 基本的なテスト実行
+
 ```bash
+# 全テスト実行
 pytest
+
+# 層別テスト実行
+pytest tests/unit/          # 単体テスト
+pytest tests/integration/   # 統合テスト  
+pytest tests/e2e/           # E2Eテスト
+```
+
+### 層別テスト実行
+
+```bash
+# Git層統合テスト
+pytest tests/integration/git/ -v
+
+# LLM層統合テスト
+pytest tests/integration/llm/ -v
+
+# MCP層統合テスト
+pytest tests/integration/mcp/ -v
+```
+
+### マーカー別テスト実行
+
+```bash
+# Git関連テスト
+pytest -m git -v
+
+# LLM関連テスト
+pytest -m llm -v
+
+# MCP関連テスト
+pytest -m mcp -v
+
+# ストリーミング機能テスト
+pytest -m streaming -v
+
+# 外部API不要テスト（単体テスト）
+pytest -m "not (github or forgejo or openai)" -v
 ```
 
 ### テスト戦略
 
-このプロジェクトでは、2層のテスト戦略を採用しています：
+このプロジェクトでは、3層のテスト戦略を採用しています：
 
-1. **単体テストとAPIテスト** (`tests/unit/` および `tests/api/`)
+1. **単体テスト** (`tests/unit/`)
    - 外部依存関係を排除したテスト
    - Mockサービスを活用した高速テスト
    - 開発中の継続的な実行に適している
 
 2. **統合テスト** (`tests/integration/`)
-   - 実際の外部API（GitHub、OpenAI等）を使用
-   - 実際の動作の検証
+   - 実際の外部API（GitHub、Forgejo、OpenAI等）を使用
+   - サービス層の実際の動作の検証
    - 環境変数による設定が必要
-   - CI/CDでの実行またはリリース前の手動実行
+
+3. **E2Eテスト** (`tests/e2e/`)
+   - API経由のエンドツーエンド動作確認
+   - ワークフローシナリオのテスト
+   - 実際のユーザー利用シナリオの検証
 
 #### 統合テスト実行の要件
 
@@ -656,11 +706,13 @@ export GITHUB_TOKEN="your_github_token"
 
 # OpenAI統合テスト  
 export OPENAI_API_KEY="your_openai_api_key"
-```
 
-統合テストのみを実行する場合：
-```bash
-pytest tests/integration/
+# Forgejo統合テスト（オプション）
+export FORGEJO_BASE_URL="https://your-forgejo-instance.com"
+export FORGEJO_TOKEN="your_forgejo_token"
+# または
+export FORGEJO_USERNAME="your_username"
+export FORGEJO_PASSWORD="your_password"
 ```
 
 ## ブランチ戦略
@@ -895,16 +947,20 @@ Markdownドキュメント処理機能は完全に実装されています。以
 - `parse_frontmatter`: フロントマーターの解析を担当
 - `DocumentProcessorFactory`: ドキュメントタイプに応じたプロセッサーを生成
 
-## 進捗サマリー（2025年6月22日現在）
+## 進捗サマリー（2025年7月4日現在）
 
-### フェーズ2完了 - MCP/Function Calling/分析エンジン実装完了
+### フェーズ2完了 - Forgejo対応とGitサービス抽象化完了
+- ✅ **Gitサービス抽象化**: GitHub、Forgejo、Mockサービス統合完了
+- ✅ **Forgejoサービス**: 完全実装・54個のテスト全通過
 - ✅ **MCPサーバー（FastMCPベース）**: 完全実装・テスト済み
 - ✅ **Function Calling/ツール実行機能**: 完全実装・テスト済み
 - ✅ **フィードバック分析エンジン**: 完全実装・テスト済み
 - ✅ **MCPツール群**: document_tools/feedback_tools/analysis_tools全て実装済み
-- ✅ **ユニットテスト**: 29件全てPASSED（tests/unit/services/mcp_tests/配下）
+- ✅ **LLMサービス**: 99個のテスト全通過
+- ✅ **API統合**: 基本エンドポイント27個中25個通過
 
 ### 主要実装コンポーネント
+- **Gitサービス**: `doc_ai_helper_backend/services/git/` (GitHub、Forgejo、Mock)
 - **MCPサーバー**: `doc_ai_helper_backend/services/mcp/server.py`
 - **Function Registry**: `doc_ai_helper_backend/services/llm/function_manager.py`
 - **MCPアダプター**: `doc_ai_helper_backend/services/mcp/function_adapter.py`
@@ -912,24 +968,25 @@ Markdownドキュメント処理機能は完全に実装されています。以
   - document_tools: ドキュメント解析・最適化
   - feedback_tools: フィードバック収集・分析
   - analysis_tools: テキスト分析・感情分析
+  - git_tools: Git統合機能
 - **設定管理**: `doc_ai_helper_backend/services/mcp/config.py`
 
 ### 完了した実装項目（フェーズ1-2）
 - ✅ Markdownドキュメント取得・処理（フロントマター解析、リンク変換）
+- ✅ Gitサービス抽象化とForgejo対応
 - ✅ LLMサービス基本アーキテクチャ（OpenAI、ストリーミング、キャッシュ）
 - ✅ 会話履歴管理サービス
 - ✅ MCPサーバー（FastMCPベース）とツール群
 - ✅ Function Calling/ツール実行機能
 - ✅ フィードバック分析エンジン
-- ✅ 包括的ユニットテスト（全29件パス）
+- ✅ 包括的ユニットテスト（230+件通過）
 
 ### 次期計画（フェーズ3）
-- GitHub統合機能の強化
-- フィードバック投稿APIの統合
-- APIエンドポイントでのFunction Calling完全統合
-- エンドツーエンドテストの追加
-- リポジトリ管理機能の実装
+- HTML対応機能（Quarto準備段階）の実装
+- データベース層の本格実装
 - 検索機能の実装
+- リポジトリ管理機能の実装
+- パフォーマンス最適化とセキュリティ強化
 
 ## 📋 次期実装計画（フェーズ3: GitHub MCP統合）
 
@@ -983,7 +1040,9 @@ LLM: analyze_document_structure() で分析
 ### 🎯 実装の利点
 1. **最小実装**: 既存MCP基盤（29テスト通過済み）をフル活用
 2. **即座に動作**: フロントエンド不要でLLM対話テスト可能
-3. **段階的拡張**: 基本機能確立後、フィードバックAPI等を追加可能
-4. **実装量削減**: 約250行の実装でコア機能完成
+3. **段階的拡張**: 安定した基盤から順次機能追加
+4. **実装量削減**: 既存インフラ活用により効率的な開発
 
 ---
+
+*最終更新: 2025年7月4日 - Forgejo対応とGitサービス抽象化完了*

@@ -1,0 +1,172 @@
+{
+  "story_scenarios": {
+    "new_developer_onboarding": {
+      "story_name": "新規開発者オンボーディング",
+      "description": "新規開発者がプロジェクトに参加し、AIの支援を受けながら理解を深める",
+      "user_persona": "new_developer",
+      "context": "first_time_access",
+      "journey_steps": [
+        {
+          "step": "repository_connection",
+          "description": "フロントエンドからリポジトリに接続",
+          "expected_duration": 30,
+          "success_criteria": ["connection_established", "welcome_guidance_provided"]
+        },
+        {
+          "step": "initial_guidance",
+          "description": "AI による初心者向け推奨の取得",
+          "expected_duration": 60,
+          "success_criteria": ["relevant_documents_recommended", "learning_path_provided"]
+        },
+        {
+          "step": "document_exploration", 
+          "description": "推奨されたドキュメントの段階的読解",
+          "expected_duration": 900,
+          "success_criteria": ["understanding_improvement", "confidence_increase"]
+        },
+        {
+          "step": "next_steps_planning",
+          "description": "理解度確認と次のステップの明確化",
+          "expected_duration": 180,
+          "success_criteria": ["clear_next_actions", "reduced_uncertainty"]
+        }
+      ],
+      "success_thresholds": {
+        "total_time_limit": 1800,
+        "understanding_score": 0.6,
+        "satisfaction_score": 0.7
+      }
+    },
+    
+    "documentation_exploration": {
+      "story_name": "ドキュメント探索",
+      "description": "開発者が特定の情報を効率的に探索する",
+      "user_persona": "experienced_developer",
+      "context": "focused_search", 
+      "journey_steps": [
+        {
+          "step": "search_intent_clarification",
+          "description": "探索意図の明確化",
+          "expected_duration": 15,
+          "success_criteria": ["clear_search_goal", "context_understanding"]
+        },
+        {
+          "step": "ai_assisted_navigation",
+          "description": "AI支援による的確なナビゲーション",
+          "expected_duration": 45,
+          "success_criteria": ["relevant_content_identified", "efficient_path_suggested"]
+        },
+        {
+          "step": "information_discovery",
+          "description": "関連情報の自然な発見",
+          "expected_duration": 180,
+          "success_criteria": ["comprehensive_information", "contextual_understanding"]
+        },
+        {
+          "step": "completion_verification",
+          "description": "情報収集完了の確認",
+          "expected_duration": 60,
+          "success_criteria": ["goal_achievement", "information_completeness"]
+        }
+      ],
+      "success_thresholds": {
+        "total_time_limit": 600,
+        "information_accuracy": 0.9,
+        "efficiency_score": 0.8
+      }
+    },
+    
+    "ai_assisted_improvement": {
+      "story_name": "AI支援改善",
+      "description": "AIを活用してドキュメントの問題を発見し改善提案を行う",
+      "user_persona": "technical_writer",
+      "context": "quality_review",
+      "journey_steps": [
+        {
+          "step": "problem_identification",
+          "description": "ドキュメントの問題認識",
+          "expected_duration": 120,
+          "success_criteria": ["issues_identified", "improvement_opportunities_found"]
+        },
+        {
+          "step": "ai_quality_analysis",
+          "description": "AI による包括的品質分析",
+          "expected_duration": 180,
+          "success_criteria": ["objective_assessment", "specific_recommendations"]
+        },
+        {
+          "step": "improvement_proposal",
+          "description": "具体的な改善提案の生成",
+          "expected_duration": 240,
+          "success_criteria": ["actionable_suggestions", "prioritized_improvements"]
+        },
+        {
+          "step": "team_collaboration",
+          "description": "チームへの共有とIssue作成",
+          "expected_duration": 180,
+          "success_criteria": ["issue_created", "team_notification_sent"]
+        }
+      ],
+      "success_thresholds": {
+        "total_time_limit": 900,
+        "quality_improvement": 0.3,
+        "actionability_score": 0.8
+      }
+    },
+    
+    "team_collaboration": {
+      "story_name": "チームコラボレーション", 
+      "description": "チームメンバーがAIを活用して協力的にドキュメントを改善する",
+      "user_persona": "team_member",
+      "context": "team_collaboration",
+      "journey_steps": [
+        {
+          "step": "issue_reporting",
+          "description": "問題の発見と報告",
+          "expected_duration": 120,
+          "success_criteria": ["clear_problem_description", "context_provided"]
+        },
+        {
+          "step": "collaborative_analysis",
+          "description": "AI分析とチーム向け提案",
+          "expected_duration": 300,
+          "success_criteria": ["comprehensive_analysis", "team_oriented_solutions"]
+        },
+        {
+          "step": "team_issue_creation",
+          "description": "チーム向けIssueの自動作成",
+          "expected_duration": 60,
+          "success_criteria": ["issue_created", "reviewers_assigned"]
+        },
+        {
+          "step": "improvement_implementation",
+          "description": "改善の実行と結果確認",
+          "expected_duration": 600,
+          "success_criteria": ["implementation_success", "quality_improvement"]
+        }
+      ],
+      "success_thresholds": {
+        "total_time_limit": 1200,
+        "collaboration_effectiveness": 0.8,
+        "team_satisfaction": 0.75
+      }
+    }
+  },
+  
+  "common_expectations": {
+    "response_times": {
+      "api_call_max": 10,
+      "ai_analysis_max": 30,
+      "document_load_max": 5
+    },
+    "quality_thresholds": {
+      "ai_response_relevance": 0.8,
+      "recommendation_accuracy": 0.75,
+      "user_satisfaction": 0.7
+    },
+    "error_tolerance": {
+      "max_errors_per_journey": 1,
+      "recovery_time_max": 30
+    }
+  }
+}

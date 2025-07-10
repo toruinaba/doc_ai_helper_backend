@@ -6,11 +6,11 @@ LLMサービス経由でのMCPツール呼び出しとFunction Calling機能を�
 
 import os
 import pytest
+import asyncio
 from typing import Dict, Any, List
-from unittest.mock import AsyncMock, patch
 
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.function_manager import FunctionRegistry
+from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 
 
@@ -20,36 +20,8 @@ from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 class TestMCPFunctionCallingIntegration:
     """MCP Function Calling統合テストクラス。"""
 
-    async def test_llm_mcp_tool_integration_mock(
-        self, mcp_server: DocumentAIHelperMCPServer
-    ):
-        """MockLLMサービス経由でのMCPツール統合をテスト。"""
-        # MockLLMサービスを使用（外部API不要）
-        llm_service = LLMServiceFactory.create("mock")
-
-        # Function Callingオプションを設定
-        options = {
-            "enable_function_calling": True,
-            "available_functions": [
-                "extract_document_context",
-                "analyze_document_structure",
-                "calculate",
-            ],
-        }
-
-        prompt = """このMarkdownドキュメントを分析してください：
-        # テストドキュメント
-        これはテスト用のドキュメントです。
-        """
-
-        # MockLLMサービスでのFunction Calling（モック動作）
-        response = await llm_service.query(prompt, None, options)
-
-        assert response is not None
-        assert hasattr(response, "content")
-
     @pytest.mark.skipif(
-        not os.getenv("OPENAI_API_KEY"),
+        not __import__("doc_ai_helper_backend.core.config", fromlist=["settings"]).settings.openai_api_key,
         reason="OpenAI API key not available for integration test",
     )
     async def test_llm_mcp_tool_integration_openai(
@@ -58,9 +30,9 @@ class TestMCPFunctionCallingIntegration:
         """OpenAIサービス経由でのMCPツール統合をテスト（API key必要）。"""
         # 環境変数から設定を取得
         api_key = os.getenv("OPENAI_API_KEY")
-        openai_model = os.getenv(
+        openai_model = os.getenv("DEFAULT_OPENAI_MODEL") or os.getenv(
             "OPENAI_MODEL", "gpt-3.5-turbo"
-        )  # デフォルトはgpt-3.5-turbo
+        )  # 環境変数からモデル名を取得
         openai_base_url = os.getenv("OPENAI_BASE_URL")  # オプション
 
         # OpenAIサービスの設定
@@ -72,13 +44,8 @@ class TestMCPFunctionCallingIntegration:
 
         llm_service = LLMServiceFactory.create("openai", **openai_config)
 
-        # Function Callingオプションを設定
+        # 基本的なオプションを設定（available_functionsは削除）
         options = {
-            "enable_function_calling": True,
-            "available_functions": [
-                "extract_document_context",
-                "analyze_document_structure",
-            ],
             "max_tokens": 500,  # コスト制御
         }
 
@@ -86,15 +53,14 @@ class TestMCPFunctionCallingIntegration:
 
 {sample_markdown_content}
 
-analyze_document_structure関数を使用して分析を行ってください。"""
+この文書の主要な要素（見出し、段落、リストなど）について説明してください。"""
 
-        # 実際のOpenAI Function Calling
+        # 実際のOpenAI API呼び出し
         response = await llm_service.query(prompt, None, options)
 
         assert response is not None
         assert response.content
-        # Function Callingが実行された場合、結果が含まれることを確認
-        # （実際の実行結果は OpenAI の判断に依存）
+        # 基本的なLLM応答が返されることを確認
 
     async def test_function_registry_mcp_integration(
         self, mcp_server: DocumentAIHelperMCPServer

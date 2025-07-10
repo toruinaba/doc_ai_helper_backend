@@ -29,5 +29,11 @@ async def health_check():
     Returns:
         Dict[str, str]: Health status information
     """
+    from datetime import datetime
+
     logger.debug("Health check requested")
-    return {"status": "ok", "version": settings.app_version}
+    return {
+        "status": "ok",
+        "version": settings.app_version,
+        "timestamp": datetime.now().isoformat(),
+    }

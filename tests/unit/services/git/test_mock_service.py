@@ -175,3 +175,142 @@ class TestMockGitService:
         # For non-existent repositories, the behavior depends on how the mock is configured
         # In the default implementation, it should return True for all repositories
         # unless existing_repos is explicitly set
+
+    @pytest.mark.asyncio
+    async def test_create_issue(self, mock_service):
+        """Test creating an issue."""
+        result = await mock_service.create_issue(
+            "example",
+            "docs-project",
+            "Test Issue",
+            "Test description",
+            labels=["bug", "feature"],
+            assignees=["testuser"],
+        )
+
+        assert result["number"] == 123
+        assert result["title"] == "Test Issue"
+        assert result["body"] == "Test description"
+        assert result["state"] == "open"
+        assert "html_url" in result
+        assert len(result["labels"]) == 2
+        assert len(result["assignees"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_create_issue_not_found_repo(self):
+        """Test creating an issue in non-existent repository."""
+        # Create mock service with specific existing repos
+        mock_service = MockGitService(existing_repos=["example/other-repo"])
+
+        with pytest.raises(NotFoundException):
+            await mock_service.create_issue(
+                "example", "nonexistent-repo", "Test Issue", "Test description"
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request(self, mock_service):
+        """Test creating a pull request."""
+        result = await mock_service.create_pull_request(
+            "example",
+            "docs-project",
+            "Test PR",
+            "Test PR description",
+            "feature-branch",
+            "main",
+        )
+
+        assert result["number"] == 456
+        assert result["title"] == "Test PR"
+        assert result["body"] == "Test PR description"
+        assert result["state"] == "open"
+        assert result["draft"] is False
+        assert result["head"]["ref"] == "feature-branch"
+        assert result["base"]["ref"] == "main"
+        assert "html_url" in result
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request_draft(self, mock_service):
+        """Test creating a draft pull request."""
+        result = await mock_service.create_pull_request(
+            "example",
+            "docs-project",
+            "Draft PR",
+            "Draft PR description",
+            "draft-branch",
+            "main",
+            draft=True,
+        )
+
+        assert result["number"] == 456
+        assert result["title"] == "Draft PR"
+        assert result["body"] == "Draft PR description"
+        assert result["state"] == "open"
+        assert result["draft"] is True
+        assert result["head"]["ref"] == "draft-branch"
+        assert result["base"]["ref"] == "main"
+
+    @pytest.mark.asyncio
+    async def test_create_pull_request_not_found_repo(self):
+        """Test creating a pull request in non-existent repository."""
+        # Create mock service with specific existing repos
+        mock_service = MockGitService(existing_repos=["example/other-repo"])
+
+        with pytest.raises(NotFoundException):
+            await mock_service.create_pull_request(
+                "example",
+                "nonexistent-repo",
+                "Test PR",
+                "Test description",
+                "feature-branch",
+                "main",
+            )
+
+    @pytest.mark.asyncio
+    async def test_check_repository_permissions(self, mock_service):
+        """Test checking repository permissions."""
+        result = await mock_service.check_repository_permissions(
+            "example", "docs-project"
+        )
+
+        assert result["admin"] is True
+        assert result["push"] is True
+        assert result["pull"] is True
+        assert result["write"] is True
+        assert result["read"] is True
+        assert result["issues"] is True
+        assert result["pull_requests"] is True
+
+    @pytest.mark.asyncio
+    async def test_check_repository_permissions_not_found(self):
+        """Test checking permissions for non-existent repository."""
+        # Create mock service with specific existing repos
+        mock_service = MockGitService(existing_repos=["example/other-repo"])
+
+        with pytest.raises(NotFoundException):
+            await mock_service.check_repository_permissions(
+                "example", "nonexistent-repo"
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_repository_info(self, mock_service):
+        """Test getting repository information."""
+        result = await mock_service.get_repository_info("example", "docs-project")
+
+        assert result["id"] == 12345
+        assert result["name"] == "docs-project"
+        assert result["full_name"] == "example/docs-project"
+        assert result["owner"]["login"] == "example"
+        assert result["description"] == "Mock repository for example/docs-project"
+        assert result["private"] is False
+        assert "html_url" in result
+        assert "clone_url" in result
+        assert result["default_branch"] == "main"
+
+    @pytest.mark.asyncio
+    async def test_get_repository_info_not_found(self):
+        """Test getting info for non-existent repository."""
+        # Create mock service with specific existing repos
+        mock_service = MockGitService(existing_repos=["example/other-repo"])
+
+        with pytest.raises(NotFoundException):
+            await mock_service.get_repository_info("example", "nonexistent-repo")

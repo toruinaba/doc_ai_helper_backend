@@ -1,0 +1,177 @@
+"""Test the refactored MCP Git tools integration."""
+
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+
+from doc_ai_helper_backend.services.mcp.tools.git_tools import (
+    configure_git_service,
+    create_git_issue,
+    create_git_pull_request,
+    check_git_repository_permissions,
+    get_unified_git_tools,
+)
+
+
+class TestMCPGitToolsIntegration:
+    """Test the refactored MCP Git tools integration."""
+
+    def test_get_unified_git_tools(self):
+        """Test that unified git tools returns proper structure."""
+        tools = get_unified_git_tools()
+
+        assert isinstance(tools, dict)
+        assert "configured_services" in tools
+        assert "default_service" in tools
+        assert "available_tools" in tools
+        assert "supported_services" in tools
+
+        # Check supported services
+        assert "github" in tools["supported_services"]
+        assert "forgejo" in tools["supported_services"]
+        assert "mock" in tools["supported_services"]
+
+    def test_configure_git_service_github(self):
+        """Test configuring GitHub service."""
+        config = {"access_token": "test_token", "default_labels": ["bug", "feature"]}
+
+        # This function doesn't return anything, it just configures the service
+        configure_git_service("github", config)
+
+        # Verify the service was configured by checking the tools
+        tools = get_unified_git_tools()
+        assert "github" in tools["configured_services"]
+
+    def test_configure_git_service_forgejo(self):
+        """Test configuring Forgejo service."""
+        config = {
+            "base_url": "https://forgejo.example.com",
+            "access_token": "test_token",
+            "username": "testuser",
+            "password": "testpass",
+        }
+
+        # This function doesn't return anything, it just configures the service
+        configure_git_service("forgejo", config)
+
+        # Verify the service was configured by checking the tools
+        tools = get_unified_git_tools()
+        assert "forgejo" in tools["configured_services"]
+
+    @pytest.mark.asyncio
+    async def test_create_git_issue_github(self):
+        """Test creating a GitHub issue through the unified interface."""
+        # Configure GitHub service first
+        configure_git_service(
+            "github", {"access_token": "test_token"}, set_as_default=True
+        )
+
+        with patch(
+            "doc_ai_helper_backend.services.git.github_service.GitHubService.create_issue"
+        ) as mock_create:
+            mock_create.return_value = {
+                "html_url": "https://github.com/owner/repo/issues/123",
+                "number": 123,
+            }
+
+            result = await create_git_issue(
+                title="Test Issue",
+                description="Test description",
+                repository_context={"owner": "owner", "repo": "repo"},
+            )
+
+            assert "Issue created successfully" in result
+            assert "https://github.com/owner/repo/issues/123" in result
+            mock_create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_git_pull_request_github(self):
+        """Test creating a GitHub PR through the unified interface."""
+        # Configure GitHub service first
+        configure_git_service(
+            "github", {"access_token": "test_token"}, set_as_default=True
+        )
+
+        with patch(
+            "doc_ai_helper_backend.services.git.github_service.GitHubService.create_pull_request"
+        ) as mock_create:
+            mock_create.return_value = {
+                "html_url": "https://github.com/owner/repo/pull/456",
+                "number": 456,
+            }
+
+            result = await create_git_pull_request(
+                title="Test PR",
+                description="Test PR description",
+                head_branch="test-branch",
+                base_branch="main",
+                repository_context={"owner": "owner", "repo": "repo"},
+            )
+
+            assert "Pull request created successfully" in result
+            assert "https://github.com/owner/repo/pull/456" in result
+            mock_create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_check_git_repository_permissions(self):
+        """Test checking repository permissions through the unified interface."""
+        # Configure GitHub service first
+        configure_git_service(
+            "github", {"access_token": "test_token"}, set_as_default=True
+        )
+
+        with patch(
+            "doc_ai_helper_backend.services.git.github_service.GitHubService.check_repository_permissions"
+        ) as mock_check:
+            mock_check.return_value = {
+                "can_read": True,
+                "can_write": True,
+                "repository_exists": True,
+            }
+
+            result = await check_git_repository_permissions(
+                repository_context={"owner": "owner", "repo": "repo"}
+            )
+
+            assert isinstance(result, dict)
+            assert result.get("can_read") is True
+            mock_check.assert_called_once()
+
+    def test_git_service_fallback(self):
+        """Test that the system handles missing service gracefully."""
+        # Clear any previously configured services
+        import doc_ai_helper_backend.services.mcp.tools.git_tools as git_tools_module
+
+        git_tools_module._configured_services.clear()
+        git_tools_module._default_service = None
+
+        # Try to use an unconfigured service
+        tools = get_unified_git_tools()
+        assert tools["default_service"] is None  # No default configured initially
+
+    @pytest.mark.asyncio
+    async def test_service_specific_parameters(self):
+        """Test that service-specific parameters are handled correctly."""
+        # Configure Forgejo service first
+        configure_git_service(
+            "forgejo",
+            {"base_url": "https://forgejo.example.com", "access_token": "test_token"},
+        )
+
+        with patch(
+            "doc_ai_helper_backend.services.git.forgejo_service.ForgejoService.create_issue"
+        ) as mock_create:
+            mock_create.return_value = {
+                "html_url": "https://forgejo.example.com/owner/repo/issues/789",
+                "number": 789,
+            }
+
+            # Test Forgejo-specific parameters
+            result = await create_git_issue(
+                title="Forgejo Test Issue",
+                description="Test description",
+                repository_context={"owner": "owner", "repo": "repo"},
+                service_type="forgejo",
+            )
+
+            assert "Issue created successfully" in result
+            mock_create.assert_called_once()

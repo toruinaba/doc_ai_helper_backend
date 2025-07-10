@@ -1,7 +1,8 @@
 """
-Base LLM service.
+Simplified base LLM service for composition pattern.
 
-This module provides the base abstract class for LLM services.
+This module provides a minimal abstract base class for LLM services that works
+with the composition pattern, avoiding multiple inheritance complexities.
 """
 
 from abc import ABC, abstractmethod
@@ -18,7 +19,6 @@ from doc_ai_helper_backend.models.llm import (
     LLMResponse,
     ProviderCapabilities,
     MessageItem,
-    # Function Calling関連のモデルを追加
     FunctionCall,
     FunctionDefinition,
     ToolCall,
@@ -28,14 +28,120 @@ from doc_ai_helper_backend.models.llm import (
 
 class LLMServiceBase(ABC):
     """
-    Base class for LLM services.
+    Minimal base class for LLM services using composition pattern.
 
-    This abstract class defines the interface that all LLM service implementations
-    must follow. It provides methods for querying LLMs, retrieving capabilities,
-    and formatting prompts.
+    This abstract class defines only the essential provider-specific methods
+    that must be implemented by each LLM provider. Common functionality is
+    handled by LLMServiceCommon through composition.
     """
 
+    # === Provider-specific abstract methods (must be implemented by concrete classes) ===
+
     @abstractmethod
+    async def get_capabilities(self) -> ProviderCapabilities:
+        """
+        Get the capabilities of the LLM provider.
+
+        Returns:
+            ProviderCapabilities: The capabilities of the provider
+        """
+        pass
+
+    @abstractmethod
+    async def estimate_tokens(self, text: str) -> int:
+        """
+        Estimate the number of tokens in a text.
+
+        Args:
+            text: The text to estimate tokens for
+
+        Returns:
+            int: Estimated token count
+        """
+        pass
+
+    @abstractmethod
+    async def _prepare_provider_options(
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[FunctionDefinition]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+    ) -> Dict[str, Any]:
+        """
+        Prepare provider-specific options for API call.
+
+        This method converts standard parameters into the format required
+        by the specific LLM provider's API.
+
+        Args:
+            prompt: The user prompt
+            conversation_history: Previous messages in the conversation
+            options: Additional options (model, temperature, etc.)
+            system_prompt: Generated system prompt
+            tools: Function definitions for tool calling
+            tool_choice: Tool selection strategy
+
+        Returns:
+            Dict[str, Any]: Provider-specific options ready for API call
+        """
+        pass
+
+    @abstractmethod
+    async def _call_provider_api(self, options: Dict[str, Any]) -> Any:
+        """
+        Call the provider API with prepared options.
+
+        This method makes the actual API call to the LLM provider.
+
+        Args:
+            options: Provider-specific options prepared by _prepare_provider_options
+
+        Returns:
+            Any: Raw response from the provider API
+        """
+        pass
+
+    @abstractmethod
+    async def _stream_provider_api(
+        self, options: Dict[str, Any]
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream from the provider API with prepared options.
+
+        This method makes a streaming API call to the LLM provider.
+
+        Args:
+            options: Provider-specific options prepared by _prepare_provider_options
+
+        Yields:
+            str: Chunks of the response content
+        """
+        pass
+
+    @abstractmethod
+    async def _convert_provider_response(
+        self, raw_response: Any, options: Dict[str, Any]
+    ) -> LLMResponse:
+        """
+        Convert provider-specific response to standardized LLMResponse.
+
+        This method converts the raw API response into our standard LLMResponse format.
+
+        Args:
+            raw_response: Raw response from the provider API
+            options: Provider-specific options used for the API call
+
+        Returns:
+            LLMResponse: Standardized response object
+        """
+        pass
+
+    # === Interface methods (delegated to common implementation) ===
+    # These methods should be implemented by concrete classes to delegate to LLMServiceCommon
+
     async def query(
         self,
         prompt: str,
@@ -50,65 +156,12 @@ class LLMServiceBase(ABC):
         """
         Send a query to the LLM.
 
-        Args:
-            prompt: The prompt to send to the LLM
-            conversation_history: Previous messages in the conversation for context
-            options: Additional options for the query (model, temperature, etc.)
-            repository_context: Repository context for system prompt generation
-            document_metadata: Document metadata for context
-            document_content: Document content to include in system prompt
-            system_prompt_template: Template ID for system prompt generation
-            include_document_in_system_prompt: Whether to include document content
-
-        Returns:
-            LLMResponse: The response from the LLM
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
         """
-        pass
+        raise NotImplementedError(
+            "Concrete classes must implement query method using LLMServiceCommon"
+        )
 
-    @abstractmethod
-    async def get_capabilities(self) -> ProviderCapabilities:
-        """
-        Get the capabilities of the LLM provider.        Returns:
-            ProviderCapabilities: The capabilities of the provider
-        """
-        pass
-
-    @abstractmethod
-    async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
-        """
-        Format a prompt template with variables.
-
-        Args:
-            template_id: The ID of the template to use
-            variables: The variables to substitute in the template
-
-        Returns:
-            str: The formatted prompt
-        """
-        pass
-
-    @abstractmethod
-    async def get_available_templates(self) -> List[str]:
-        """
-        Get a list of available prompt template IDs.
-
-        Returns:
-            List[str]: List of template IDs
-        """
-        pass
-
-    @abstractmethod
-    async def estimate_tokens(self, text: str) -> int:
-        """
-        Estimate the number of tokens in a text.
-
-        Args:
-            text: The text to estimate tokens for        Returns:
-            int: Estimated token count
-        """
-        pass
-
-    @abstractmethod
     async def stream_query(
         self,
         prompt: str,
@@ -123,22 +176,12 @@ class LLMServiceBase(ABC):
         """
         Stream a query to the LLM.
 
-        Args:
-            prompt: The prompt to send to the LLM
-            conversation_history: Previous messages in the conversation for context
-            options: Additional options for the query (model, temperature, etc.)
-            repository_context: Repository context for system prompt generation
-            document_metadata: Document metadata for context
-            document_content: Document content to include in system prompt
-            system_prompt_template: Template ID for system prompt generation
-            include_document_in_system_prompt: Whether to include document content
-
-        Returns:
-            AsyncGenerator[str, None]: An async generator that yields chunks of the response
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
         """
-        pass
+        raise NotImplementedError(
+            "Concrete classes must implement stream_query method using LLMServiceCommon"
+        )
 
-    @abstractmethod
     async def query_with_tools(
         self,
         prompt: str,
@@ -155,52 +198,12 @@ class LLMServiceBase(ABC):
         """
         Send a query to the LLM with function calling tools.
 
-        Args:
-            prompt: The prompt to send to the LLM
-            tools: List of available function definitions
-            conversation_history: Previous messages in the conversation for context
-            tool_choice: Strategy for tool selection (auto, none, required, or specific function)
-            options: Additional options for the query (model, temperature, etc.)
-            repository_context: Repository context for system prompt generation
-            document_metadata: Document metadata for context
-            document_content: Document content to include in system prompt
-            system_prompt_template: Template ID for system prompt generation
-            include_document_in_system_prompt: Whether to include document content
-
-        Returns:
-            LLMResponse: The response from the LLM, potentially including tool calls
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
         """
-        pass
+        raise NotImplementedError(
+            "Concrete classes must implement query_with_tools method using LLMServiceCommon"
+        )
 
-    @abstractmethod
-    async def execute_function_call(
-        self,
-        function_call: FunctionCall,
-        available_functions: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """
-        Execute a function call requested by the LLM.
-
-        Args:
-            function_call: The function call details from the LLM
-            available_functions: Dictionary of available functions to call
-
-        Returns:
-            Dict[str, Any]: The result of the function execution
-        """
-        pass
-
-    @abstractmethod
-    async def get_available_functions(self) -> List[FunctionDefinition]:
-        """
-        Get the list of available functions for this LLM service.
-
-        Returns:
-            List[FunctionDefinition]: List of available function definitions
-        """
-        pass
-
-    @abstractmethod
     async def query_with_tools_and_followup(
         self,
         prompt: str,
@@ -217,57 +220,52 @@ class LLMServiceBase(ABC):
         """
         Send a query to the LLM with function calling tools and handle the complete flow.
 
-        This method implements the complete Function Calling flow:
-        1. Send initial query with tools
-        2. If LLM calls tools, execute them
-        3. Send tool results back to LLM for final response
-
-        Args:
-            prompt: The prompt to send to the LLM
-            tools: List of available function definitions
-            conversation_history: Previous messages in the conversation for context
-            tool_choice: Strategy for tool selection
-            options: Additional options for the query
-            repository_context: Repository context for system prompt generation
-            document_metadata: Document metadata for context
-            document_content: Document content to include in system prompt
-            system_prompt_template: Template ID for system prompt generation
-            include_document_in_system_prompt: Whether to include document content
-
-        Returns:
-            LLMResponse: The final response from the LLM after tool execution
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
         """
-        pass
+        raise NotImplementedError(
+            "Concrete classes must implement query_with_tools_and_followup method using LLMServiceCommon"
+        )
 
-    def build_system_prompt_with_context(
+    async def execute_function_call(
         self,
-        repository_context: Optional["RepositoryContext"] = None,
-        document_metadata: Optional["DocumentMetadata"] = None,
-        document_content: Optional[str] = None,
-        template_id: str = "contextual_document_assistant_ja",
-    ) -> Optional[str]:
+        function_call: FunctionCall,
+        available_functions: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
-        Build system prompt with repository and document context.
+        Execute a function call requested by the LLM.
 
-        This method provides a default implementation that can be overridden
-        by specific LLM service implementations.
-
-        Args:
-            repository_context: Repository context information
-            document_metadata: Document metadata
-            document_content: Document content to include in prompt
-            template_id: Template identifier for prompt generation
-
-        Returns:
-            Generated system prompt or None if context is insufficient
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
         """
-        # Default implementation - can be overridden by subclasses
-        if not repository_context:
-            return None
+        raise NotImplementedError(
+            "Concrete classes must implement execute_function_call method using LLMServiceCommon"
+        )
 
-        # Basic template without specialized prompt builder
-        return f"""あなたは {repository_context.owner}/{repository_context.repo} リポジトリを扱うアシスタントです。
+    async def get_available_functions(self) -> List[FunctionDefinition]:
+        """
+        Get the list of available functions for this LLM service.
 
-現在作業中のリポジトリ: {repository_context.owner}/{repository_context.repo}
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
+        """
+        raise NotImplementedError(
+            "Concrete classes must implement get_available_functions method using LLMServiceCommon"
+        )
 
-GitHubツールを使用する際は、特に指定がない限り自動的に "{repository_context.owner}/{repository_context.repo}" リポジトリを使用してください。"""
+    async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
+        """
+        Format a prompt template with variables.
+
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
+        """
+        raise NotImplementedError(
+            "Concrete classes must implement format_prompt method using LLMServiceCommon"
+        )
+
+    async def get_available_templates(self) -> List[str]:
+        """
+        Get a list of available prompt template IDs.
+
+        This method should be implemented by concrete classes to delegate to LLMServiceCommon.
+        """
+        raise NotImplementedError(
+            "Concrete classes must implement get_available_templates method using LLMServiceCommon"
+        )

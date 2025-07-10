@@ -1,44 +1,72 @@
-# github_serviceの統合テスト
+# Git統合テスト
 
-統合テストを実行するには、以下の環境変数の設定が必要です：
+Git層の統合テストを実行するには、以下の環境変数の設定が必要です：
+
+## GitHub統合テスト
 
 1. **GITHUB_TOKEN**: GitHub APIにアクセスするためのトークン
-2. **TEST_MODE**: テストモード（実際のAPIを使用する場合は `live`、モックを使用する場合は `mock`）
-
-PowerShellでの環境変数設定例:
 
 ```powershell
 # GitHubトークンの設定
 $env:GITHUB_TOKEN = "your_github_token"
+```
 
-# テストモードの設定（live または mock）
-$env:TEST_MODE = "live"
+## Forgejo統合テスト
+
+1. **FORGEJO_BASE_URL**: ForgejoインスタンスのベースURL
+2. **FORGEJO_TOKEN**: Forgejoアクセストークン（推奨）
+   または
+   **FORGEJO_USERNAME** + **FORGEJO_PASSWORD**: ユーザー名とパスワード
+3. **FORGEJO_TEST_OWNER**: テスト用リポジトリのオーナー（オプション、デフォルト: testowner）
+4. **FORGEJO_TEST_REPO**: テスト用リポジトリ名（オプション、デフォルト: testrepo）
+
+```powershell
+# Forgejoトークン認証の場合
+$env:FORGEJO_BASE_URL = "https://your-forgejo-instance.com"
+$env:FORGEJO_TOKEN = "your_forgejo_token"
+
+# または、基本認証の場合
+$env:FORGEJO_BASE_URL = "https://your-forgejo-instance.com"
+$env:FORGEJO_USERNAME = "your_username"
+$env:FORGEJO_PASSWORD = "your_password"
+
+# テスト用リポジトリの設定（オプション）
+$env:FORGEJO_TEST_OWNER = "your_test_owner"
+$env:FORGEJO_TEST_REPO = "your_test_repo"
 ```
 
 ## テスト実行方法
 
-### すべてのテストの実行
+### Git層統合テスト全体の実行
 
 ```powershell
-python -m pytest
+pytest tests/integration/git/ -v
 ```
 
-### 単体テストのみ実行
+### GitHub統合テストのみ実行
 
 ```powershell
-python -m pytest tests/unit/
+pytest tests/integration/git/test_github_integration.py -v
+pytest tests/integration/git/test_github_service.py -v
 ```
 
-### 統合テストのみ実行
+### Forgejo統合テストのみ実行
 
 ```powershell
-python -m pytest tests/integration/
+pytest tests/integration/git/test_forgejo_integration.py -v
 ```
 
-### 特定のテストファイルの実行
+### マーカー別実行
 
 ```powershell
-python -m pytest tests/unit/services/git/test_github_service.py
+# GitHub関連テスト
+pytest -m github -v
+
+# Forgejo関連テスト
+pytest -m forgejo -v
+
+# Git層全体
+pytest -m git -v
 ```
 
 ### warningを無視してテスト実行

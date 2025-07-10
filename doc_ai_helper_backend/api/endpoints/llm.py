@@ -20,12 +20,13 @@ from doc_ai_helper_backend.models.llm import (
     ToolParameter,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
+from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
     TemplateNotFoundError,
     TemplateSyntaxError,
 )
-from doc_ai_helper_backend.api.dependencies import get_llm_service
+from doc_ai_helper_backend.api.dependencies import get_llm_service, get_conversation_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ router = APIRouter()
 async def query_llm(
     request: LLMQueryRequest,
     llm_service: LLMServiceBase = Depends(get_llm_service),
+    conversation_manager: ConversationManager = Depends(get_conversation_manager),
 ):
     """
     Send a query to an LLM.
@@ -55,6 +57,25 @@ async def query_llm(
     """
 
     try:
+        # Document integration via conversation history (new approach)
+        conversation_history = request.conversation_history
+        
+        # Check if this is an initial request that needs document integration
+        if (request.auto_include_document and 
+            conversation_manager.is_initial_request(request.conversation_history, request.repository_context)):
+            try:
+                # Create document-aware conversation history
+                conversation_history = await conversation_manager.create_document_aware_conversation(
+                    repository_context=request.repository_context,
+                    initial_prompt=request.prompt,
+                    document_metadata=request.document_metadata
+                )
+                logger.info("Document integration: Created document-aware conversation history")
+            except Exception as e:
+                logger.warning(f"Document integration failed, continuing with original conversation: {e}")
+                # Continue with original conversation history if document integration fails
+                conversation_history = request.conversation_history
+
         # Use the injected LLM service instead of creating a new one
 
         # Prepare options
@@ -93,7 +114,7 @@ async def query_llm(
                 response = await llm_service.query_with_tools_and_followup(
                     prompt=request.prompt,
                     tools=available_tools,
-                    conversation_history=request.conversation_history,
+                    conversation_history=conversation_history,  # Use processed conversation history
                     tool_choice=tool_choice,
                     options=options,
                     repository_context=request.repository_context,
@@ -108,7 +129,7 @@ async def query_llm(
                 response = await llm_service.query_with_tools(
                     prompt=request.prompt,
                     tools=available_tools,
-                    conversation_history=request.conversation_history,
+                    conversation_history=conversation_history,  # Use processed conversation history
                     tool_choice=tool_choice,
                     options=options,
                     repository_context=request.repository_context,
@@ -149,7 +170,7 @@ async def query_llm(
             # Send regular query to LLM with conversation history and repository context
             response = await llm_service.query(
                 request.prompt,
-                conversation_history=request.conversation_history,
+                conversation_history=conversation_history,  # Use processed conversation history
                 options=options,
                 repository_context=request.repository_context,
                 document_metadata=request.document_metadata,
@@ -264,6 +285,7 @@ async def format_prompt(
 async def stream_llm_response(
     request: LLMQueryRequest,
     llm_service: LLMServiceBase = Depends(get_llm_service),
+    conversation_manager = Depends(get_conversation_manager),
 ):
     """
     Stream a response from an LLM with optional Function Calling support.
@@ -285,6 +307,42 @@ async def stream_llm_response(
 
     async def event_generator():
         try:
+            # Document integration via conversation history (new approach)
+            conversation_history = request.conversation_history
+            
+            # Check if this is an initial request that needs document integration
+            if (request.auto_include_document and 
+                conversation_manager.is_initial_request(request.conversation_history, request.repository_context)):
+                try:
+                    # Notify document loading
+                    yield json.dumps({
+                        "status": "document_loading", 
+                        "message": f"Loading document: {request.repository_context.current_path}"
+                    })
+                    
+                    # Create document-aware conversation history
+                    conversation_history = await conversation_manager.create_document_aware_conversation(
+                        repository_context=request.repository_context,
+                        initial_prompt=request.prompt,
+                        document_metadata=request.document_metadata
+                    )
+                    
+                    # Notify document loaded
+                    yield json.dumps({
+                        "status": "document_loaded", 
+                        "message": "Document loaded successfully"
+                    })
+                    
+                    logger.info("Document integration: Created document-aware conversation history for streaming")
+                except Exception as e:
+                    logger.warning(f"Document integration failed in streaming, continuing with original conversation: {e}")
+                    # Continue with original conversation history if document integration fails
+                    conversation_history = request.conversation_history
+                    yield json.dumps({
+                        "status": "document_error", 
+                        "message": f"Document loading failed: {str(e)}"
+                    })
+
             # Prepare options
             options = request.options or {}
             if request.model:
@@ -330,7 +388,7 @@ async def stream_llm_response(
                     response = await llm_service.query_with_tools_and_followup(
                         prompt=request.prompt,
                         tools=available_tools,
-                        conversation_history=request.conversation_history,
+                        conversation_history=conversation_history,  # Use processed conversation history
                         tool_choice=tool_choice,
                         options=options,
                     )
@@ -421,7 +479,7 @@ async def stream_llm_response(
                 # stream_queryメソッドを呼び出してAsyncGeneratorを取得
                 async for text_chunk in llm_service.stream_query(
                     request.prompt,
-                    conversation_history=request.conversation_history,
+                    conversation_history=conversation_history,  # Use processed conversation history
                     options=options,
                     repository_context=request.repository_context,
                     document_metadata=request.document_metadata,
