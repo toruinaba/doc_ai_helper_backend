@@ -698,26 +698,26 @@ class TestOpenAIServiceExtended:
 
     def test_convert_tool_choice_to_openai_format(self, service):
         """Test tool choice conversion."""
-        # Test specific function choice - current implementation returns as-is
+        # Test specific function choice - should return the type string
         tool_choice = ToolChoice(type="required", function={"name": "get_weather"})
         converted = service._convert_tool_choice_to_openai_format(tool_choice)
 
-        # Current implementation returns the object as-is
-        assert converted == tool_choice
+        # Should return the type string for required
+        assert converted == "required"
 
     def test_convert_tool_choice_to_openai_format_auto(self, service):
         """Test auto tool choice conversion."""
         tool_choice = ToolChoice(type="auto")
         converted = service._convert_tool_choice_to_openai_format(tool_choice)
-        # The method returns the object as-is, not converted to string
-        assert converted == tool_choice
+        # Should return the type string
+        assert converted == "auto"
 
     def test_convert_tool_choice_to_openai_format_none(self, service):
         """Test none tool choice conversion."""
         tool_choice = ToolChoice(type="none")
         converted = service._convert_tool_choice_to_openai_format(tool_choice)
-        # The method returns the object as-is, not converted to string
-        assert converted == tool_choice
+        # Should return the type string
+        assert converted == "none"
 
     # === Integration Tests ===
 

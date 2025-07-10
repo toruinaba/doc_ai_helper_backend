@@ -162,14 +162,20 @@ class TestGitServiceFactory:
         updated_services = GitServiceFactory.get_available_services()
         assert "dummy" in updated_services
 
-    def test_create_github_without_token(self):
+    def test_create_github_without_token(self, monkeypatch):
         """Test creating GitHub service without access token."""
+        # Mock settings to not have GitHub token
+        monkeypatch.setattr("doc_ai_helper_backend.services.git.factory.settings.github_token", None)
+        
         service = GitServiceFactory.create("github")
         assert isinstance(service, GitHubService)
         assert service.access_token is None
 
-    def test_create_forgejo_without_base_url_raises_exception(self):
+    def test_create_forgejo_without_base_url_raises_exception(self, monkeypatch):
         """Test that creating Forgejo without base URL raises exception."""
+        # Mock settings to not have Forgejo base URL
+        monkeypatch.setattr("doc_ai_helper_backend.services.git.factory.settings.forgejo_base_url", None)
+        
         with pytest.raises(GitServiceException) as exc_info:
             GitServiceFactory.create("forgejo")
 

@@ -20,6 +20,7 @@ from doc_ai_helper_backend.models.llm import (
     ToolParameter,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
+from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
     TemplateNotFoundError,
@@ -42,7 +43,7 @@ router = APIRouter()
 async def query_llm(
     request: LLMQueryRequest,
     llm_service: LLMServiceBase = Depends(get_llm_service),
-    conversation_manager = Depends(get_conversation_manager),
+    conversation_manager: ConversationManager = Depends(get_conversation_manager),
 ):
     """
     Send a query to an LLM.

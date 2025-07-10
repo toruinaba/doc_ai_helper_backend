@@ -207,8 +207,15 @@ async def test_conversation_history_data_types():
         conversation_history=conversation_history,
     )
 
+    # Create a mock conversation manager
+    from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+    from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+    
+    git_factory = GitServiceFactory()
+    conversation_manager = ConversationManager(git_factory)
+    
     # Call the endpoint function directly
-    response = await query_llm(request, mock_service)
+    response = await query_llm(request, mock_service, conversation_manager)
 
     # Check that the response is valid and indicates conversation continuation
     assert response.content

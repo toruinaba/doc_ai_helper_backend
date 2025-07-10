@@ -33,7 +33,7 @@ async def health_check():
 
     logger.debug("Health check requested")
     return {
-        "status": "healthy",
+        "status": "ok",
         "version": settings.app_version,
         "timestamp": datetime.now().isoformat(),
     }
