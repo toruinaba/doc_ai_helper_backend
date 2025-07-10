@@ -144,9 +144,15 @@ async def query_llm(
                     executed_results = []
                     for tool_call in response.tool_calls:
                         try:
+                            # Convert repository context to dict if available
+                            repo_context_dict = None
+                            if request.repository_context:
+                                repo_context_dict = request.repository_context.model_dump()
+                            
                             result = await llm_service.execute_function_call(
                                 tool_call.function,
                                 {func.name: func for func in available_tools},
+                                repository_context=repo_context_dict,
                             )
                             executed_results.append(
                                 {
@@ -440,9 +446,15 @@ async def stream_llm_response(
                         executed_results = []
                         for tool_call in response.tool_calls:
                             try:
+                                # Convert repository context to dict if available
+                                repo_context_dict = None
+                                if request.repository_context:
+                                    repo_context_dict = request.repository_context.model_dump()
+                                
                                 result = await llm_service.execute_function_call(
                                     tool_call.function,
                                     {func.name: func for func in available_tools},
+                                    repository_context=repo_context_dict,
                                 )
                                 executed_results.append(
                                     {

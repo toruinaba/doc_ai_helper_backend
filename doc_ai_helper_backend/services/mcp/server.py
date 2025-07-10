@@ -370,17 +370,20 @@ class DocumentAIHelperMCPServer:
     def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
         """
         Set the current repository context for secure tools.
+        
+        DEPRECATED: This method no longer sets global state. Repository context
+        is now passed directly to tool execution to avoid concurrency issues.
 
         Args:
             repository_context: Repository context from LLM request
         """
-        self._current_repository_context = repository_context
+        # Log deprecation warning but take no action
         if repository_context:
             owner = repository_context.get("owner")
             repo = repository_context.get("repo")
-            logger.info(f"Repository context set: {owner}/{repo}")
+            logger.warning(f"DEPRECATED: set_repository_context called for {owner}/{repo}. Context is now passed directly to tools.")
         else:
-            logger.info("Repository context cleared")
+            logger.warning("DEPRECATED: set_repository_context called with None. Context is now passed directly to tools.")
 
     async def list_tools_async(self) -> List[Dict[str, Any]]:
         """List all available tools asynchronously."""

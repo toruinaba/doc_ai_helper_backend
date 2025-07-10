@@ -682,13 +682,14 @@ class MCPFunctionAdapter:
         return self.function_registry
 
     async def execute_function_call(
-        self, function_call: FunctionCall
+        self, function_call: FunctionCall, repository_context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Execute a function call through the function registry.
 
         Args:
             function_call: Function call to execute
+            repository_context: Repository context to inject into Git tools
 
         Returns:
             Execution result
@@ -709,23 +710,20 @@ class MCPFunctionAdapter:
             )
             logger.info(f"Function type: {type(function)}")
 
-            # Git関連ツールの場合、repository_contextを自動注入
+            # Git関連ツールの場合、直接渡されたrepository_contextを注入
             if function_call.name.startswith(("create_git_", "check_git_")):
-                current_context = getattr(
-                    self.mcp_server, "_current_repository_context", None
-                )
-                if current_context:
+                if repository_context:
                     if "repository_context" not in arguments:
-                        arguments["repository_context"] = current_context
+                        arguments["repository_context"] = repository_context
                         logger.info(
-                            f"Auto-injected repository_context: {current_context}"
+                            f"Direct-injected repository_context: {repository_context.get('owner')}/{repository_context.get('repo')}"
                         )
                     else:
                         logger.info(
                             f"Repository context already in arguments: {arguments['repository_context']}"
                         )
                 else:
-                    logger.warning("No repository context available for Git operation")
+                    logger.warning("No repository context provided for Git operation")
 
             # 関数を実行
             import asyncio
@@ -762,12 +760,17 @@ class MCPFunctionAdapter:
     def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
         """
         Set repository context for secure tools.
+        
+        DEPRECATED: This method no longer sets global state. Repository context
+        is now passed directly to execute_function_call to avoid concurrency issues.
 
         Args:
             repository_context: Repository context dictionary
         """
-        if hasattr(self.mcp_server, "set_repository_context"):
-            self.mcp_server.set_repository_context(repository_context)
-            logger.info("Repository context updated in MCP server")
+        # Log deprecation warning but take no action
+        if repository_context:
+            owner = repository_context.get("owner", "unknown")
+            repo = repository_context.get("repo", "unknown")
+            logger.warning(f"DEPRECATED: set_repository_context called for {owner}/{repo}. Use execute_function_call(repository_context=...) instead.")
         else:
-            logger.warning("MCP server does not support repository context setting")
+            logger.warning("DEPRECATED: set_repository_context called with None. Use execute_function_call(repository_context=...) instead.")

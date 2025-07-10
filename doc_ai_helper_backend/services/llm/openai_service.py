@@ -295,12 +295,15 @@ class OpenAIService(LLMServiceBase):
         self,
         function_call: FunctionCall,
         available_functions: Dict[str, Any],
+        repository_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Execute function call, trying MCP adapter first if available."""
         # Try MCP adapter first if available
         if self._mcp_adapter:
             try:
-                result = await self._mcp_adapter.execute_function_call(function_call)
+                result = await self._mcp_adapter.execute_function_call(
+                    function_call, repository_context=repository_context
+                )
                 if result.get("success"):
                     return result
             except Exception as e:

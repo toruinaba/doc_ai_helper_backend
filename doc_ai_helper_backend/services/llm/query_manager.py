@@ -227,17 +227,7 @@ class QueryManager:
         )
 
         try:
-            # 1. Set repository context on MCP adapter if available
-            if repository_context and hasattr(service, '_mcp_adapter') and service._mcp_adapter:
-                try:
-                    # Convert repository context to dict for MCP adapter
-                    context_dict = repository_context.model_dump()
-                    service._mcp_adapter.set_repository_context(context_dict)
-                    logger.info(f"Set repository context on MCP adapter: {context_dict.get('owner')}/{context_dict.get('repo')}")
-                except Exception as e:
-                    logger.warning(f"Failed to set repository context on MCP adapter: {e}")
-
-            # 2. Generate system prompt if needed
+            # 1. Generate system prompt if needed
             system_prompt = await self._generate_system_prompt(
                 repository_context=repository_context,
                 document_metadata=document_metadata,
@@ -246,7 +236,7 @@ class QueryManager:
                 include_document_in_system_prompt=include_document_in_system_prompt,
             )
 
-            # 3. Prepare provider-specific options with tools
+            # 2. Prepare provider-specific options with tools
             provider_options = await service._prepare_provider_options(
                 prompt=prompt,
                 conversation_history=conversation_history,
@@ -256,15 +246,15 @@ class QueryManager:
                 tool_choice=tool_choice,
             )
 
-            # 4. Call provider API
+            # 3. Call provider API
             raw_response = await service._call_provider_api(provider_options)
 
-            # 5. Convert response
+            # 4. Convert response
             llm_response = await service._convert_provider_response(
                 raw_response, provider_options
             )
 
-            # 6. Set conversation history optimization information
+            # 5. Set conversation history optimization information
             if conversation_history:
                 optimized_history, optimization_info = optimize_conversation_history(
                     conversation_history, max_tokens=4000
