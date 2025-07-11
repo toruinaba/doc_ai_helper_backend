@@ -103,12 +103,12 @@ class TestDocumentsAPIIntegration:
 
     def test_api_error_handling_integration(self, client):
         """API エラーハンドリングの統合テスト"""
-        # 存在しないリポジトリ（GitHubサービスは現在500エラーを返すが、これは統合テストなのでそのまま）
+        # 存在しないリポジトリ（GitHub APIは404を返す）
         response = client.get(
             "/api/v1/documents/contents/github/nonexistent/repo/README.md"
         )
-        # GitHub APIの404は現在500として処理されている
-        assert response.status_code == 500
+        # GitHub APIの404は正しく404として処理される
+        assert response.status_code == 404
 
         # 不正なサービス名（実際には404が返される）
         response = client.get(

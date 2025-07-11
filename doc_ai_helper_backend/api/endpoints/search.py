@@ -77,10 +77,12 @@ async def search_repository(
             path=item.get("path", ""),
             name=item.get("name", ""),
             type="file",  # Assume all search results are files
-            html_url=item.get("html_url", ""),
+            repository=repo,
+            owner=owner,
+            service=service,
             score=item.get("score", 0.0),
             highlight=item.get("highlight", ""),
-            repository=item.get("repository", {"name": repo, "owner": owner}),
+            metadata={"html_url": item.get("html_url", "")},
         )
         results.append(result_item)
 

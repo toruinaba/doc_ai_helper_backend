@@ -30,13 +30,18 @@ class TestLLMEndpointsErrorHandling:
         # TODO: プロバイダーバリデーションの実装後に400エラーに変更
         assert response.status_code in [200, 400]
 
-    def test_query_with_empty_prompt(self, client):
+    @patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+    def test_query_with_empty_prompt(self, mock_factory, client):
         """空のプロンプトでのクエリテスト"""
+        # Configure mock to return mock service
+        mock_service = MockLLMService()
+        mock_factory.return_value = mock_service
+        
         response = client.post(
             "/api/v1/llm/query", json={"prompt": "", "provider": "mock"}
         )
-        # Mock serviceがLLMServiceExceptionを発生させるので500エラー
-        assert response.status_code == 500
+        # 空のプロンプトはPydanticバリデーションで422エラーになる
+        assert response.status_code == 422
 
     def test_query_with_missing_prompt(self, client):
         """プロンプトが欠けているリクエストテスト"""

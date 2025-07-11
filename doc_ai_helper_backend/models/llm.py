@@ -286,20 +286,6 @@ class LLMStreamChunk(BaseModel):
     )
 
 
-class LLMStreamResponse(BaseModel):
-    """
-    Response model for streaming LLM query.
-    """
-
-    model: str = Field(..., description="The model used for generation")
-    provider: str = Field(..., description="The provider of the LLM")
-    chunks: List[str] = Field(
-        default_factory=list, description="Chunks of response received so far"
-    )
-    done: bool = Field(default=False, description="Whether the stream is complete")
-    error: Optional[str] = Field(
-        default=None, description="Error message if something went wrong"
-    )
 
 
 class ToolParameter(BaseModel):

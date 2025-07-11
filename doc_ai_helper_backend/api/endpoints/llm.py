@@ -14,10 +14,10 @@ from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
     LLMResponse,
     PromptTemplate,
-    LLMStreamChunk,
     MCPToolsResponse,
     MCPToolInfo,
     ToolParameter,
+    ProviderCapabilities,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
@@ -44,7 +44,6 @@ router = APIRouter()
 )
 async def query_llm(
     request: LLMQueryRequest,
-    llm_service: LLMServiceBase = Depends(get_llm_service),
     conversation_manager: ConversationManager = Depends(get_conversation_manager),
 ):
     """
@@ -52,7 +51,7 @@ async def query_llm(
 
     Args:
         request: The query request containing prompt and options
-        llm_service: The LLM service to use (injected)
+        conversation_manager: Conversation manager for document integration
 
     Returns:
         LLMResponse: The response from the LLM
@@ -217,24 +216,21 @@ async def query_llm(
 
 @router.get(
     "/capabilities",
+    response_model=ProviderCapabilities,
     summary="Get LLM capabilities",
     description="Get the capabilities of the configured LLM provider",
 )
 async def get_capabilities(
-    provider: Optional[str] = Query(
-        None, description="LLM provider to check capabilities for"
-    ),
     llm_service: LLMServiceBase = Depends(get_llm_service),
 ):
     """
     Get the capabilities of an LLM provider.
 
     Args:
-        provider: The provider to check capabilities for (optional)
         llm_service: The LLM service to use (injected)
 
     Returns:
-        dict: The provider capabilities
+        ProviderCapabilities: The provider capabilities
     """
     try:
         capabilities = await llm_service.get_capabilities()
@@ -313,7 +309,6 @@ async def format_prompt(
 )
 async def stream_llm_response(
     request: LLMQueryRequest,
-    llm_service: LLMServiceBase = Depends(get_llm_service),
     conversation_manager = Depends(get_conversation_manager),
 ):
     """
@@ -321,21 +316,38 @@ async def stream_llm_response(
 
     Args:
         request: The query request containing prompt and options
-        llm_service: The LLM service to use (injected)
+        conversation_manager: Conversation manager for document integration
 
     Returns:
         EventSourceResponse: Server-Sent Events response
     """
-    # Check if streaming is supported
-    capabilities = await llm_service.get_capabilities()
-    if not capabilities.supports_streaming:
-        raise HTTPException(
-            status_code=400,
-            detail="The selected LLM provider does not support streaming",
-        )
-
     async def event_generator():
         try:
+            # Create LLM service based on the requested provider
+            from doc_ai_helper_backend.core.config import settings
+            
+            # Configure provider-specific settings
+            config = {}
+            if request.provider == "openai":
+                config["api_key"] = settings.openai_api_key
+                config["default_model"] = settings.default_openai_model
+                if settings.openai_base_url:
+                    config["base_url"] = settings.openai_base_url
+            
+            # Create LLM service for the requested provider
+            try:
+                llm_service = LLMServiceFactory.create_with_mcp(request.provider, **config)
+            except Exception as e:
+                # Send error as an event
+                yield json.dumps({"error": f"Failed to create LLM service: {str(e)}"})
+                return
+
+            # Check if streaming is supported
+            capabilities = await llm_service.get_capabilities()
+            if not capabilities.supports_streaming:
+                yield json.dumps({"error": "The selected LLM provider does not support streaming"})
+                return
+
             # Document integration via conversation history (new approach)
             conversation_history = request.conversation_history
             

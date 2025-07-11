@@ -432,9 +432,9 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
     """Parse and structure improvement recommendations from LLM response."""
     # Structure Japanese improvement recommendations
     structured = {
-        "high_priority": [],
-        "medium_priority": [],
-        "low_priority": []
+        "高優先度": [],
+        "中優先度": [],
+        "低優先度": []
     }
     
     current_priority = None
@@ -449,15 +449,15 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
         # Detect priority sections with various formats
         if ('高優先度' in line or '■ 高優先度' in line or 
             'High Priority' in line or 'HIGH PRIORITY' in line):
-            current_priority = 'high_priority'
+            current_priority = '高優先度'
             continue
         elif ('中優先度' in line or '■ 中優先度' in line or 
               'Medium Priority' in line or 'MEDIUM PRIORITY' in line):
-            current_priority = 'medium_priority'
+            current_priority = '中優先度'
             continue
         elif ('低優先度' in line or '■ 低優先度' in line or 
               'Low Priority' in line or 'LOW PRIORITY' in line):
-            current_priority = 'low_priority'
+            current_priority = '低優先度'
             continue
         
         # Extract improvement recommendations
@@ -495,11 +495,11 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
                 description = clean_line
                 
                 recommendation = {
-                    "category": category,
-                    "title": title[:100] if len(title) > 100 else title,  # Limit title length
-                    "description": description,
-                    "implementation_effort": effort,
-                    "expected_impact": impact
+                    "カテゴリ": category,
+                    "タイトル": title[:100] if len(title) > 100 else title,  # Limit title length
+                    "説明": description,
+                    "実装労力": effort,
+                    "期待効果": impact
                 }
                 structured[current_priority].append(recommendation)
         
@@ -507,11 +507,11 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
         elif current_priority and current_recommendation is None and line and not line.startswith('#'):
             # This might be a continuation or a simple recommendation
             recommendation = {
-                "category": "general",
-                "title": line[:50] + "..." if len(line) > 50 else line,
-                "description": line,
-                "implementation_effort": "medium",
-                "expected_impact": "medium"
+                "カテゴリ": "general",
+                "タイトル": line[:50] + "..." if len(line) > 50 else line,
+                "説明": line,
+                "実装労力": "medium",
+                "期待効果": "medium"
             }
             structured[current_priority].append(recommendation)
     
@@ -521,24 +521,24 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
         sentences = [s.strip() for s in recommendations_text.replace('。', '.').split('.') if s.strip() and len(s.strip()) > 10]
         
         for i, sentence in enumerate(sentences[:6]):  # Limit to 6 recommendations
-            priority = "high_priority" if i < 2 else "medium_priority" if i < 4 else "low_priority"
+            priority = "高優先度" if i < 2 else "中優先度" if i < 4 else "低優先度"
             recommendation = {
-                "category": "general",
-                "title": sentence[:50] + "..." if len(sentence) > 50 else sentence,
-                "description": sentence,
-                "implementation_effort": "medium",
-                "expected_impact": "medium"
+                "カテゴリ": "general",
+                "タイトル": sentence[:50] + "..." if len(sentence) > 50 else sentence,
+                "説明": sentence,
+                "実装労力": "medium",
+                "期待効果": "medium"
             }
             structured[priority].append(recommendation)
         
         # If still nothing, create a default recommendation
         if not any(structured.values()):
-            structured["high_priority"] = [{
-                "category": "general",
-                "title": "文書改善提案",
-                "description": recommendations_text[:200] + "..." if len(recommendations_text) > 200 else recommendations_text,
-                "implementation_effort": "medium",
-                "expected_impact": "medium"
+            structured["高優先度"] = [{
+                "カテゴリ": "general",
+                "タイトル": "文書改善提案",
+                "説明": recommendations_text[:200] + "..." if len(recommendations_text) > 200 else recommendations_text,
+                "実装労力": "medium",
+                "期待効果": "medium"
             }]
     
     return structured
@@ -546,27 +546,30 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
 
 def _generate_japanese_overall_assessment(recommendations: Dict[str, Any]) -> Dict[str, Any]:
     """Generate overall assessment based on improvement recommendations."""
-    total_high = len(recommendations.get("high_priority", []))
-    total_medium = len(recommendations.get("medium_priority", []))
-    total_low = len(recommendations.get("low_priority", []))
+    total_high = len(recommendations.get("高優先度", []))
+    total_medium = len(recommendations.get("中優先度", []))
+    total_low = len(recommendations.get("低優先度", []))
     total_recommendations = total_high + total_medium + total_low
     
     if total_high > 3:
-        quality = "needs_improvement"
-        effort = "4-6 hours"
-    elif total_high > 1:
-        quality = "good"
-        effort = "2-3 hours"
+        quality = "要改善"
+        effort = "4-6時間"
+        potential = "非常に高い"
+    elif total_high >= 1:
+        quality = "良好"  
+        effort = "2-3時間"
+        potential = "高"
     else:
-        quality = "excellent"
-        effort = "1-2 hours"
+        quality = "優秀"
+        effort = "1-2時間"
+        potential = "低"
     
     return {
-        "current_quality": quality,
-        "total_recommendations": total_recommendations,
-        "high_priority_count": total_high,
-        "improvement_potential": "high" if total_high > 2 else "medium" if total_high > 0 else "low",
-        "estimated_work_time": effort
+        "現在の品質": quality,
+        "総提案数": total_recommendations,
+        "高優先度数": total_high,
+        "改善可能性": potential,
+        "予想作業時間": effort
     }
 
 
