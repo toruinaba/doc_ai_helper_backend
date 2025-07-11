@@ -429,12 +429,18 @@ class OpenAIService(LLMServiceBase):
 
         # Handle tools/functions
         if tools:
+            logger.info(f"Converting {len(tools)} tools to OpenAI format")
+            logger.debug(f"Tool names: {[tool.name for tool in tools]}")
             provider_options["tools"] = self._convert_tools_to_openai_format(tools)
-
+            logger.info(f"Converted {len(provider_options['tools'])} tools to OpenAI format")
+            
             if tool_choice:
                 provider_options["tool_choice"] = (
                     self._convert_tool_choice_to_openai_format(tool_choice)
                 )
+                logger.info(f"Tool choice set: {provider_options.get('tool_choice', 'None')}")
+        else:
+            logger.warning("No tools provided to OpenAI API call")
 
         # Add any additional options (excluding processed ones)
         excluded_keys = {"model", "tools", "tool_choice", "temperature", "max_tokens"}
@@ -450,8 +456,22 @@ class OpenAIService(LLMServiceBase):
         Call the OpenAI API with prepared options.
         """
         try:
+            logger.info(f"OpenAI API request parameters: tools={bool(options.get('tools'))}, tool_choice={options.get('tool_choice', 'None')}")
+            if options.get('tools'):
+                logger.debug(f"Tools being sent: {len(options['tools'])} tools")
+                logger.debug(f"First tool: {options['tools'][0] if options['tools'] else 'None'}")
+            
             response = await self.async_client.chat.completions.create(**options)
             logger.info(f"OpenAI API call successful, model: {response.model}")
+            
+            # Log if tools were used in response
+            if hasattr(response.choices[0].message, 'tool_calls') and response.choices[0].message.tool_calls:
+                logger.info(f"OpenAI returned {len(response.choices[0].message.tool_calls)} tool calls")
+                for i, tool_call in enumerate(response.choices[0].message.tool_calls):
+                    logger.info(f"Tool call {i}: {tool_call.function.name}")
+            else:
+                logger.warning("OpenAI did not return any tool calls despite tools being available")
+                
             return response
         except Exception as e:
             logger.error(f"OpenAI API call failed: {str(e)}")

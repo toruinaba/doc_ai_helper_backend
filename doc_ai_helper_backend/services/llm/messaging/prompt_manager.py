@@ -181,6 +181,7 @@ class SystemPromptBuilder:
         document_metadata: Optional["DocumentMetadata"] = None,
         custom_instructions: Optional[str] = None,
         template_id: Optional[str] = None,
+        enable_bilingual_tools: bool = True,
     ) -> str:
         """
         コンテキスト対応システムプロンプトを構築
@@ -190,6 +191,7 @@ class SystemPromptBuilder:
             document_metadata: ドキュメントメタデータ
             custom_instructions: カスタム指示
             template_id: 使用するテンプレートID
+            enable_bilingual_tools: バイリンガルツール機能を有効にするか
 
         Returns:
             str: 構築されたシステムプロンプト
@@ -198,12 +200,39 @@ class SystemPromptBuilder:
         if self.cache:
             cached_prompt = self.cache.get(repository_context, document_metadata)
             if (
-                cached_prompt and not custom_instructions
-            ):  # カスタム指示がある場合はキャッシュしない
+                cached_prompt and not custom_instructions and not enable_bilingual_tools
+            ):  # カスタム指示やバイリンガル機能がある場合はキャッシュしない
                 return cached_prompt
 
         # システムプロンプトを構築
         prompt_parts = []
+
+        # BiLingual Tools System Prompt (if enabled)
+        if enable_bilingual_tools:
+            prompt_parts.append("""=== BILINGUAL TOOL EXECUTION SYSTEM ===
+
+IMPORTANT: You have access to tools for document analysis and repository management. When the user requests tool execution in Japanese, you MUST:
+
+1. **TOOL SELECTION**: Interpret Japanese tool requests as English tool execution instructions
+   - When user says "summarize_document_with_llm ツールを呼び出してください" → Execute summarize_document_with_llm tool
+   - When user says "create_improvement_recommendations_with_llm ツールを呼び出してください" → Execute create_improvement_recommendations_with_llm tool  
+   - When user says "create_git_issue ツールを呼び出してください" → Execute create_git_issue tool
+   - When user requests multiple tools → Execute ALL requested tools
+
+2. **TOOL EXECUTION**: Always execute tools when explicitly requested by the user
+   - Use auto_include_document=True to automatically retrieve document content
+   - Pass appropriate parameters to each tool
+   - Execute multiple tools if requested
+
+3. **RESPONSE LANGUAGE**: Always respond to the user in Japanese (日本語)
+   - Tool execution results should be summarized in Japanese
+   - Maintain natural Japanese conversation flow
+   - Provide helpful explanations in Japanese
+
+4. **PRIORITY**: Tool execution takes priority over conversation
+   - If user requests tools, execute them immediately
+   - Don't ask for confirmation - execute the requested tools
+   - Provide results and summary in Japanese""")
 
         # 基本的なコンテキスト情報
         prompt_parts.append(
@@ -227,8 +256,8 @@ class SystemPromptBuilder:
         # 基本的なプロンプトを組み立て
         system_prompt = "\n".join(prompt_parts)
 
-        # キャッシュに保存（カスタム指示がない場合のみ）
-        if self.cache and not custom_instructions:
+        # キャッシュに保存（カスタム指示やバイリンガル機能がない場合のみ）
+        if self.cache and not custom_instructions and not enable_bilingual_tools:
             self.cache.set(repository_context, system_prompt, document_metadata)
 
         return system_prompt

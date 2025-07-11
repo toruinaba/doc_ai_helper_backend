@@ -79,10 +79,13 @@ class UnauthorizedException(BaseAPIException):
         super().__init__(status_code=401, message=message, detail=detail)
 
 
-class ServiceNotFoundError(Exception):
+class ServiceNotFoundError(BaseAPIException):
     """Exception raised when a requested service is not found."""
 
-    pass
+    def __init__(
+        self, message: str = "Service not found", detail: Optional[Any] = None
+    ):
+        super().__init__(status_code=400, message=message, detail=detail)
 
 
 class LLMServiceException(BaseAPIException):

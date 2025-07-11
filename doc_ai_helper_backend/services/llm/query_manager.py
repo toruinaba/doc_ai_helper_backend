@@ -325,6 +325,7 @@ class QueryManager:
                 document_metadata=document_metadata,
                 custom_instructions=None,
                 template_id=system_prompt_template,
+                enable_bilingual_tools=True,  # Enable bilingual tool execution
             )
         except Exception as e:
             logger.warning(

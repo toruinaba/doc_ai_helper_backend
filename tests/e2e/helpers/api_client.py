@@ -45,10 +45,16 @@ class BackendAPIClient:
 
         Returns:
             True if the server is healthy, False otherwise
+            
+        Raises:
+            Exception: Re-raises timeout and other critical exceptions for test validation
         """
         try:
             response = await self._client.get(f"{self.base_url}/api/v1/health/")
             return response.status_code == 200
+        except (httpx.TimeoutException, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+            # Re-raise timeout exceptions with descriptive message for test validation
+            raise Exception(f"Request timed out: {type(e).__name__} - {str(e)}")
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return False
@@ -128,7 +134,8 @@ class BackendAPIClient:
         payload = {
             "prompt": prompt,
             "enable_tools": tools_enabled,
-            "complete_tool_flow": False,  # Use legacy flow for reliable execution
+            "complete_tool_flow": True,  # Use new complete flow for better tool execution
+            "tool_choice": "auto",  # Allow multiple tool selection
         }
 
         if provider:
@@ -178,7 +185,8 @@ class BackendAPIClient:
         payload = {
             "prompt": prompt,
             "enable_tools": tools_enabled,
-            "complete_tool_flow": False,  # Use legacy flow for reliable execution
+            "complete_tool_flow": True,  # Use new complete flow for better tool execution
+            "tool_choice": "auto",  # Allow multiple tool selection
         }
 
         if provider:

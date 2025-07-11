@@ -125,7 +125,7 @@ class TestErrorHandling:
         
         # Verify it's a validation error
         error_str = str(exc_info.value).lower()
-        assert any(keyword in error_str for keyword in ["400", "validation", "invalid", "prompt"]), \
+        assert any(keyword in error_str for keyword in ["400", "422", "validation", "invalid", "prompt"]), \
             f"Error should indicate validation failure: {exc_info.value}"
 
     async def test_repository_structure_error(
@@ -208,7 +208,7 @@ class TestErrorHandling:
         logger.info("Testing timeout handling")
         
         # Create client with very short timeout
-        from .helpers.api_client import BackendAPIClient
+        from tests.e2e.helpers.api_client import BackendAPIClient
         
         async with BackendAPIClient(
             base_url=e2e_config.api_base_url,

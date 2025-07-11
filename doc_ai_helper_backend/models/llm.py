@@ -4,7 +4,7 @@ LLM models.
 This module contains Pydantic models for LLM services.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, List, Optional, Union, Literal, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
@@ -42,7 +42,7 @@ class LLMQueryRequest(BaseModel):
     Request model for LLM query.
     """
 
-    prompt: str = Field(..., description="The prompt to send to the LLM")
+    prompt: str = Field(..., min_length=1, description="The prompt to send to the LLM")
     context_documents: Optional[List[str]] = Field(
         default=None, description="List of document paths to include in context"
     )
@@ -98,6 +98,13 @@ class LLMQueryRequest(BaseModel):
         default=True,
         description="Whether to automatically fetch document content from repository_context and include in conversation history for initial requests"
     )
+
+    @validator('prompt')
+    def validate_prompt(cls, v):
+        """Validate prompt is not empty or whitespace only."""
+        if not v or not v.strip():
+            raise ValueError("Prompt cannot be empty or contain only whitespace")
+        return v.strip()
 
 
 class LLMUsage(BaseModel):

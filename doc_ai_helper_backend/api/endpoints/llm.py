@@ -20,9 +20,11 @@ from doc_ai_helper_backend.models.llm import (
     ToolParameter,
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
+from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
 from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
+    ServiceNotFoundError,
     TemplateNotFoundError,
     TemplateSyntaxError,
 )
@@ -76,7 +78,24 @@ async def query_llm(
                 # Continue with original conversation history if document integration fails
                 conversation_history = request.conversation_history
 
-        # Use the injected LLM service instead of creating a new one
+        # Create LLM service based on the requested provider
+        from doc_ai_helper_backend.core.config import settings
+        
+        # Configure provider-specific settings
+        config = {}
+        if request.provider == "openai":
+            config["api_key"] = settings.openai_api_key
+            config["default_model"] = settings.default_openai_model
+            if settings.openai_base_url:
+                config["base_url"] = settings.openai_base_url
+        
+        # Create LLM service for the requested provider
+        try:
+            llm_service = LLMServiceFactory.create_with_mcp(request.provider, **config)
+        except Exception as e:
+            # Re-raise the exception to be handled by error handlers
+            logger.error(f"Failed to create LLM service for provider '{request.provider}': {e}")
+            raise
 
         # Prepare options
         options = request.options or {}
@@ -124,6 +143,39 @@ async def query_llm(
                     or "contextual_document_assistant_ja",
                     include_document_in_system_prompt=request.include_document_in_system_prompt,
                 )
+                # Execute function calls if present (same as legacy behavior)
+                if response.tool_calls:
+                    executed_results = []
+                    for tool_call in response.tool_calls:
+                        try:
+                            # Convert repository context to dict if available
+                            repo_context_dict = None
+                            if request.repository_context:
+                                repo_context_dict = request.repository_context.model_dump()
+                            
+                            result = await llm_service.execute_function_call(
+                                tool_call.function,
+                                {func.name: func for func in available_tools},
+                                repository_context=repo_context_dict,
+                            )
+                            executed_results.append(
+                                {
+                                    "tool_call_id": tool_call.id,
+                                    "function_name": tool_call.function.name,
+                                    "result": result,
+                                }
+                            )
+                        except Exception as e:
+                            executed_results.append(
+                                {
+                                    "tool_call_id": tool_call.id,
+                                    "function_name": tool_call.function.name,
+                                    "error": str(e),
+                                }
+                            )
+
+                    # Add execution results to response
+                    response.tool_execution_results = executed_results
             else:
                 # Use legacy flow for backward compatibility
                 response = await llm_service.query_with_tools(
@@ -188,6 +240,9 @@ async def query_llm(
 
         return response
 
+    except ServiceNotFoundError as e:
+        # Re-raise ServiceNotFoundError to be handled by error handlers
+        raise e
     except Exception as e:
         raise LLMServiceException(message="Error querying LLM", detail=str(e))
 

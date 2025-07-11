@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 from doc_ai_helper_backend.core.exceptions import (
     DocumentParsingException,
     GitServiceException,
+    GitHubRepositoryNotFoundError,
     NotFoundException,
 )
 from doc_ai_helper_backend.models.document import (
@@ -144,6 +145,9 @@ class DocumentService:
 
             return document
 
+        except GitHubRepositoryNotFoundError as e:
+            logger.warning(f"Repository not found: {service}/{owner}/{repo}")
+            raise
         except NotFoundException as e:
             logger.warning(f"Document not found: {service}/{owner}/{repo}/{path}")
             raise
@@ -208,6 +212,9 @@ class DocumentService:
 
             return structure
 
+        except GitHubRepositoryNotFoundError as e:
+            logger.warning(f"Repository not found: {service}/{owner}/{repo}")
+            raise
         except NotFoundException as e:
             logger.warning(f"Repository not found: {service}/{owner}/{repo}")
             raise

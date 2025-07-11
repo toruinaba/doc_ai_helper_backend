@@ -15,10 +15,16 @@ from doc_ai_helper_backend.core.exceptions import (
     DocumentParsingException,
     ForbiddenException,
     GitServiceException,
+    GitHubRepositoryNotFoundError,
+    GitHubAPIError,
+    GitHubAuthError,
+    GitHubRateLimitError,
+    GitHubPermissionError,
     InternalServerException,
     LLMServiceException,
     NotFoundException,
     RateLimitException,
+    ServiceNotFoundError,
     UnauthorizedException,
     ValidationException,
 )
@@ -105,7 +111,13 @@ def setup_error_handlers(app: FastAPI) -> None:
 
     app.add_exception_handler(NotFoundException, api_exception_handler)
     app.add_exception_handler(GitServiceException, api_exception_handler)
+    app.add_exception_handler(GitHubRepositoryNotFoundError, api_exception_handler)
+    app.add_exception_handler(GitHubAPIError, api_exception_handler)
+    app.add_exception_handler(GitHubAuthError, api_exception_handler)
+    app.add_exception_handler(GitHubRateLimitError, api_exception_handler)
+    app.add_exception_handler(GitHubPermissionError, api_exception_handler)
     app.add_exception_handler(LLMServiceException, api_exception_handler)
+    app.add_exception_handler(ServiceNotFoundError, api_exception_handler)
     app.add_exception_handler(UnauthorizedException, api_exception_handler)
     app.add_exception_handler(ForbiddenException, api_exception_handler)
     app.add_exception_handler(BadRequestException, api_exception_handler)

@@ -67,7 +67,7 @@ class DocumentAIHelperMCPServer:
         async def extract_context_tool(
             document_content: str, context_type: str = "summary"
         ) -> Dict[str, Any]:
-            """Extract structured context from document content."""
+            """文書から構造化されたコンテキストを抽出します。見出し、段落構造、メタデータなどを分析して詳細な文書情報を提供します。"""
             return await extract_document_context(
                 document_content=document_content, context_type=context_type
             )
@@ -76,7 +76,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_structure_tool(
             document_content: str, analysis_depth: str = "basic"
         ) -> Dict[str, Any]:
-            """Analyze document structure and organization."""
+            """文書の構造と構成を分析します。見出し階層、セクション分割、論理的な流れなどを詳細に解析します。"""
             return await analyze_document_structure(
                 document_content=document_content, analysis_depth=analysis_depth
             )
@@ -85,7 +85,7 @@ class DocumentAIHelperMCPServer:
         async def optimize_content_tool(
             document_content: str, optimization_type: str = "readability"
         ) -> Dict[str, Any]:
-            """Optimize document content for better readability and structure."""
+            """文書コンテンツを読みやすさと構造の改善のために最適化します。段落構成、表現の改善、全体的な品質向上を行います。"""
             return await optimize_document_content(
                 document_content=document_content, optimization_type=optimization_type
             )
@@ -104,7 +104,7 @@ class DocumentAIHelperMCPServer:
         async def generate_feedback_tool(
             conversation_history: List[Dict[str, Any]], feedback_type: str = "general"
         ) -> Dict[str, Any]:
-            """Generate feedback from conversation history."""
+            """会話履歴から構造化されたフィードバックを生成します。対話パターンや改善点を分析し、詳細なフィードバックレポートを作成します。"""
             return await generate_feedback_from_conversation(
                 conversation_history=conversation_history, feedback_type=feedback_type
             )
@@ -113,7 +113,7 @@ class DocumentAIHelperMCPServer:
         async def create_proposal_tool(
             current_content: str, feedback_data: Dict[str, Any]
         ) -> Dict[str, Any]:
-            """Create improvement proposal based on feedback."""
+            """フィードバックデータに基づいて改善提案を作成します。現在のコンテンツを分析し、具体的で実践的な改善案を提供します。"""
             return await create_improvement_proposal(
                 current_content=current_content, feedback_data=feedback_data
             )
@@ -122,7 +122,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_patterns_tool(
             conversation_history: List[Dict[str, Any]], analysis_depth: str = "basic"
         ) -> Dict[str, Any]:
-            """Analyze conversation patterns and themes."""
+            """会話履歴のパターンとテーマを分析します。対話の傾向、頻出トピック、コミュニケーションの特徴を詳細に解析します。"""
             return await analyze_conversation_patterns(
                 conversation_history=conversation_history, analysis_depth=analysis_depth
             )
@@ -141,7 +141,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_quality_tool(
             document_content: str, quality_criteria: str = "general"
         ) -> Dict[str, Any]:
-            """Analyze document quality against various criteria."""
+            """様々な基準に対して文書品質を分析します。読みやすさ、構造、内容の完全性、技術的正確性などを評価します。"""
             return await analyze_document_quality(
                 document_content=document_content, quality_criteria=quality_criteria
             )
@@ -150,7 +150,7 @@ class DocumentAIHelperMCPServer:
         async def extract_topics_tool(
             document_content: str, topic_count: int = 5
         ) -> Dict[str, Any]:
-            """Extract main topics from document content."""
+            """文書内容から主要なトピックとテーマを抽出します。キーワード分析、意味的グループ化により重要な議題を特定します。"""
             return await extract_document_topics(
                 document_content=document_content, topic_count=topic_count
             )
@@ -159,7 +159,7 @@ class DocumentAIHelperMCPServer:
         async def check_completeness_tool(
             document_content: str, completeness_criteria: str = "general"
         ) -> Dict[str, Any]:
-            """Check document completeness against criteria."""
+            """指定された基準に対して文書の完全性をチェックします。必要な情報の欠落、構造的な問題、内容の網羅性を評価します。"""
             return await check_document_completeness(
                 document_content=document_content,
                 completeness_criteria=completeness_criteria,
@@ -272,7 +272,7 @@ class DocumentAIHelperMCPServer:
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
         ) -> str:
-            """Create a new pull request in the specified Git service."""
+            """指定されたGitサービスで新しいプルリクエストを作成します。コードレビュー、機能統合、バグ修正などのためのPR作成に対応します。"""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
@@ -305,7 +305,7 @@ class DocumentAIHelperMCPServer:
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
         ) -> str:
-            """Check permissions for the current repository context."""
+            """現在のリポジトリコンテキストの権限をチェックします。読み取り、書き込み、管理者権限などのアクセスレベルを確認します。"""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
@@ -608,31 +608,31 @@ class DocumentAIHelperMCPServer:
         """Get description for a tool."""
         descriptions = {
             # Document tools
-            "analyze_document_structure": "Analyze the structure and organization of a document",
-            "extract_document_keywords": "Extract keywords and key phrases from document content",
-            "check_document_links": "Check and validate links within a document",
-            "summarize_document_sections": "Generate summaries for different sections of a document",
+            "analyze_document_structure": "文書の構造と構成を分析します。見出し階層、セクション分割、論理的な流れなどを詳細に解析します。",
+            "extract_document_keywords": "文書内容からキーワードと重要なフレーズを抽出します。テキストマイニングにより核心的なトピックを特定します。",
+            "check_document_links": "文書内のリンクをチェックし、検証します。内部リンク、外部リンクの有効性やアクセシビリティを確認します。",
+            "summarize_document_sections": "文書の異なるセクションに対して要約を生成します。章ごとのポイントや全体構造を把握できます。",
             # Feedback tools
-            "collect_user_feedback": "Collect and store user feedback about documents or features",
-            "generate_feedback_from_conversation": "Generate structured feedback based on conversation history",
-            "create_improvement_proposal": "Create improvement proposals based on feedback data",
-            "analyze_conversation_patterns": "Analyze patterns and themes in conversation history",
+            "collect_user_feedback": "文書や機能に関するユーザーフィードバックを収集し、保存します。改善点や問題点を体系的に管理します。",
+            "generate_feedback_from_conversation": "会話履歴に基づいて構造化されたフィードバックを生成します。対話パターンや改善点を分析します。",
+            "create_improvement_proposal": "フィードバックデータに基づいて改善提案を作成します。具体的で実践的な改善案を提供します。",
+            "analyze_conversation_patterns": "会話履歴のパターンとテーマを分析します。対話の傾向や頻出トピックを特定します。",
             # Analysis tools
-            "analyze_document_quality": "Analyze document quality against various criteria",
-            "extract_document_topics": "Extract main topics and themes from document content",
-            "check_document_completeness": "Check document completeness against specified criteria",
+            "analyze_document_quality": "様々な基準に対して文書品質を分析します。読みやすさ、構造、内容の完全性を評価します。",
+            "extract_document_topics": "文書内容から主要なトピックとテーマを抽出します。キーワード分析により重要な議題を特定します。",
+            "check_document_completeness": "指定された基準に対して文書の完全性をチェックします。必要情報の欠落や構造的問題を特定します。",
             # Git tools
             "create_git_issue": "統一Gitサービス（GitHub/Forgejo）でIssueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
             "create_github_pull_request": "現在表示中のドキュメントのリポジトリにGitHubプルリクエストを作成します。コード変更、ドキュメント更新などの提案に使用できます。",
             "check_github_repository_permissions": "現在表示中のドキュメントのGitHubリポジトリの権限を確認します。読み取り、書き込み、Issue作成などの権限状況を確認できます。",
             # Utility tools
-            "get_current_time": "Get current date and time in specified format",
-            "count_text_characters": "Count characters, words, and lines in text",
-            "validate_email_format": "Validate email address format",
-            "generate_random_data": "Generate random data for testing purposes",
-            # LLM-enhanced tools
-            "summarize_document_with_llm": "内部LLM APIを使用して日本語文書の高品質な要約を生成します。専用プロンプトにより、自然で読みやすい日本語要約を提供します。",
-            "create_improvement_recommendations_with_llm": "専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。優先度別に分類された改善提案と実装ガイダンスを提供します。",
+            "get_current_time": "指定された形式で現在の日付と時刻を取得します。タイムスタンプや日付フォーマットに対応します。",
+            "count_text_characters": "テキスト内の文字数、単語数、行数をカウントします。文書の長さや構造を分析する際に使用します。",
+            "validate_email_format": "メールアドレスの形式を検証します。有効なメールアドレス形式かどうかをチェックします。",
+            "generate_random_data": "テスト目的でランダムデータを生成します。サンプルデータや動作確認用の情報作成に使用します。",
+            # LLM-enhanced tools (English for better OpenAI tool selection)
+            "summarize_document_with_llm": "Generate high-quality summaries of Japanese documents using internal LLM API. Provides natural and readable Japanese summaries through specialized prompts.",
+            "create_improvement_recommendations_with_llm": "Create detailed improvement recommendations for Japanese documents through professional LLM analysis. Provides prioritized improvement suggestions with implementation guidance.",
         }
         return descriptions.get(tool_name)
 

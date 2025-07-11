@@ -130,8 +130,9 @@ class MCPFunctionAdapter:
         logger.debug(
             f"Using default info for {tool_name}, generating parameters schema"
         )
+        logger.error(f"CLAUDE_DEBUG: About to call _generate_parameters_schema for {tool_name}")
         parameters = self._generate_parameters_schema(tool_name)
-        logger.debug(f"Generated default parameters for {tool_name}: {parameters}")
+        logger.debug(f"CLAUDE_MODIFIED: Generated default parameters for {tool_name}: {parameters}")
         return {
             "description": description,
             "parameters": parameters,
@@ -176,6 +177,12 @@ class MCPFunctionAdapter:
             return "改善提案を作成します"
         elif tool_name == "analyze_conversation_patterns":
             return "会話パターンを分析します"
+        
+        # LLM強化ツールの日本語説明
+        elif tool_name == "summarize_document_with_llm":
+            return "内部LLM APIを使用して日本語文書の高品質な要約を生成します。専用プロンプトにより、自然で読みやすい日本語要約を提供します。"
+        elif tool_name == "create_improvement_recommendations_with_llm":
+            return "専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。優先度別に分類された改善提案と実装ガイダンスを提供します。"
 
         # 旧GitHubツールの日本語説明（後方互換性のため）
         elif tool_name == "create_github_issue":
@@ -213,6 +220,7 @@ class MCPFunctionAdapter:
             JSON schema for the tool parameters
         """
         # ツール名に基づいてパラメータスキーマを生成
+        logger.debug(f"_generate_parameters_schema called for tool: {tool_name}")
 
         # 統合Gitツール
         if tool_name == "create_git_issue":
@@ -667,6 +675,60 @@ class MCPFunctionAdapter:
                     },
                 },
                 "required": [],
+            }
+        
+        # LLM Enhanced Tools
+        elif tool_name == "summarize_document_with_llm":
+            logger.debug(f"Found summarize_document_with_llm in _generate_parameters_schema")
+            return {
+                "type": "object",
+                "properties": {
+                    "document_content": {
+                        "type": "string",
+                        "description": "要約対象の日本語文書内容",
+                    },
+                    "summary_length": {
+                        "type": "string",
+                        "description": "要約の長さ（brief=簡潔, detailed=詳細, comprehensive=包括的）",
+                        "default": "comprehensive",
+                    },
+                    "focus_area": {
+                        "type": "string",
+                        "description": "焦点領域（general=一般向け, technical=技術的, business=ビジネス向け）",
+                        "default": "general",
+                    },
+                    "context": {
+                        "type": "string",
+                        "description": "追加コンテキスト（オプション）",
+                    },
+                },
+                "required": ["document_content"],
+            }
+        elif tool_name == "create_improvement_recommendations_with_llm":
+            return {
+                "type": "object",
+                "properties": {
+                    "document_content": {
+                        "type": "string",
+                        "description": "分析対象の日本語文書内容",
+                    },
+                    "summary_context": {
+                        "type": "string",
+                        "description": "事前分析の要約コンテキスト（オプション）",
+                        "default": "",
+                    },
+                    "improvement_type": {
+                        "type": "string",
+                        "description": "改善タイプ（structure=構造, content=内容, readability=読みやすさ, comprehensive=包括的）",
+                        "default": "comprehensive",
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "description": "対象読者（general=一般, technical=技術者, beginner=初心者, expert=専門家）",
+                        "default": "general",
+                    },
+                },
+                "required": ["document_content"],
             }
 
         # デフォルトスキーマ
