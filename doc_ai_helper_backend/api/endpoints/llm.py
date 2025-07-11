@@ -129,7 +129,7 @@ async def query_llm(
 
             # Send query with tools using the complete flow or legacy flow
             if request.complete_tool_flow:
-                # Use new complete flow (default)
+                # Use new complete flow (default) - handles tool execution and followup internally
                 response = await llm_service.query_with_tools_and_followup(
                     prompt=request.prompt,
                     tools=available_tools,
@@ -143,39 +143,7 @@ async def query_llm(
                     or "contextual_document_assistant_ja",
                     include_document_in_system_prompt=request.include_document_in_system_prompt,
                 )
-                # Execute function calls if present (same as legacy behavior)
-                if response.tool_calls:
-                    executed_results = []
-                    for tool_call in response.tool_calls:
-                        try:
-                            # Convert repository context to dict if available
-                            repo_context_dict = None
-                            if request.repository_context:
-                                repo_context_dict = request.repository_context.model_dump()
-                            
-                            result = await llm_service.execute_function_call(
-                                tool_call.function,
-                                {func.name: func for func in available_tools},
-                                repository_context=repo_context_dict,
-                            )
-                            executed_results.append(
-                                {
-                                    "tool_call_id": tool_call.id,
-                                    "function_name": tool_call.function.name,
-                                    "result": result,
-                                }
-                            )
-                        except Exception as e:
-                            executed_results.append(
-                                {
-                                    "tool_call_id": tool_call.id,
-                                    "function_name": tool_call.function.name,
-                                    "error": str(e),
-                                }
-                            )
-
-                    # Add execution results to response
-                    response.tool_execution_results = executed_results
+                # Note: Tool execution and followup are handled internally by query_with_tools_and_followup
             else:
                 # Use legacy flow for backward compatibility
                 response = await llm_service.query_with_tools(
