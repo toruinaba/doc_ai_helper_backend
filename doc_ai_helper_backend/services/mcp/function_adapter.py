@@ -180,9 +180,9 @@ class MCPFunctionAdapter:
         
         # LLM-enhanced tools descriptions
         elif tool_name == "summarize_document_with_llm":
-            return "Generate high-quality summaries of Japanese documents using internal LLM API. Provides natural and readable Japanese summaries through specialized prompts."
+            return "Generate high-quality summaries of Japanese documents using internal LLM API. IMPORTANT: Always provide the document_content parameter with the actual document text (e.g., README.md content that is currently being viewed). If document_content is not provided, the tool will automatically retrieve it from the current repository context. Provides natural and readable Japanese summaries through specialized prompts."
         elif tool_name == "create_improvement_recommendations_with_llm":
-            return "Create detailed improvement recommendations for Japanese documents through professional LLM analysis. Provides prioritized improvement suggestions with implementation guidance."
+            return "Create detailed improvement recommendations for Japanese documents through professional LLM analysis. IMPORTANT: Always provide the document_content parameter with the actual document text (e.g., README.md content that is currently being viewed). If document_content is not provided, the tool will automatically retrieve it from the current repository context. Provides prioritized improvement suggestions with implementation guidance in Japanese."
 
         # Legacy GitHub tools descriptions (for backward compatibility)
         elif tool_name == "create_github_issue":
@@ -685,7 +685,7 @@ class MCPFunctionAdapter:
                 "properties": {
                     "document_content": {
                         "type": "string",
-                        "description": "Japanese document content to summarize",
+                        "description": "REQUIRED: The actual Japanese document content to summarize (full text content). For example, if analyzing README.md, provide the entire README.md content text here. Do not leave this empty - always include the document text.",
                     },
                     "summary_length": {
                         "type": "string",
@@ -710,7 +710,7 @@ class MCPFunctionAdapter:
                 "properties": {
                     "document_content": {
                         "type": "string",
-                        "description": "Japanese document content to analyze",
+                        "description": "REQUIRED: The actual Japanese document content to analyze for improvements (full text content). For example, if analyzing README.md, provide the entire README.md content text here. Do not leave this empty - always include the document text.",
                     },
                     "summary_context": {
                         "type": "string",
@@ -772,20 +772,43 @@ class MCPFunctionAdapter:
             )
             logger.info(f"Function type: {type(function)}")
 
-            # Git関連ツールの場合、直接渡されたrepository_contextを注入
-            if function_call.name.startswith(("create_git_", "check_git_")):
+            # Git関連ツールとLLM強化ツールの場合、直接渡されたrepository_contextを注入
+            if function_call.name.startswith(("create_git_", "check_git_", "summarize_document_with_llm", "create_improvement_recommendations_with_llm")):
                 if repository_context:
                     if "repository_context" not in arguments:
                         arguments["repository_context"] = repository_context
                         logger.info(
-                            f"Direct-injected repository_context: {repository_context.get('owner')}/{repository_context.get('repo')}"
+                            f"Direct-injected repository_context for {function_call.name}: {repository_context.get('owner')}/{repository_context.get('repo')}"
                         )
                     else:
                         logger.info(
                             f"Repository context already in arguments: {arguments['repository_context']}"
                         )
+                    
+                    # For LLM-enhanced tools, also try to auto-fill document_content if empty
+                    if function_call.name in ["summarize_document_with_llm", "create_improvement_recommendations_with_llm"]:
+                        if not arguments.get("document_content", "").strip():
+                            try:
+                                from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+                                
+                                # Create git service
+                                service_type = repository_context.get("service", "github")
+                                git_service = GitServiceFactory.create(service_type)
+                                
+                                # Get document content
+                                owner = repository_context.get("owner")
+                                repo = repository_context.get("repo")
+                                path = repository_context.get("current_path")
+                                ref = repository_context.get("ref", "main")
+                                
+                                if owner and repo and path:
+                                    document_content = await git_service.get_file_content(owner, repo, path, ref)
+                                    arguments["document_content"] = document_content
+                                    logger.info(f"Auto-filled document_content for {function_call.name} from {owner}/{repo}/{path}: {len(document_content)} chars")
+                            except Exception as e:
+                                logger.warning(f"Failed to auto-fill document_content for {function_call.name}: {e}")
                 else:
-                    logger.warning("No repository context provided for Git operation")
+                    logger.warning(f"No repository context provided for {function_call.name} operation")
 
             # 関数を実行
             import asyncio

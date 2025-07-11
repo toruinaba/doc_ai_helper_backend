@@ -344,16 +344,42 @@ class DocumentAIHelperMCPServer:
         ) -> str:
             """Generate high-quality summaries of Japanese documents using internal LLM API.
             
-            Returns error message if document_content is empty.
+            When called without document_content, automatically uses the current document being viewed in the repository context.
             """
-            # Return error if document_content is empty
+            # If document_content is empty, try to get it from repository context
             if not document_content.strip():
-                import json
-                return json.dumps({
-                    "success": False,
-                    "error": "document_content parameter is required. Please specify the document content to summarize.",
-                    "hint": "Example: summarize_document_with_llm(document_content='paste document content here')"
-                }, ensure_ascii=False)
+                # Try to get current document content from repository context
+                repository_context = getattr(self, "_current_repository_context", None)
+                if repository_context and repository_context.get("current_path"):
+                    try:
+                        # Import document service to get current document content
+                        from doc_ai_helper_backend.api.dependencies import get_document_service
+                        from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+                        
+                        # Create git service
+                        service_type = repository_context.get("service", "github")
+                        git_service = GitServiceFactory.create(service_type)
+                        
+                        # Get document content
+                        owner = repository_context.get("owner")
+                        repo = repository_context.get("repo")
+                        path = repository_context.get("current_path")
+                        ref = repository_context.get("ref", "main")
+                        
+                        if owner and repo and path:
+                            document_content = await git_service.get_file_content(owner, repo, path, ref)
+                            logger.info(f"Auto-retrieved document content from {owner}/{repo}/{path}: {len(document_content)} chars")
+                    except Exception as e:
+                        logger.warning(f"Failed to auto-retrieve document content: {e}")
+                
+                # Still no content available
+                if not document_content.strip():
+                    import json
+                    return json.dumps({
+                        "success": False,
+                        "error": "document_content parameter is required. Please specify the document content to summarize, or ensure the current document is available in the repository context.",
+                        "hint": "Example: summarize_document_with_llm(document_content='paste document content here')"
+                    }, ensure_ascii=False)
             
             return await summarize_document_with_llm(
                 document_content=document_content,
@@ -371,16 +397,42 @@ class DocumentAIHelperMCPServer:
         ) -> str:
             """Create detailed improvement recommendations for Japanese documents through professional LLM analysis.
             
-            Returns error message if document_content is empty.
+            When called without document_content, automatically uses the current document being viewed in the repository context.
             """
-            # Return error if document_content is empty
+            # If document_content is empty, try to get it from repository context
             if not document_content.strip():
-                import json
-                return json.dumps({
-                    "success": False,
-                    "error": "document_content parameter is required. Please specify the document content for improvement recommendations.",
-                    "hint": "Example: create_improvement_recommendations_with_llm(document_content='paste document content here')"
-                }, ensure_ascii=False)
+                # Try to get current document content from repository context
+                repository_context = getattr(self, "_current_repository_context", None)
+                if repository_context and repository_context.get("current_path"):
+                    try:
+                        # Import document service to get current document content
+                        from doc_ai_helper_backend.api.dependencies import get_document_service
+                        from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+                        
+                        # Create git service
+                        service_type = repository_context.get("service", "github")
+                        git_service = GitServiceFactory.create(service_type)
+                        
+                        # Get document content
+                        owner = repository_context.get("owner")
+                        repo = repository_context.get("repo")
+                        path = repository_context.get("current_path")
+                        ref = repository_context.get("ref", "main")
+                        
+                        if owner and repo and path:
+                            document_content = await git_service.get_file_content(owner, repo, path, ref)
+                            logger.info(f"Auto-retrieved document content from {owner}/{repo}/{path}: {len(document_content)} chars")
+                    except Exception as e:
+                        logger.warning(f"Failed to auto-retrieve document content: {e}")
+                
+                # Still no content available
+                if not document_content.strip():
+                    import json
+                    return json.dumps({
+                        "success": False,
+                        "error": "document_content parameter is required. Please specify the document content for improvement recommendations, or ensure the current document is available in the repository context.",
+                        "hint": "Example: create_improvement_recommendations_with_llm(document_content='paste document content here')"
+                    }, ensure_ascii=False)
             
             return await create_improvement_recommendations_with_llm(
                 document_content=document_content,

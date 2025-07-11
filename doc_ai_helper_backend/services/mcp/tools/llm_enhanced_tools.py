@@ -20,6 +20,7 @@ async def summarize_document_with_llm(
     summary_length: str = "comprehensive",
     focus_area: str = "general",
     context: Optional[str] = None,
+    repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     内部LLM APIを使用して日本語文書の高品質な要約を生成します。
@@ -39,12 +40,35 @@ async def summarize_document_with_llm(
     start_time = time.time()
     
     try:
-        # 入力検証
+        # 入力検証とコンテンツ自動取得
         if not document_content or not document_content.strip():
-            return json.dumps({
-                "success": False,
-                "error": "Document content cannot be empty"
-            }, ensure_ascii=False)
+            # Try to get document content from repository context
+            if repository_context and repository_context.get("current_path"):
+                try:
+                    from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+                    
+                    # Create git service
+                    service_type = repository_context.get("service", "github")
+                    git_service = GitServiceFactory.create(service_type)
+                    
+                    # Get document content
+                    owner = repository_context.get("owner")
+                    repo = repository_context.get("repo")
+                    path = repository_context.get("current_path")
+                    ref = repository_context.get("ref", "main")
+                    
+                    if owner and repo and path:
+                        document_content = await git_service.get_file_content(owner, repo, path, ref)
+                        logger.info(f"Auto-retrieved document content for summarization from {owner}/{repo}/{path}: {len(document_content)} chars")
+                except Exception as e:
+                    logger.warning(f"Failed to auto-retrieve document content for summarization: {e}")            
+            
+            # Still no content available
+            if not document_content or not document_content.strip():
+                return json.dumps({
+                    "success": False,
+                    "error": "Document content cannot be empty"
+                }, ensure_ascii=False)
         
         # 日本語文書用の専用プロンプトを構築
         prompt = _build_japanese_summarization_prompt(
@@ -138,6 +162,7 @@ async def create_improvement_recommendations_with_llm(
     summary_context: str = "",
     improvement_type: str = "comprehensive",
     target_audience: str = "general",
+    repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。
@@ -157,17 +182,42 @@ async def create_improvement_recommendations_with_llm(
     start_time = time.time()
     
     try:
-        # 入力検証
+        # 入力検証とコンテンツ自動取得
         if not document_content or not document_content.strip():
-            return json.dumps({
-                "success": False,
-                "error": "Document content cannot be empty"
-            }, ensure_ascii=False)
+            # Try to get document content from repository context
+            if repository_context and repository_context.get("current_path"):
+                try:
+                    from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+                    
+                    # Create git service
+                    service_type = repository_context.get("service", "github")
+                    git_service = GitServiceFactory.create(service_type)
+                    
+                    # Get document content
+                    owner = repository_context.get("owner")
+                    repo = repository_context.get("repo")
+                    path = repository_context.get("current_path")
+                    ref = repository_context.get("ref", "main")
+                    
+                    if owner and repo and path:
+                        document_content = await git_service.get_file_content(owner, repo, path, ref)
+                        logger.info(f"Auto-retrieved document content for improvement analysis from {owner}/{repo}/{path}: {len(document_content)} chars")
+                except Exception as e:
+                    logger.warning(f"Failed to auto-retrieve document content for improvement analysis: {e}")            
+            
+            # Still no content available
+            if not document_content or not document_content.strip():
+                return json.dumps({
+                    "success": False,
+                    "error": "Document content cannot be empty"
+                }, ensure_ascii=False)
         
         # 日本語文書改善用の専用プロンプトを構築
         prompt = _build_japanese_improvement_prompt(
             document_content, summary_context, improvement_type, target_audience
         )
+        
+        logger.info(f"Improvement analysis prompt: {prompt[:500]}...")  # Log prompt for debugging
         
         # 設定から適切なモデルを取得
         from doc_ai_helper_backend.core.config import settings
@@ -195,9 +245,11 @@ async def create_improvement_recommendations_with_llm(
             
             # LLM応答から改善提案を抽出
             recommendations_text = llm_response.get("response", "")
+            logger.info(f"Raw LLM recommendations response: {recommendations_text[:500]}...")  # Log response for debugging
             
             # Parse and structure Japanese improvement recommendations
             structured_recommendations = _parse_japanese_improvement_recommendations(recommendations_text)
+            logger.info(f"Parsed recommendations structure: {structured_recommendations}")  # Log parsed structure
             
             # Calculate processing metrics
             processing_time = time.time() - start_time
@@ -326,7 +378,7 @@ def _build_japanese_improvement_prompt(
 分析対象文書：
 {content}
 
-以下の形式で詳細な改善提案を日本語で提供してください：
+**重要**: 必ず以下の正確な形式で詳細な改善提案を日本語で提供してください：
 
 ■ 高優先度: [最も影響の大きい改善点]
 ・カテゴリ: [構造/内容/読みやすさ]
@@ -344,7 +396,9 @@ def _build_japanese_improvement_prompt(
 ・カテゴリ: [構造/内容/読みやすさ]
 ・具体的な改善内容
 ・実装労力: [低/中/高]
-・期待効果: [低/中/高]"""
+・期待効果: [低/中/高]
+
+各優先度レベルで最低1つの改善提案を提供し、■と・記号を正確に使用してください。"""
     
     return prompt
 
@@ -384,6 +438,7 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
     }
     
     current_priority = None
+    current_recommendation = None
     lines = recommendations_text.split('\n')
     
     for line in lines:
@@ -391,38 +446,100 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
         if not line:
             continue
             
-        # Detect priority sections
-        if '高優先度' in line:
+        # Detect priority sections with various formats
+        if ('高優先度' in line or '■ 高優先度' in line or 
+            'High Priority' in line or 'HIGH PRIORITY' in line):
             current_priority = 'high_priority'
             continue
-        elif '中優先度' in line:
+        elif ('中優先度' in line or '■ 中優先度' in line or 
+              'Medium Priority' in line or 'MEDIUM PRIORITY' in line):
             current_priority = 'medium_priority'
             continue
-        elif '低優先度' in line:
+        elif ('低優先度' in line or '■ 低優先度' in line or 
+              'Low Priority' in line or 'LOW PRIORITY' in line):
             current_priority = 'low_priority'
             continue
         
         # Extract improvement recommendations
-        if line.startswith('・') or line.startswith('-') or line.startswith('*'):
+        if (line.startswith('・') or line.startswith('-') or line.startswith('*') or 
+            line.startswith('1.') or line.startswith('2.') or line.startswith('3.')):
             if current_priority:
+                # Parse category if present
+                category = "general"
+                if 'カテゴリ:' in line or 'Category:' in line:
+                    if '構造' in line or 'structure' in line.lower():
+                        category = "structure"
+                    elif '内容' in line or 'content' in line.lower():
+                        category = "content"
+                    elif '読みやすさ' in line or 'readability' in line.lower():
+                        category = "readability"
+                
+                # Extract effort and impact
+                effort = "medium"
+                impact = "medium"
+                if '実装労力:' in line or 'Implementation Effort:' in line.lower():
+                    if '低' in line or 'low' in line.lower():
+                        effort = "low"
+                    elif '高' in line or 'high' in line.lower():
+                        effort = "high"
+                
+                if '期待効果:' in line or 'Expected Impact:' in line.lower():
+                    if '低' in line or 'low' in line.lower():
+                        impact = "low"
+                    elif '高' in line or 'high' in line.lower():
+                        impact = "high"
+                
+                # Extract title and description
+                clean_line = line.lstrip('・-*123. ')
+                title = clean_line.split('：')[0] if '：' in clean_line else clean_line.split(':')[0] if ':' in clean_line else clean_line
+                description = clean_line
+                
                 recommendation = {
-                    "category": "general",
-                    "title": line.lstrip('・-* ').split('：')[0] if '：' in line else line.lstrip('・-* '),
-                    "description": line.lstrip('・-* '),
-                    "implementation_effort": "medium",
-                    "expected_impact": "medium"
+                    "category": category,
+                    "title": title[:100] if len(title) > 100 else title,  # Limit title length
+                    "description": description,
+                    "implementation_effort": effort,
+                    "expected_impact": impact
                 }
                 structured[current_priority].append(recommendation)
+        
+        # Also check for multi-line recommendations
+        elif current_priority and current_recommendation is None and line and not line.startswith('#'):
+            # This might be a continuation or a simple recommendation
+            recommendation = {
+                "category": "general",
+                "title": line[:50] + "..." if len(line) > 50 else line,
+                "description": line,
+                "implementation_effort": "medium",
+                "expected_impact": "medium"
+            }
+            structured[current_priority].append(recommendation)
     
-    # Default general recommendation if structured analysis failed
+    # If no structured parsing worked, try to extract general recommendations
     if not any(structured.values()):
-        structured["high_priority"] = [{
-            "category": "general",
-            "title": "General improvement",
-            "description": recommendations_text,
-            "implementation_effort": "medium",
-            "expected_impact": "medium"
-        }]
+        # Split by sentences or paragraphs for general recommendations
+        sentences = [s.strip() for s in recommendations_text.replace('。', '.').split('.') if s.strip() and len(s.strip()) > 10]
+        
+        for i, sentence in enumerate(sentences[:6]):  # Limit to 6 recommendations
+            priority = "high_priority" if i < 2 else "medium_priority" if i < 4 else "low_priority"
+            recommendation = {
+                "category": "general",
+                "title": sentence[:50] + "..." if len(sentence) > 50 else sentence,
+                "description": sentence,
+                "implementation_effort": "medium",
+                "expected_impact": "medium"
+            }
+            structured[priority].append(recommendation)
+        
+        # If still nothing, create a default recommendation
+        if not any(structured.values()):
+            structured["high_priority"] = [{
+                "category": "general",
+                "title": "文書改善提案",
+                "description": recommendations_text[:200] + "..." if len(recommendations_text) > 200 else recommendations_text,
+                "implementation_effort": "medium",
+                "expected_impact": "medium"
+            }]
     
     return structured
 
