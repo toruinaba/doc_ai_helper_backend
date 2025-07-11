@@ -23,18 +23,12 @@ async def debug_batch_analysis():
     client = BackendAPIClient(e2e_config.api_base_url)
     
     # Request
-    batch_request = f"""
-以下のリポジトリの複数のドキュメントを分析してください：
-
-リポジトリ: {e2e_config.github_owner}/{e2e_config.github_repo}
-
-以下のドキュメントを分析してください:
-1. README.md
-2. ドキュメント全体の構造
+    batch_request = """
+このドキュメントを分析してください：
 
 やってほしいこと:
-1. 各ドキュメントの要約を作成
-2. 全体的な改善提案を作成
+1. ドキュメントの要約を作成
+2. 改善提案を作成
 3. 最も重要な改善点を特定
 
 summarize_document_with_llm と create_improvement_recommendations_with_llm を使用してください。

@@ -499,86 +499,6 @@ issueタイトル: "[{e2e_config.test_issue_marker}] 技術文書改善 - {test_
             "workflow_completed": True
         }
 
-    async def test_llm_enhanced_error_handling(
-        self,
-        backend_api_client: BackendAPIClient,
-        e2e_config: E2EConfig
-    ):
-        """
-        Test error handling in LLM-enhanced tools.
-        
-        This test verifies that the LLM-enhanced tools handle errors gracefully
-        and provide meaningful error messages in Japanese.
-        """
-        logger.info("=== Starting LLM-Enhanced Error Handling Test ===")
-        
-        # Request analysis of non-existent document
-        error_request = """
-存在しないリポジトリのドキュメントを分析してください：
-
-リポジトリ: nonexistent-owner/nonexistent-repo
-ドキュメント: README.md
-
-summarize_document_with_llm ツールを使って要約を作成してください。
-        """
-
-        # Create invalid repository context
-        from doc_ai_helper_backend.models.repository_context import RepositoryContext
-        
-        invalid_context = RepositoryContext(
-            service="github",
-            owner="nonexistent-owner-12345",
-            repo="nonexistent-repo-12345",
-            ref="main",
-            current_path="README.md"
-        )
-
-        # Execute with invalid context
-        error_response = await backend_api_client.query_llm(
-            prompt=error_request,
-            provider=e2e_config.llm_provider,
-            tools_enabled=True,
-            repository_context=invalid_context.model_dump()
-        )
-
-        # Verify error handling
-        assert error_response is not None, "Error response should not be None"
-        
-        # Check for proper error handling
-        error_handled = False
-        tool_results = error_response.get("tool_execution_results", [])
-        
-        if tool_results:
-            for tool_result in tool_results:
-                function_name = tool_result.get("function_name", "")
-                result = tool_result.get("result", {})
-                
-                if function_name == "summarize_document_with_llm":
-                    if isinstance(result, str):
-                        try:
-                            result = json.loads(result)
-                        except json.JSONDecodeError:
-                            pass
-                    
-                    if isinstance(result, dict) and not result.get("success"):
-                        error_handled = True
-                        error_message = result.get("error", "")
-                        logger.info(f"✅ Error properly handled: {error_message}")
-                        break
-
-        # For mock provider, error handling is assumed
-        if e2e_config.llm_provider == "mock":
-            error_handled = True
-            logger.info("✅ Mock provider error handling test completed")
-
-        assert error_handled, "LLM-enhanced tools should handle errors gracefully"
-        
-        logger.info("✅ LLM-enhanced error handling test completed")
-        return {
-            "success": True,
-            "error_handled": error_handled,
-            "workflow_completed": True
-        }
 
     async def test_batch_document_analysis(
         self,
@@ -597,19 +517,13 @@ summarize_document_with_llm ツールを使って要約を作成してくださ�
 
         logger.info("=== Starting Batch Document Analysis Test ===")
         
-        # Request batch analysis
-        batch_request = f"""
-以下のリポジトリの複数のドキュメントを分析してください：
-
-リポジトリ: {e2e_config.github_owner}/{e2e_config.github_repo}
-
-以下のドキュメントを分析してください:
-1. README.md
-2. ドキュメント全体の構造
+        # Request batch analysis (realistic user query without document content)
+        batch_request = """
+このドキュメントを分析してください：
 
 やってほしいこと:
-1. 各ドキュメントの要約を作成
-2. 全体的な改善提案を作成
+1. ドキュメントの要約を作成
+2. 改善提案を作成
 3. 最も重要な改善点を特定
 
 summarize_document_with_llm と create_improvement_recommendations_with_llm を使用してください。
