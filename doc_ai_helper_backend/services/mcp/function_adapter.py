@@ -140,74 +140,74 @@ class MCPFunctionAdapter:
 
     def _get_japanese_description(self, tool_name: str) -> str:
         """
-        Get Japanese description for a tool.
+        Get English description for a tool.
 
         Args:
             tool_name: Name of the tool
 
         Returns:
-            Japanese description string
+            English description string
         """
-        # 統合Gitツールの日本語説明
+        # Unified Git tools descriptions
         if tool_name == "create_git_issue":
-            return "Gitリポジトリに新しいIssueを作成します（GitHub、Forgejo等のGitサービスに対応）"
+            return "Create new issue in Git repository (supports GitHub, Forgejo and other Git services)"
         elif tool_name == "create_git_pull_request":
-            return "Gitリポジトリに新しいプルリクエストを作成します（GitHub、Forgejo等のGitサービスに対応）"
+            return "Create new pull request in Git repository (supports GitHub, Forgejo and other Git services)"
         elif tool_name == "check_git_repository_permissions":
-            return "Gitリポジトリのアクセス権限を確認します（GitHub、Forgejo等のGitサービスに対応）"
+            return "Check Git repository access permissions (supports GitHub, Forgejo and other Git services)"
 
-        # ドキュメントツールの日本語説明
+        # Document tools descriptions
         elif tool_name == "extract_document_context":
-            return "ドキュメントからコンテキスト情報を抽出します"
+            return "Extract context information from documents"
         elif tool_name == "analyze_document_structure":
-            return "ドキュメントの構造を分析します"
+            return "Analyze document structure"
         elif tool_name == "optimize_document_content":
-            return "ドキュメントのコンテンツを最適化します"
+            return "Optimize document content"
         elif tool_name == "analyze_document_quality":
-            return "ドキュメントの品質を分析します"
+            return "Analyze document quality"
         elif tool_name == "extract_document_topics":
-            return "ドキュメントからトピックを抽出します"
+            return "Extract topics from documents"
         elif tool_name == "check_document_completeness":
-            return "ドキュメントの完全性をチェックします"
+            return "Check document completeness"
 
-        # フィードバックツールの日本語説明
+        # Feedback tools descriptions
         elif tool_name == "generate_feedback_from_conversation":
-            return "会話履歴からフィードバックを生成します"
+            return "Generate feedback from conversation history"
         elif tool_name == "create_improvement_proposal":
-            return "改善提案を作成します"
+            return "Create improvement proposals"
         elif tool_name == "analyze_conversation_patterns":
-            return "会話パターンを分析します"
+            return "Analyze conversation patterns"
         
-        # LLM強化ツールの日本語説明
+        # LLM-enhanced tools descriptions
         elif tool_name == "summarize_document_with_llm":
-            return "内部LLM APIを使用して日本語文書の高品質な要約を生成します。専用プロンプトにより、自然で読みやすい日本語要約を提供します。"
+            return "Generate high-quality summaries of Japanese documents using internal LLM API. Provides natural and readable Japanese summaries through specialized prompts."
         elif tool_name == "create_improvement_recommendations_with_llm":
-            return "専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。優先度別に分類された改善提案と実装ガイダンスを提供します。"
+            return "Create detailed improvement recommendations for Japanese documents through professional LLM analysis. Provides prioritized improvement suggestions with implementation guidance."
 
-        # 旧GitHubツールの日本語説明（後方互換性のため）
+        # Legacy GitHub tools descriptions (for backward compatibility)
         elif tool_name == "create_github_issue":
-            return "GitHubリポジトリに新しいIssueを作成します"
+            return "Create new issue in GitHub repository"
         elif tool_name == "create_github_pull_request":
-            return "GitHubリポジトリに新しいプルリクエストを作成します"
+            return "Create new pull request in GitHub repository"
         elif tool_name == "check_github_repository_permissions":
-            return "GitHubリポジトリのアクセス権限を確認します"
+            return "Check GitHub repository access permissions"
         elif tool_name == "create_github_issue_secure":
-            return "GitHubリポジトリに新しいIssueを安全に作成します"
+            return "Create new issue in GitHub repository securely"
 
-        # ユーティリティツールの日本語説明
+        # Utility tools descriptions
         elif tool_name == "calculate_simple_math":
-            return "簡単な数学計算を実行します"
+            return "Execute simple mathematical calculations"
         elif tool_name == "get_current_time":
-            return "現在時刻を取得します"
+            return "Get current time"
         elif tool_name == "count_text_characters":
-            return "テキストの文字数を数えます"
+            return "Count text characters"
         elif tool_name == "validate_email_format":
-            return "メールアドレスの形式を検証します"
+            return "Validate email address format"
         elif tool_name == "generate_random_data":
-            return "ランダムなデータを生成します"
+            return "Generate random data"
 
-        # デフォルト（英語の説明から生成）
-        return f"MCPツール: {tool_name}"
+        # Default (generated from English description)
+        return f"MCP tool: {tool_name}"
 
     def _generate_parameters_schema(self, tool_name: str) -> Dict[str, Any]:
         """
@@ -685,21 +685,21 @@ class MCPFunctionAdapter:
                 "properties": {
                     "document_content": {
                         "type": "string",
-                        "description": "要約対象の日本語文書内容",
+                        "description": "Japanese document content to summarize",
                     },
                     "summary_length": {
                         "type": "string",
-                        "description": "要約の長さ（brief=簡潔, detailed=詳細, comprehensive=包括的）",
+                        "description": "Summary length (brief=concise, detailed=detailed, comprehensive=comprehensive)",
                         "default": "comprehensive",
                     },
                     "focus_area": {
                         "type": "string",
-                        "description": "焦点領域（general=一般向け, technical=技術的, business=ビジネス向け）",
+                        "description": "Focus area (general=general, technical=technical, business=business)",
                         "default": "general",
                     },
                     "context": {
                         "type": "string",
-                        "description": "追加コンテキスト（オプション）",
+                        "description": "Additional context (optional)",
                     },
                 },
                 "required": ["document_content"],
@@ -710,28 +710,28 @@ class MCPFunctionAdapter:
                 "properties": {
                     "document_content": {
                         "type": "string",
-                        "description": "分析対象の日本語文書内容",
+                        "description": "Japanese document content to analyze",
                     },
                     "summary_context": {
                         "type": "string",
-                        "description": "事前分析の要約コンテキスト（オプション）",
+                        "description": "Pre-analysis summary context (optional)",
                         "default": "",
                     },
                     "improvement_type": {
                         "type": "string",
-                        "description": "改善タイプ（structure=構造, content=内容, readability=読みやすさ, comprehensive=包括的）",
+                        "description": "Improvement type (structure=structure, content=content, readability=readability, comprehensive=comprehensive)",
                         "default": "comprehensive",
                     },
                     "target_audience": {
                         "type": "string",
-                        "description": "対象読者（general=一般, technical=技術者, beginner=初心者, expert=専門家）",
+                        "description": "Target audience (general=general, technical=technical, beginner=beginner, expert=expert)",
                         "default": "general",
                     },
                 },
                 "required": ["document_content"],
             }
 
-        # デフォルトスキーマ
+        # Default schema
         return {"type": "object", "properties": {}, "required": []}
 
     def get_function_registry(self) -> FunctionRegistry:

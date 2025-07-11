@@ -43,14 +43,17 @@ async def summarize_document_with_llm(
         if not document_content or not document_content.strip():
             return json.dumps({
                 "success": False,
-                "error": "文書内容が空です",
-                "error_en": "Document content cannot be empty"
+                "error": "Document content cannot be empty"
             }, ensure_ascii=False)
         
         # 日本語文書用の専用プロンプトを構築
         prompt = _build_japanese_summarization_prompt(
             document_content, summary_length, focus_area, context
         )
+        
+        # 設定から適切なモデルを取得
+        from doc_ai_helper_backend.core.config import settings
+        model = settings.default_openai_model or "gpt-3.5-turbo"
         
         # 内部LLM APIエンドポイントへの呼び出し
         async with httpx.AsyncClient() as client:
@@ -61,7 +64,7 @@ async def summarize_document_with_llm(
                     "provider": "openai",
                     "enable_tools": False,  # 循環呼び出し防止
                     "options": {
-                        "model": "gpt-3.5-turbo",
+                        "model": model,
                         "temperature": 0.3,
                         "max_tokens": _get_max_tokens_for_length(summary_length),
                     }
@@ -75,61 +78,58 @@ async def summarize_document_with_llm(
             # LLM応答から要約を抽出
             summary_text = llm_response.get("response", "")
             
-            # 日本語文書用メトリクス計算
+            # Calculate metrics for Japanese document processing
             original_length = len(document_content)
             summary_length_chars = len(summary_text)
             compression_ratio = summary_length_chars / original_length if original_length > 0 else 0
             processing_time = time.time() - start_time
             
-            # 日本語文書から重要ポイントを抽出
+            # Extract key points from Japanese document
             key_points = _extract_japanese_key_points(summary_text)
             
             result = {
                 "success": True,
-                "元文書文字数": original_length,
-                "要約": summary_text,
-                "要約文字数": summary_length_chars,
-                "圧縮率": round(compression_ratio, 3),
-                "重要ポイント": key_points,
-                "焦点領域": _translate_focus_area(focus_area),
-                "長さタイプ": _translate_length_type(summary_length),
-                "処理時間秒": round(processing_time, 2),
-                "メタデータ": {
-                    "使用モデル": "gpt-3.5-turbo",
-                    "温度パラメータ": 0.3,
-                    "プロンプトタイプ": "日本語専用要約",
-                    "言語": "日本語"
+                "original_length": original_length,
+                "summary": summary_text,
+                "summary_length": summary_length_chars,
+                "compression_ratio": round(compression_ratio, 3),
+                "key_points": key_points,
+                "focus_area": _translate_focus_area(focus_area),
+                "length_type": _translate_length_type(summary_length),
+                "processing_time_seconds": round(processing_time, 2),
+                "metadata": {
+                    "model_used": "gpt-3.5-turbo",
+                    "temperature": 0.3,
+                    "prompt_type": "japanese_document_summary",
+                    "language": "japanese"
                 }
             }
             
-            logger.info(f"日本語文書要約が {processing_time:.2f}秒で完了しました")
+            logger.info(f"Japanese document summary completed in {processing_time:.2f} seconds")
             return json.dumps(result, indent=2, ensure_ascii=False)
             
     except httpx.TimeoutException:
-        logger.error("LLM API要約処理中にタイムアウトが発生しました")
+        logger.error("LLM API timeout during summary processing")
         return json.dumps({
             "success": False,
-            "error": "LLM処理がタイムアウトしました - 再試行してください",
-            "error_en": "LLM processing timeout",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": "LLM processing timeout - please retry",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
         
     except httpx.HTTPStatusError as e:
-        logger.error(f"LLM API HTTPエラー: {e.response.status_code}")
+        logger.error(f"LLM API HTTP error: {e.response.status_code}")
         return json.dumps({
             "success": False,
-            "error": f"LLM APIエラーが発生しました: {e.response.status_code}",
-            "error_en": f"LLM API error: {e.response.status_code}",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": f"LLM API error occurred: {e.response.status_code}",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
         
     except Exception as e:
-        logger.error(f"要約処理中に予期しないエラーが発生しました: {str(e)}")
+        logger.error(f"Unexpected error during summary processing: {str(e)}")
         return json.dumps({
             "success": False,
-            "error": f"予期しないエラーが発生しました: {str(e)}",
-            "error_en": f"Unexpected error: {str(e)}",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": f"Unexpected error occurred: {str(e)}",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
 
 
@@ -161,14 +161,17 @@ async def create_improvement_recommendations_with_llm(
         if not document_content or not document_content.strip():
             return json.dumps({
                 "success": False,
-                "error": "文書内容が空です",
-                "error_en": "Document content cannot be empty"
+                "error": "Document content cannot be empty"
             }, ensure_ascii=False)
         
         # 日本語文書改善用の専用プロンプトを構築
         prompt = _build_japanese_improvement_prompt(
             document_content, summary_context, improvement_type, target_audience
         )
+        
+        # 設定から適切なモデルを取得
+        from doc_ai_helper_backend.core.config import settings
+        model = settings.default_openai_model or "gpt-4"
         
         # 内部LLM APIエンドポイントへの呼び出し
         async with httpx.AsyncClient() as client:
@@ -179,7 +182,7 @@ async def create_improvement_recommendations_with_llm(
                     "provider": "openai",
                     "enable_tools": False,  # 循環呼び出し防止
                     "options": {
-                        "model": "gpt-4",  # より高度な分析にGPT-4を使用
+                        "model": model,
                         "temperature": 0.4,
                         "max_tokens": 1500,
                     }
@@ -193,63 +196,60 @@ async def create_improvement_recommendations_with_llm(
             # LLM応答から改善提案を抽出
             recommendations_text = llm_response.get("response", "")
             
-            # 日本語改善提案の解析と構造化
+            # Parse and structure Japanese improvement recommendations
             structured_recommendations = _parse_japanese_improvement_recommendations(recommendations_text)
             
-            # 処理メトリクス計算
+            # Calculate processing metrics
             processing_time = time.time() - start_time
             
             result = {
                 "success": True,
-                "改善タイプ": _translate_improvement_type(improvement_type),
-                "対象読者": _translate_target_audience(target_audience),
-                "改善提案": structured_recommendations,
-                "総合評価": _generate_japanese_overall_assessment(structured_recommendations),
-                "処理時間秒": round(processing_time, 2),
-                "メタデータ": {
-                    "使用モデル": "gpt-4",
-                    "温度パラメータ": 0.4,
-                    "プロンプトタイプ": "日本語文書改善分析",
-                    "要約コンテキスト有": bool(summary_context),
-                    "言語": "日本語"
+                "improvement_type": _translate_improvement_type(improvement_type),
+                "target_audience": _translate_target_audience(target_audience),
+                "recommendations": structured_recommendations,
+                "overall_assessment": _generate_japanese_overall_assessment(structured_recommendations),
+                "processing_time_seconds": round(processing_time, 2),
+                "metadata": {
+                    "model_used": "gpt-4",
+                    "temperature": 0.4,
+                    "prompt_type": "japanese_document_improvement_analysis",
+                    "has_summary_context": bool(summary_context),
+                    "language": "japanese"
                 }
             }
             
-            logger.info(f"日本語文書改善提案が {processing_time:.2f}秒で生成されました")
+            logger.info(f"Japanese document improvement recommendations generated in {processing_time:.2f} seconds")
             return json.dumps(result, indent=2, ensure_ascii=False)
             
     except httpx.TimeoutException:
-        logger.error("LLM API改善分析中にタイムアウトが発生しました")
+        logger.error("LLM API timeout during improvement analysis")
         return json.dumps({
             "success": False,
-            "error": "LLM処理がタイムアウトしました - 再試行してください",
-            "error_en": "LLM processing timeout",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": "LLM processing timeout - please retry",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
         
     except httpx.HTTPStatusError as e:
-        logger.error(f"LLM API HTTPエラー: {e.response.status_code}")
+        logger.error(f"LLM API HTTP error: {e.response.status_code}")
         return json.dumps({
             "success": False,
-            "error": f"LLM APIエラーが発生しました: {e.response.status_code}",
-            "error_en": f"LLM API error: {e.response.status_code}",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": f"LLM API error occurred: {e.response.status_code}",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
         
     except Exception as e:
-        logger.error(f"改善分析中に予期しないエラーが発生しました: {str(e)}")
+        logger.error(f"Unexpected error during improvement analysis: {str(e)}")
         return json.dumps({
             "success": False,
-            "error": f"予期しないエラーが発生しました: {str(e)}",
-            "error_en": f"Unexpected error: {str(e)}",
-            "処理時間秒": round(time.time() - start_time, 2)
+            "error": f"Unexpected error occurred: {str(e)}",
+            "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
 
 
 def _build_japanese_summarization_prompt(
     content: str, length: str, focus: str, context: Optional[str] = None
 ) -> str:
-    """日本語文書要約用の専用プロンプトを構築します。"""
+    """Build specialized prompt for Japanese document summarization."""
     
     # 長さ別の日本語指示
     length_instructions = {
@@ -287,7 +287,7 @@ def _build_japanese_summarization_prompt(
 def _build_japanese_improvement_prompt(
     content: str, summary_context: str, improvement_type: str, audience: str
 ) -> str:
-    """日本語文書改善用の専用プロンプトを構築します。"""
+    """Build specialized prompt for Japanese document improvement."""
     
     # 改善タイプ別の日本語指示
     improvement_instructions = {
@@ -350,7 +350,7 @@ def _build_japanese_improvement_prompt(
 
 
 def _get_max_tokens_for_length(length: str) -> int:
-    """要約長さに基づく適切なmax_tokensを取得します。"""
+    """Get appropriate max_tokens based on summary length."""
     token_limits = {
         "brief": 200,
         "detailed": 500,
@@ -360,7 +360,7 @@ def _get_max_tokens_for_length(length: str) -> int:
 
 
 def _extract_japanese_key_points(summary_text: str) -> list:
-    """日本語要約テキストから重要ポイントを抽出します。"""
+    """Extract key points from Japanese summary text."""
     points = []
     
     # 文による分割とフィルタリング
@@ -375,12 +375,12 @@ def _extract_japanese_key_points(summary_text: str) -> list:
 
 
 def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Dict[str, Any]:
-    """LLM応答から日本語改善提案を解析し構造化します。"""
-    # 日本語の改善提案を構造化
+    """Parse and structure improvement recommendations from LLM response."""
+    # Structure Japanese improvement recommendations
     structured = {
-        "高優先度": [],
-        "中優先度": [],
-        "低優先度": []
+        "high_priority": [],
+        "medium_priority": [],
+        "low_priority": []
     }
     
     current_priority = None
@@ -391,70 +391,70 @@ def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Di
         if not line:
             continue
             
-        # 優先度セクションを検出
+        # Detect priority sections
         if '高優先度' in line:
-            current_priority = '高優先度'
+            current_priority = 'high_priority'
             continue
         elif '中優先度' in line:
-            current_priority = '中優先度'
+            current_priority = 'medium_priority'
             continue
         elif '低優先度' in line:
-            current_priority = '低優先度'
+            current_priority = 'low_priority'
             continue
         
-        # 改善提案を抽出
+        # Extract improvement recommendations
         if line.startswith('・') or line.startswith('-') or line.startswith('*'):
             if current_priority:
                 recommendation = {
-                    "カテゴリ": "一般",
-                    "タイトル": line.lstrip('・-* ').split('：')[0] if '：' in line else line.lstrip('・-* '),
-                    "説明": line.lstrip('・-* '),
-                    "実装労力": "中",
-                    "期待効果": "中"
+                    "category": "general",
+                    "title": line.lstrip('・-* ').split('：')[0] if '：' in line else line.lstrip('・-* '),
+                    "description": line.lstrip('・-* '),
+                    "implementation_effort": "medium",
+                    "expected_impact": "medium"
                 }
                 structured[current_priority].append(recommendation)
     
-    # 構造化された解析ができなかった場合の一般的な推奨事項
+    # Default general recommendation if structured analysis failed
     if not any(structured.values()):
-        structured["高優先度"] = [{
-            "カテゴリ": "一般",
-            "タイトル": "一般的な改善",
-            "説明": recommendations_text,
-            "実装労力": "中",
-            "期待効果": "中"
+        structured["high_priority"] = [{
+            "category": "general",
+            "title": "General improvement",
+            "description": recommendations_text,
+            "implementation_effort": "medium",
+            "expected_impact": "medium"
         }]
     
     return structured
 
 
 def _generate_japanese_overall_assessment(recommendations: Dict[str, Any]) -> Dict[str, Any]:
-    """改善提案に基づく日本語総合評価を生成します。"""
-    total_high = len(recommendations.get("高優先度", []))
-    total_medium = len(recommendations.get("中優先度", []))
-    total_low = len(recommendations.get("低優先度", []))
+    """Generate overall assessment based on improvement recommendations."""
+    total_high = len(recommendations.get("high_priority", []))
+    total_medium = len(recommendations.get("medium_priority", []))
+    total_low = len(recommendations.get("low_priority", []))
     total_recommendations = total_high + total_medium + total_low
     
     if total_high > 3:
-        quality = "改善が必要"
-        effort = "4-6時間"
+        quality = "needs_improvement"
+        effort = "4-6 hours"
     elif total_high > 1:
-        quality = "良好"
-        effort = "2-3時間"
+        quality = "good"
+        effort = "2-3 hours"
     else:
-        quality = "優秀"
-        effort = "1-2時間"
+        quality = "excellent"
+        effort = "1-2 hours"
     
     return {
-        "現在の品質": quality,
-        "総提案数": total_recommendations,
-        "高優先度数": total_high,
-        "改善可能性": "高" if total_high > 2 else "中" if total_high > 0 else "低",
-        "予想作業時間": effort
+        "current_quality": quality,
+        "total_recommendations": total_recommendations,
+        "high_priority_count": total_high,
+        "improvement_potential": "high" if total_high > 2 else "medium" if total_high > 0 else "low",
+        "estimated_work_time": effort
     }
 
 
 def _translate_focus_area(focus_area: str) -> str:
-    """焦点領域を日本語に翻訳します。"""
+    """Translate focus area to Japanese."""
     translations = {
         "general": "一般向け",
         "technical": "技術的",
@@ -464,7 +464,7 @@ def _translate_focus_area(focus_area: str) -> str:
 
 
 def _translate_length_type(length_type: str) -> str:
-    """長さタイプを日本語に翻訳します。"""
+    """Translate length type to Japanese."""
     translations = {
         "brief": "簡潔",
         "detailed": "詳細",
@@ -474,7 +474,7 @@ def _translate_length_type(length_type: str) -> str:
 
 
 def _translate_improvement_type(improvement_type: str) -> str:
-    """改善タイプを日本語に翻訳します。"""
+    """Translate improvement type to Japanese."""
     translations = {
         "structure": "構造",
         "content": "内容",
@@ -485,7 +485,7 @@ def _translate_improvement_type(improvement_type: str) -> str:
 
 
 def _translate_target_audience(target_audience: str) -> str:
-    """対象読者を日本語に翻訳します。"""
+    """Translate target audience to Japanese."""
     translations = {
         "general": "一般",
         "technical": "技術者",

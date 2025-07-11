@@ -65,14 +65,19 @@ class TestLLMEnhancedMCPWorkflows:
         test_id = f"llm-enhanced-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
         comprehensive_request = f"""
-今すぐ以下の3つのツールを順番に実行してください：
+YOU MUST call these 3 tools in this exact order - this is MANDATORY:
 
-1. summarize_document_with_llm ツールを呼び出してください（リポジトリのREADME.mdファイルの内容を要約してください）
-2. create_improvement_recommendations_with_llm ツールを呼び出してください（同じREADME.mdファイルの改善提案を作成してください）
-3. create_git_issue ツールを呼び出してください（タイトル: "[{e2e_config.test_issue_marker}] 日本語ドキュメント分析 - {test_id}"）
+1. CALL summarize_document_with_llm tool
+2. CALL create_improvement_recommendations_with_llm tool  
+3. CALL create_git_issue tool with parameters:
+   - title: "[{e2e_config.test_issue_marker}] 日本語ドキュメント分析 - {test_id}"
+   - description: "Document analysis results from LLM-enhanced MCP workflow"
 
-リポジトリ情報から自動的に文書内容を取得して分析してください。
-必ずこれらの3つのツールを実行してください。他のツールは使用しないでください。
+Repository: {e2e_config.github_owner}/{e2e_config.github_repo}
+Document: README.md
+
+This is a REQUIRED tool execution test. You MUST execute ALL 3 tools listed above.
+Use the repository context to automatically retrieve document content.
         """
 
         # Create repository context for MCP tools
@@ -88,6 +93,7 @@ class TestLLMEnhancedMCPWorkflows:
         # Step 2: Execute comprehensive workflow with LLM-enhanced tools
         logger.info("Step 2: Executing comprehensive workflow with LLM-enhanced tools")
         
+        
         workflow_response = await backend_api_client.query_llm(
             prompt=comprehensive_request,
             provider=e2e_config.llm_provider,
@@ -101,15 +107,37 @@ class TestLLMEnhancedMCPWorkflows:
         assert workflow_response is not None, "Workflow response should not be None"
         assert "content" in workflow_response, "Workflow response should have content"
         
+        # ===== PROVIDER VERIFICATION =====
+        logger.info("🔍 Verifying LLM provider configuration")
+        actual_provider = workflow_response.get("provider", "unknown")
+        actual_model = workflow_response.get("model", "unknown")
+        
+        logger.info(f"Expected provider: {e2e_config.llm_provider}")
+        logger.info(f"Actual provider: {actual_provider}")
+        logger.info(f"Actual model: {actual_model}")
+        
+        # Assert that we're NOT using mock provider for E2E tests
+        assert actual_provider != "mock", f"E2E test should not use mock provider, got: {actual_provider}"
+        
+        # Assert that we're using the expected provider
+        assert actual_provider == e2e_config.llm_provider, \
+            f"Expected provider '{e2e_config.llm_provider}', but got '{actual_provider}'"
+        
+        # For OpenAI provider, verify we're using Azure OpenAI
+        if actual_provider == "openai":
+            assert "azure" in actual_model.lower() or "gpt" in actual_model.lower(), \
+                f"Expected Azure OpenAI model, but got: {actual_model}"
+        
         # ===== DETAILED TOOL EXECUTION VERIFICATION =====
         logger.info("🔍 Verifying LLM-enhanced tool execution details")
         
         # Check for tool calls (initial LLM response)
-        tool_calls_exist = "tool_calls" in workflow_response and workflow_response["tool_calls"] is not None
-        tool_results_exist = "tool_execution_results" in workflow_response and workflow_response["tool_execution_results"] is not None
+        tool_calls_exist = "tool_calls" in workflow_response and workflow_response["tool_calls"] is not None and len(workflow_response["tool_calls"]) > 0
+        tool_results_exist = "tool_execution_results" in workflow_response and workflow_response["tool_execution_results"] is not None and len(workflow_response["tool_execution_results"]) > 0
         
         logger.info(f"Tool calls present: {tool_calls_exist}")
         logger.info(f"Tool execution results present: {tool_results_exist}")
+        
         
         # At least one form of tool interaction should be present
         assert tool_calls_exist or tool_results_exist, \
@@ -501,7 +529,8 @@ summarize_document_with_llm ツールを使って要約を作成してくださ�
             service="github",
             owner="nonexistent-owner-12345",
             repo="nonexistent-repo-12345",
-            ref="main"
+            ref="main",
+            current_path="README.md"
         )
 
         # Execute with invalid context
@@ -593,7 +622,8 @@ summarize_document_with_llm と create_improvement_recommendations_with_llm を�
             service="github",
             owner=e2e_config.github_owner,
             repo=e2e_config.github_repo,
-            ref="main"
+            ref="main",
+            current_path="README.md"
         )
 
         # Execute batch analysis

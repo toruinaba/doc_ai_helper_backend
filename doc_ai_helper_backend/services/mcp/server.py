@@ -67,7 +67,7 @@ class DocumentAIHelperMCPServer:
         async def extract_context_tool(
             document_content: str, context_type: str = "summary"
         ) -> Dict[str, Any]:
-            """文書から構造化されたコンテキストを抽出します。見出し、段落構造、メタデータなどを分析して詳細な文書情報を提供します。"""
+            """Extract structured context from documents. Analyzes headings, paragraph structure, metadata to provide detailed document information."""
             return await extract_document_context(
                 document_content=document_content, context_type=context_type
             )
@@ -76,7 +76,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_structure_tool(
             document_content: str, analysis_depth: str = "basic"
         ) -> Dict[str, Any]:
-            """文書の構造と構成を分析します。見出し階層、セクション分割、論理的な流れなどを詳細に解析します。"""
+            """Analyze document structure and composition. Detailed analysis of heading hierarchy, section division, logical flow."""
             return await analyze_document_structure(
                 document_content=document_content, analysis_depth=analysis_depth
             )
@@ -85,7 +85,7 @@ class DocumentAIHelperMCPServer:
         async def optimize_content_tool(
             document_content: str, optimization_type: str = "readability"
         ) -> Dict[str, Any]:
-            """文書コンテンツを読みやすさと構造の改善のために最適化します。段落構成、表現の改善、全体的な品質向上を行います。"""
+            """Optimize document content for readability and structural improvement. Paragraph composition, expression improvement, overall quality enhancement."""
             return await optimize_document_content(
                 document_content=document_content, optimization_type=optimization_type
             )
@@ -104,7 +104,7 @@ class DocumentAIHelperMCPServer:
         async def generate_feedback_tool(
             conversation_history: List[Dict[str, Any]], feedback_type: str = "general"
         ) -> Dict[str, Any]:
-            """会話履歴から構造化されたフィードバックを生成します。対話パターンや改善点を分析し、詳細なフィードバックレポートを作成します。"""
+            """Generate structured feedback from conversation history. Analyze dialogue patterns and improvement points to create detailed feedback reports."""
             return await generate_feedback_from_conversation(
                 conversation_history=conversation_history, feedback_type=feedback_type
             )
@@ -113,7 +113,7 @@ class DocumentAIHelperMCPServer:
         async def create_proposal_tool(
             current_content: str, feedback_data: Dict[str, Any]
         ) -> Dict[str, Any]:
-            """フィードバックデータに基づいて改善提案を作成します。現在のコンテンツを分析し、具体的で実践的な改善案を提供します。"""
+            """Create improvement proposals based on feedback data. Analyze current content and provide specific, practical improvement suggestions."""
             return await create_improvement_proposal(
                 current_content=current_content, feedback_data=feedback_data
             )
@@ -122,7 +122,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_patterns_tool(
             conversation_history: List[Dict[str, Any]], analysis_depth: str = "basic"
         ) -> Dict[str, Any]:
-            """会話履歴のパターンとテーマを分析します。対話の傾向、頻出トピック、コミュニケーションの特徴を詳細に解析します。"""
+            """Analyze patterns and themes in conversation history. Detailed analysis of dialogue trends, frequent topics, communication characteristics."""
             return await analyze_conversation_patterns(
                 conversation_history=conversation_history, analysis_depth=analysis_depth
             )
@@ -141,7 +141,7 @@ class DocumentAIHelperMCPServer:
         async def analyze_quality_tool(
             document_content: str, quality_criteria: str = "general"
         ) -> Dict[str, Any]:
-            """様々な基準に対して文書品質を分析します。読みやすさ、構造、内容の完全性、技術的正確性などを評価します。"""
+            """Analyze document quality against various criteria. Evaluate readability, structure, content completeness, technical accuracy."""
             return await analyze_document_quality(
                 document_content=document_content, quality_criteria=quality_criteria
             )
@@ -150,7 +150,7 @@ class DocumentAIHelperMCPServer:
         async def extract_topics_tool(
             document_content: str, topic_count: int = 5
         ) -> Dict[str, Any]:
-            """文書内容から主要なトピックとテーマを抽出します。キーワード分析、意味的グループ化により重要な議題を特定します。"""
+            """Extract main topics and themes from document content. Identify important topics through keyword analysis and semantic grouping."""
             return await extract_document_topics(
                 document_content=document_content, topic_count=topic_count
             )
@@ -159,7 +159,7 @@ class DocumentAIHelperMCPServer:
         async def check_completeness_tool(
             document_content: str, completeness_criteria: str = "general"
         ) -> Dict[str, Any]:
-            """指定された基準に対して文書の完全性をチェックします。必要な情報の欠落、構造的な問題、内容の網羅性を評価します。"""
+            """Check document completeness against specified criteria. Evaluate missing necessary information, structural problems, content coverage."""
             return await check_document_completeness(
                 document_content=document_content,
                 completeness_criteria=completeness_criteria,
@@ -272,7 +272,7 @@ class DocumentAIHelperMCPServer:
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
         ) -> str:
-            """指定されたGitサービスで新しいプルリクエストを作成します。コードレビュー、機能統合、バグ修正などのためのPR作成に対応します。"""
+            """Create new pull request in specified Git service. Supports PR creation for code review, feature integration, bug fixes."""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
@@ -305,7 +305,7 @@ class DocumentAIHelperMCPServer:
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
         ) -> str:
-            """現在のリポジトリコンテキストの権限をチェックします。読み取り、書き込み、管理者権限などのアクセスレベルを確認します。"""
+            """Check permissions for current repository context. Verify access levels including read, write, admin permissions."""
             # Get repository context from current session
             repository_context = getattr(self, "_current_repository_context", None)
 
@@ -337,12 +337,24 @@ class DocumentAIHelperMCPServer:
 
         @self.app.tool("summarize_document_with_llm")
         async def summarize_tool(
-            document_content: str,
+            document_content: str = "",
             summary_length: str = "comprehensive",
             focus_area: str = "general", 
             context: Optional[str] = None,
         ) -> str:
-            """内部LLM APIを使用して日本語文書の高品質な要約を生成します。"""
+            """Generate high-quality summaries of Japanese documents using internal LLM API.
+            
+            Returns error message if document_content is empty.
+            """
+            # Return error if document_content is empty
+            if not document_content.strip():
+                import json
+                return json.dumps({
+                    "success": False,
+                    "error": "document_content parameter is required. Please specify the document content to summarize.",
+                    "hint": "Example: summarize_document_with_llm(document_content='paste document content here')"
+                }, ensure_ascii=False)
+            
             return await summarize_document_with_llm(
                 document_content=document_content,
                 summary_length=summary_length,
@@ -352,12 +364,24 @@ class DocumentAIHelperMCPServer:
 
         @self.app.tool("create_improvement_recommendations_with_llm")
         async def improvement_tool(
-            document_content: str,
+            document_content: str = "",
             summary_context: str = "",
             improvement_type: str = "comprehensive",
             target_audience: str = "general",
         ) -> str:
-            """専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。"""
+            """Create detailed improvement recommendations for Japanese documents through professional LLM analysis.
+            
+            Returns error message if document_content is empty.
+            """
+            # Return error if document_content is empty
+            if not document_content.strip():
+                import json
+                return json.dumps({
+                    "success": False,
+                    "error": "document_content parameter is required. Please specify the document content for improvement recommendations.",
+                    "hint": "Example: create_improvement_recommendations_with_llm(document_content='paste document content here')"
+                }, ensure_ascii=False)
+            
             return await create_improvement_recommendations_with_llm(
                 document_content=document_content,
                 summary_context=summary_context,
@@ -365,7 +389,7 @@ class DocumentAIHelperMCPServer:
                 target_audience=target_audience,
             )
 
-        logger.info("LLM-enhanced tools for Japanese documents registered with FastMCP")
+        logger.info("LLM-enhanced tools registered with FastMCP")
 
     def set_repository_context(self, repository_context: Optional[Dict[str, Any]]):
         """
@@ -543,11 +567,31 @@ class DocumentAIHelperMCPServer:
                     summarize_document_with_llm,
                 )
 
+                # Validate document_content parameter
+                document_content = kwargs.get("document_content", "")
+                if not document_content.strip():
+                    import json
+                    return json.dumps({
+                        "success": False,
+                        "error": "document_content parameter is required. Please specify the document content to summarize.",
+                        "hint": "Example: summarize_document_with_llm(document_content='paste document content here')"
+                    }, ensure_ascii=False)
+
                 return await summarize_document_with_llm(**kwargs)
             elif tool_name == "create_improvement_recommendations_with_llm":
                 from doc_ai_helper_backend.services.mcp.tools.llm_enhanced_tools import (
                     create_improvement_recommendations_with_llm,
                 )
+
+                # Validate document_content parameter
+                document_content = kwargs.get("document_content", "")
+                if not document_content.strip():
+                    import json
+                    return json.dumps({
+                        "success": False,
+                        "error": "document_content parameter is required. Please specify the document content for improvement recommendations.",
+                        "hint": "Example: create_improvement_recommendations_with_llm(document_content='paste document content here')"
+                    }, ensure_ascii=False)
 
                 return await create_improvement_recommendations_with_llm(**kwargs)
             else:
@@ -608,28 +652,28 @@ class DocumentAIHelperMCPServer:
         """Get description for a tool."""
         descriptions = {
             # Document tools
-            "analyze_document_structure": "文書の構造と構成を分析します。見出し階層、セクション分割、論理的な流れなどを詳細に解析します。",
-            "extract_document_keywords": "文書内容からキーワードと重要なフレーズを抽出します。テキストマイニングにより核心的なトピックを特定します。",
-            "check_document_links": "文書内のリンクをチェックし、検証します。内部リンク、外部リンクの有効性やアクセシビリティを確認します。",
-            "summarize_document_sections": "文書の異なるセクションに対して要約を生成します。章ごとのポイントや全体構造を把握できます。",
+            "analyze_document_structure": "Analyze document structure and composition. Detailed analysis of heading hierarchy, section division, logical flow.",
+            "extract_document_keywords": "Extract keywords and important phrases from document content. Identify core topics through text mining.",
+            "check_document_links": "Check and validate links in documents. Verify validity and accessibility of internal and external links.",
+            "summarize_document_sections": "Generate summaries for different sections of documents. Understand section-wise points and overall structure.",
             # Feedback tools
-            "collect_user_feedback": "文書や機能に関するユーザーフィードバックを収集し、保存します。改善点や問題点を体系的に管理します。",
-            "generate_feedback_from_conversation": "会話履歴に基づいて構造化されたフィードバックを生成します。対話パターンや改善点を分析します。",
-            "create_improvement_proposal": "フィードバックデータに基づいて改善提案を作成します。具体的で実践的な改善案を提供します。",
-            "analyze_conversation_patterns": "会話履歴のパターンとテーマを分析します。対話の傾向や頻出トピックを特定します。",
+            "collect_user_feedback": "Collect and store user feedback about documents and features. Systematically manage improvement points and issues.",
+            "generate_feedback_from_conversation": "Generate structured feedback based on conversation history. Analyze dialogue patterns and improvement points.",
+            "create_improvement_proposal": "Create improvement proposals based on feedback data. Provide specific and practical improvement suggestions.",
+            "analyze_conversation_patterns": "Analyze patterns and themes in conversation history. Identify dialogue trends and frequent topics.",
             # Analysis tools
-            "analyze_document_quality": "様々な基準に対して文書品質を分析します。読みやすさ、構造、内容の完全性を評価します。",
-            "extract_document_topics": "文書内容から主要なトピックとテーマを抽出します。キーワード分析により重要な議題を特定します。",
-            "check_document_completeness": "指定された基準に対して文書の完全性をチェックします。必要情報の欠落や構造的問題を特定します。",
+            "analyze_document_quality": "Analyze document quality against various criteria. Evaluate readability, structure, content completeness.",
+            "extract_document_topics": "Extract main topics and themes from document content. Identify important topics through keyword analysis.",
+            "check_document_completeness": "Check document completeness against specified criteria. Identify missing necessary information and structural problems.",
             # Git tools
-            "create_git_issue": "統一Gitサービス（GitHub/Forgejo）でIssueを作成します。問題報告、改善提案、バグ報告などに使用できます。",
-            "create_github_pull_request": "現在表示中のドキュメントのリポジトリにGitHubプルリクエストを作成します。コード変更、ドキュメント更新などの提案に使用できます。",
-            "check_github_repository_permissions": "現在表示中のドキュメントのGitHubリポジトリの権限を確認します。読み取り、書き込み、Issue作成などの権限状況を確認できます。",
+            "create_git_issue": "Create issue in unified Git services (GitHub/Forgejo). Can be used for problem reports, improvement proposals, bug reports.",
+            "create_github_pull_request": "Create GitHub pull request for currently displayed document repository. Can be used for proposing code changes, document updates.",
+            "check_github_repository_permissions": "Check permissions for currently displayed document's GitHub repository. Verify permission status for read, write, issue creation.",
             # Utility tools
-            "get_current_time": "指定された形式で現在の日付と時刻を取得します。タイムスタンプや日付フォーマットに対応します。",
-            "count_text_characters": "テキスト内の文字数、単語数、行数をカウントします。文書の長さや構造を分析する際に使用します。",
-            "validate_email_format": "メールアドレスの形式を検証します。有効なメールアドレス形式かどうかをチェックします。",
-            "generate_random_data": "テスト目的でランダムデータを生成します。サンプルデータや動作確認用の情報作成に使用します。",
+            "get_current_time": "Get current date and time in specified format. Supports timestamps and date formatting.",
+            "count_text_characters": "Count characters, words, lines in text. Used for analyzing document length and structure.",
+            "validate_email_format": "Validate email address format. Check if it's a valid email address format.",
+            "generate_random_data": "Generate random data for testing purposes. Used for creating sample data and verification information.",
             # LLM-enhanced tools (English for better OpenAI tool selection)
             "summarize_document_with_llm": "Generate high-quality summaries of Japanese documents using internal LLM API. Provides natural and readable Japanese summaries through specialized prompts.",
             "create_improvement_recommendations_with_llm": "Create detailed improvement recommendations for Japanese documents through professional LLM analysis. Provides prioritized improvement suggestions with implementation guidance.",
@@ -817,31 +861,31 @@ class DocumentAIHelperMCPServer:
                     "name": "title",
                     "type": "str",
                     "required": True,
-                    "description": "Issueのタイトル（簡潔で分かりやすい日本語で記述）",
+                    "description": "Issue title (concise and clear description)",
                 },
                 {
                     "name": "description",
                     "type": "str",
                     "required": True,
-                    "description": "Issueの詳細説明（問題の内容、再現手順、期待される結果などを日本語で記述）",
+                    "description": "Issue detailed description (problem content, reproduction steps, expected results)",
                 },
                 {
                     "name": "labels",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Issueに適用するラベルのリスト（例：['バグ', '改善提案', 'ドキュメント']）",
+                    "description": "List of labels to apply to the issue (e.g., ['bug', 'enhancement', 'documentation'])",
                 },
                 {
                     "name": "assignees",
                     "type": "List[str]",
                     "required": False,
-                    "description": "Issueを担当するユーザー名のリスト",
+                    "description": "List of usernames to assign to the issue",
                 },
                 {
                     "name": "github_token",
                     "type": "str",
                     "required": False,
-                    "description": "GitHub Personal Access Token（オプション、環境変数から自動取得）",
+                    "description": "GitHub Personal Access Token (optional, auto-retrieved from environment variables)",
                 },
             ],
             "create_github_pull_request": [
@@ -968,27 +1012,27 @@ class DocumentAIHelperMCPServer:
                     "name": "document_content",
                     "type": "str",
                     "required": True,
-                    "description": "要約対象の日本語文書内容",
+                    "description": "Japanese document content to summarize",
                 },
                 {
                     "name": "summary_length",
                     "type": "str",
                     "required": False,
                     "default": "comprehensive",
-                    "description": "要約の長さ（brief=簡潔, detailed=詳細, comprehensive=包括的）",
+                    "description": "Summary length (brief=concise, detailed=detailed, comprehensive=comprehensive)",
                 },
                 {
                     "name": "focus_area",
                     "type": "str",
                     "required": False,
                     "default": "general",
-                    "description": "焦点領域（general=一般向け, technical=技術的, business=ビジネス向け）",
+                    "description": "Focus area (general=general, technical=technical, business=business)",
                 },
                 {
                     "name": "context",
                     "type": "str",
                     "required": False,
-                    "description": "追加コンテキスト（オプション）",
+                    "description": "Additional context (optional)",
                 },
             ],
             "create_improvement_recommendations_with_llm": [
@@ -996,28 +1040,28 @@ class DocumentAIHelperMCPServer:
                     "name": "document_content",
                     "type": "str",
                     "required": True,
-                    "description": "分析対象の日本語文書内容",
+                    "description": "Japanese document content to analyze",
                 },
                 {
                     "name": "summary_context",
                     "type": "str",
                     "required": False,
                     "default": "",
-                    "description": "事前分析の要約コンテキスト（オプション）",
+                    "description": "Pre-analysis summary context (optional)",
                 },
                 {
                     "name": "improvement_type",
                     "type": "str",
                     "required": False,
                     "default": "comprehensive",
-                    "description": "改善タイプ（structure=構造, content=内容, readability=読みやすさ, comprehensive=包括的）",
+                    "description": "Improvement type (structure=structure, content=content, readability=readability, comprehensive=comprehensive)",
                 },
                 {
                     "name": "target_audience",
                     "type": "str",
                     "required": False,
                     "default": "general",
-                    "description": "対象読者（general=一般, technical=技術者, beginner=初心者, expert=専門家）",
+                    "description": "Target audience (general=general, technical=technical, beginner=beginner, expert=expert)",
                 },
             ],
         }

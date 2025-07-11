@@ -7,6 +7,7 @@ via MCP tools. This is the mandatory E2E scenario for the system.
 """
 
 import asyncio
+import json
 import pytest
 import logging
 from datetime import datetime
@@ -94,18 +95,16 @@ class TestMCPIssueWorkflows:
         logger.info("Step 3: Requesting issue creation via MCP tools")
         
         issue_creation_prompt = f"""
-あなたは create_git_issue ツールを使って実際にGitHubにissueを作成する必要があります。以下の情報を使用してください：
+YOU MUST call the create_git_issue tool NOW. This is MANDATORY.
 
-分析結果: {analysis[:500]}
-
-今すぐ create_git_issue ツールを呼び出して、以下のパラメータでissueを作成してください：
-- service: "github"
-- owner: "{e2e_config.github_owner}"
-- repository: "{e2e_config.github_repo}"
+CALL create_git_issue tool with these exact parameters:
 - title: "[{e2e_config.test_issue_marker}] リポジトリドキュメントレビュー - {test_id}"
-- body: "分析結果に基づく改善提案: " + 上記の分析結果
+- description: "分析結果に基づく改善提案: {analysis[:300]}"
 
-ツールを実行して、実際にissueを作成してください。
+Repository: {e2e_config.github_owner}/{e2e_config.github_repo}
+Service: GitHub
+
+This is a REQUIRED tool execution. You MUST execute the create_git_issue tool immediately.
         """
 
         # Create repository context for MCP tools
@@ -144,6 +143,22 @@ class TestMCPIssueWorkflows:
         # Step 4: Verify MCP response and issue creation
         logger.info("Step 4: Verifying MCP response and issue creation")
         assert mcp_response is not None, "MCP response should not be None"
+        
+        # ===== PROVIDER VERIFICATION =====
+        logger.info("🔍 Verifying LLM provider for GitHub MCP workflow")
+        actual_provider = mcp_response.get("provider", "unknown")
+        actual_model = mcp_response.get("model", "unknown")
+        
+        logger.info(f"Expected provider: {e2e_config.llm_provider}")
+        logger.info(f"Actual provider: {actual_provider}")
+        logger.info(f"Actual model: {actual_model}")
+        
+        # Assert that we're NOT using mock provider for E2E tests
+        assert actual_provider != "mock", f"E2E test should not use mock provider, got: {actual_provider}"
+        
+        # Assert that we're using the expected provider
+        assert actual_provider == e2e_config.llm_provider, \
+            f"Expected provider '{e2e_config.llm_provider}', but got '{actual_provider}'"
         
         # ===== DETAILED TOOL EXECUTION VERIFICATION =====
         logger.info("🔍 Verifying tool execution details")
@@ -321,18 +336,16 @@ class TestMCPIssueWorkflows:
         logger.info("Step 3: Requesting issue creation via MCP tools")
         
         issue_creation_prompt = f"""
-あなたは create_git_issue ツールを使って実際にForgejoにissueを作成する必要があります。以下の情報を使用してください：
+YOU MUST call the create_git_issue tool NOW. This is MANDATORY.
 
-分析結果: {analysis[:500]}
-
-今すぐ create_git_issue ツールを呼び出して、以下のパラメータでissueを作成してください：
-- service: "forgejo"
-- owner: "{e2e_config.forgejo_owner}"
-- repository: "{e2e_config.forgejo_repo}"
+CALL create_git_issue tool with these exact parameters:
 - title: "[{e2e_config.test_issue_marker}] ドキュメント改善 - {test_id}"
-- body: "分析結果に基づく改善提案: " + 上記の分析結果
+- description: "分析結果に基づく改善提案: {analysis[:300]}"
 
-ツールを実行して、実際にissueを作成してください。
+Repository: {e2e_config.forgejo_owner}/{e2e_config.forgejo_repo}
+Service: Forgejo
+
+This is a REQUIRED tool execution. You MUST execute the create_git_issue tool immediately.
         """
 
         # Create repository context for MCP tools
@@ -371,6 +384,22 @@ class TestMCPIssueWorkflows:
         # Step 4: Verify MCP response and issue creation
         logger.info("Step 4: Verifying MCP response and issue creation")
         assert mcp_response is not None, "MCP response should not be None"
+        
+        # ===== PROVIDER VERIFICATION =====
+        logger.info("🔍 Verifying LLM provider for GitHub MCP workflow")
+        actual_provider = mcp_response.get("provider", "unknown")
+        actual_model = mcp_response.get("model", "unknown")
+        
+        logger.info(f"Expected provider: {e2e_config.llm_provider}")
+        logger.info(f"Actual provider: {actual_provider}")
+        logger.info(f"Actual model: {actual_model}")
+        
+        # Assert that we're NOT using mock provider for E2E tests
+        assert actual_provider != "mock", f"E2E test should not use mock provider, got: {actual_provider}"
+        
+        # Assert that we're using the expected provider
+        assert actual_provider == e2e_config.llm_provider, \
+            f"Expected provider '{e2e_config.llm_provider}', but got '{actual_provider}'"
         
         # ===== DETAILED TOOL EXECUTION VERIFICATION =====
         logger.info("🔍 Verifying tool execution details for Forgejo")
@@ -598,7 +627,8 @@ create_git_issue ツールを使用して、以下の詳細でissueを作成し�
             service="github",
             owner="nonexistent-owner-12345",
             repo="nonexistent-repo-12345",
-            ref="main"
+            ref="main",
+            current_path="README.md"
         )
 
         # Execute MCP workflow with invalid context
