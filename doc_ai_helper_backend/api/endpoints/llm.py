@@ -12,7 +12,6 @@ from sse_starlette.sse import EventSourceResponse
 
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
-    LLMQueryRequestV2,
     LLMResponse,
     PromptTemplate,
     MCPToolsResponse,
@@ -40,6 +39,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# === Helper Dependencies ===
+
+def get_query_processor(
+    conversation_manager: ConversationManager = Depends(get_conversation_manager)
+) -> QueryProcessor:
+    """Dependency to get QueryProcessor instance."""
+    return QueryProcessor(conversation_manager)
+
+
+def get_parameter_validator() -> ParameterValidator:
+    """Dependency to get ParameterValidator instance."""
+    return ParameterValidator()
+
+
 @router.post(
     "/query",
     response_model=LLMResponse,
@@ -48,174 +61,44 @@ router = APIRouter()
 )
 async def query_llm(
     request: LLMQueryRequest,
-    conversation_manager: ConversationManager = Depends(get_conversation_manager),
+    query_processor: QueryProcessor = Depends(get_query_processor),
+    validator: ParameterValidator = Depends(get_parameter_validator),
 ):
     """
-    Send a query to an LLM.
+    Send a query to an LLM using the structured parameter format.
 
     Args:
-        request: The query request containing prompt and options
-        conversation_manager: Conversation manager for document integration
+        request: The structured LLM query request
+        query_processor: Query processing service
+        validator: Parameter validation service
 
     Returns:
         LLMResponse: The response from the LLM
     """
-
     try:
-        # Document integration via conversation history (new approach)
-        conversation_history = request.conversation_history
+        # Validate request parameters
+        validator.validate_request(request)
         
-        # Check if this is an initial request that needs document integration
-        if (request.auto_include_document and 
-            conversation_manager.is_initial_request(request.conversation_history, request.repository_context)):
-            try:
-                # Create document-aware conversation history
-                conversation_history = await conversation_manager.create_document_aware_conversation(
-                    repository_context=request.repository_context,
-                    initial_prompt=request.prompt,
-                    document_metadata=request.document_metadata
-                )
-                logger.info("Document integration: Created document-aware conversation history")
-            except Exception as e:
-                logger.warning(f"Document integration failed, continuing with original conversation: {e}")
-                # Continue with original conversation history if document integration fails
-                conversation_history = request.conversation_history
-
-        # Create LLM service based on the requested provider
-        from doc_ai_helper_backend.core.config import settings
-        
-        # Configure provider-specific settings
-        config = {}
-        if request.provider == "openai":
-            config["api_key"] = settings.openai_api_key
-            config["default_model"] = settings.default_openai_model
-            if settings.openai_base_url:
-                config["base_url"] = settings.openai_base_url
-        
-        # Create LLM service for the requested provider
-        try:
-            llm_service = LLMServiceFactory.create_with_mcp(request.provider, **config)
-        except Exception as e:
-            # Re-raise the exception to be handled by error handlers
-            logger.error(f"Failed to create LLM service for provider '{request.provider}': {e}")
-            raise
-
-        # Prepare options
-        options = request.options or {}
-        if request.model:
-            options["model"] = request.model
-
-        # Set cache control flag
-        if request.disable_cache:
-            options["disable_cache"] = True
-
-        # Process context documents if provided
-        if request.context_documents:
-            options["context_documents"] = (
-                request.context_documents
-            )  # Check if tools/function calling is enabled
-        if request.enable_tools:
-            # Get available tools from the LLM service
-            available_tools = await llm_service.get_available_functions()
-            # Convert tool_choice string to ToolChoice object
-            tool_choice = None
-            if request.tool_choice:
-                from doc_ai_helper_backend.models.llm import ToolChoice
-
-                if request.tool_choice in ["auto", "none", "required"]:
-                    tool_choice = ToolChoice(type=request.tool_choice)  # type: ignore
-                else:
-                    # Assume it's a specific function name
-                    tool_choice = ToolChoice(
-                        type="required", function=request.tool_choice
-                    )
-
-            # Send query with tools using the complete flow or legacy flow
-            if request.complete_tool_flow:
-                # Use new complete flow (default) - handles tool execution and followup internally
-                response = await llm_service.query_with_tools_and_followup(
-                    prompt=request.prompt,
-                    tools=available_tools,
-                    conversation_history=conversation_history,  # Use processed conversation history
-                    tool_choice=tool_choice,
-                    options=options,
-                    repository_context=request.repository_context,
-                    document_metadata=request.document_metadata,
-                    document_content=request.document_content,
-                    system_prompt_template=request.system_prompt_template
-                    or "contextual_document_assistant_ja",
-                    include_document_in_system_prompt=request.include_document_in_system_prompt,
-                )
-                # Note: Tool execution and followup are handled internally by query_with_tools_and_followup
-            else:
-                # Use legacy flow for backward compatibility
-                response = await llm_service.query_with_tools(
-                    prompt=request.prompt,
-                    tools=available_tools,
-                    conversation_history=conversation_history,  # Use processed conversation history
-                    tool_choice=tool_choice,
-                    options=options,
-                    repository_context=request.repository_context,
-                    document_metadata=request.document_metadata,
-                    document_content=request.document_content,
-                    system_prompt_template=request.system_prompt_template
-                    or "contextual_document_assistant_ja",
-                    include_document_in_system_prompt=request.include_document_in_system_prompt,
-                )
-                # Execute function calls if present (legacy behavior)
-                if response.tool_calls:
-                    executed_results = []
-                    for tool_call in response.tool_calls:
-                        try:
-                            # Convert repository context to dict if available
-                            repo_context_dict = None
-                            if request.repository_context:
-                                repo_context_dict = request.repository_context.model_dump()
-                            
-                            result = await llm_service.execute_function_call(
-                                tool_call.function,
-                                {func.name: func for func in available_tools},
-                                repository_context=repo_context_dict,
-                            )
-                            executed_results.append(
-                                {
-                                    "tool_call_id": tool_call.id,
-                                    "function_name": tool_call.function.name,
-                                    "result": result,
-                                }
-                            )
-                        except Exception as e:
-                            executed_results.append(
-                                {
-                                    "tool_call_id": tool_call.id,
-                                    "function_name": tool_call.function.name,
-                                    "error": str(e),
-                                }
-                            )
-
-                    # Add execution results to response
-                    response.tool_execution_results = executed_results
-        else:
-            # Send regular query to LLM with conversation history and repository context
-            response = await llm_service.query(
-                request.prompt,
-                conversation_history=conversation_history,  # Use processed conversation history
-                options=options,
-                repository_context=request.repository_context,
-                document_metadata=request.document_metadata,
-                document_content=request.document_content,
-                system_prompt_template=request.system_prompt_template
-                or "contextual_document_assistant_ja",
-                include_document_in_system_prompt=request.include_document_in_system_prompt,
-            )
-
+        # Process query using new infrastructure
+        response = await query_processor.execute_query(request, streaming=False)
         return response
 
+    except ParameterValidationError as e:
+        logger.warning(f"Parameter validation failed: {e.validation_errors}")
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "message": e.message,
+                "validation_errors": e.validation_errors
+            }
+        )
     except ServiceNotFoundError as e:
-        # Re-raise ServiceNotFoundError to be handled by error handlers
-        raise e
+        raise HTTPException(status_code=404, detail=str(e))
+    except LLMServiceException as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        raise LLMServiceException(message="Error querying LLM", detail=str(e))
+        logger.error(f"Unexpected error in query_llm: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
@@ -243,6 +126,73 @@ async def get_capabilities(
     except Exception as e:
         raise LLMServiceException(
             message="Error getting LLM capabilities", detail=str(e)
+        )
+
+
+@router.get(
+    "/providers",
+    response_model=Dict[str, Any],
+    summary="Get provider information",
+    description="Get information about available LLM providers and their status",
+)
+async def get_provider_info():
+    """
+    Get information about available LLM providers.
+    
+    Returns detailed information about each provider including
+    configuration status and capabilities.
+
+    Returns:
+        Dict[str, Any]: Provider information and status
+    """
+    try:
+        available_providers = provider_config_service.get_available_providers()
+        all_providers = provider_config_service.get_all_supported_providers()
+        
+        provider_statuses = {}
+        for provider in all_providers:
+            provider_statuses[provider] = provider_config_service.get_provider_status(provider)
+        
+        return {
+            "available_providers": available_providers,
+            "all_supported_providers": all_providers,
+            "provider_details": provider_statuses,
+            "total_available": len(available_providers),
+            "total_supported": len(all_providers),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting provider information: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get provider information: {str(e)}")
+
+
+@router.get(
+    "/providers/{provider_name}/status",
+    response_model=Dict[str, Any],
+    summary="Get specific provider status",
+    description="Get detailed status information for a specific provider",
+)
+async def get_provider_status(
+    provider_name: str = Path(..., description="Name of the provider to check")
+):
+    """
+    Get detailed status information for a specific provider.
+
+    Args:
+        provider_name: Name of the provider
+
+    Returns:
+        Dict[str, Any]: Detailed provider status
+    """
+    try:
+        status = provider_config_service.get_provider_status(provider_name)
+        return status
+
+    except Exception as e:
+        logger.error(f"Error getting provider status for '{provider_name}': {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to get provider status: {str(e)}"
         )
 
 
@@ -313,244 +263,44 @@ async def format_prompt(
 )
 async def stream_llm_response(
     request: LLMQueryRequest,
-    conversation_manager = Depends(get_conversation_manager),
+    query_processor: QueryProcessor = Depends(get_query_processor),
+    validator: ParameterValidator = Depends(get_parameter_validator),
 ):
     """
-    Stream a response from an LLM with optional Function Calling support.
+    Stream a response from an LLM using the structured parameter format.
 
     Args:
-        request: The query request containing prompt and options
-        conversation_manager: Conversation manager for document integration
+        request: The structured LLM query request
+        query_processor: Query processing service
+        validator: Parameter validation service
 
     Returns:
         EventSourceResponse: Server-Sent Events response
     """
     async def event_generator():
         try:
-            # Create LLM service based on the requested provider
-            from doc_ai_helper_backend.core.config import settings
+            # Validate request parameters
+            validator.validate_request(request)
             
-            # Configure provider-specific settings
-            config = {}
-            if request.provider == "openai":
-                config["api_key"] = settings.openai_api_key
-                config["default_model"] = settings.default_openai_model
-                if settings.openai_base_url:
-                    config["base_url"] = settings.openai_base_url
-            
-            # Create LLM service for the requested provider
-            try:
-                llm_service = LLMServiceFactory.create_with_mcp(request.provider, **config)
-            except Exception as e:
-                # Send error as an event
-                yield json.dumps({"error": f"Failed to create LLM service: {str(e)}"})
-                return
+            # Execute streaming query using new infrastructure
+            stream_generator = await query_processor.execute_query(request, streaming=True)
+            async for chunk in stream_generator:
+                yield json.dumps(chunk)
 
-            # Check if streaming is supported
-            capabilities = await llm_service.get_capabilities()
-            if not capabilities.supports_streaming:
-                yield json.dumps({"error": "The selected LLM provider does not support streaming"})
-                return
-
-            # Document integration via conversation history (new approach)
-            conversation_history = request.conversation_history
-            
-            # Check if this is an initial request that needs document integration
-            if (request.auto_include_document and 
-                conversation_manager.is_initial_request(request.conversation_history, request.repository_context)):
-                try:
-                    # Notify document loading
-                    yield json.dumps({
-                        "status": "document_loading", 
-                        "message": f"Loading document: {request.repository_context.current_path}"
-                    })
-                    
-                    # Create document-aware conversation history
-                    conversation_history = await conversation_manager.create_document_aware_conversation(
-                        repository_context=request.repository_context,
-                        initial_prompt=request.prompt,
-                        document_metadata=request.document_metadata
-                    )
-                    
-                    # Notify document loaded
-                    yield json.dumps({
-                        "status": "document_loaded", 
-                        "message": "Document loaded successfully"
-                    })
-                    
-                    logger.info("Document integration: Created document-aware conversation history for streaming")
-                except Exception as e:
-                    logger.warning(f"Document integration failed in streaming, continuing with original conversation: {e}")
-                    # Continue with original conversation history if document integration fails
-                    conversation_history = request.conversation_history
-                    yield json.dumps({
-                        "status": "document_error", 
-                        "message": f"Document loading failed: {str(e)}"
-                    })
-
-            # Prepare options
-            options = request.options or {}
-            if request.model:
-                options["model"] = request.model
-
-            # Set cache control flag
-            if request.disable_cache:
-                options["disable_cache"] = True
-
-            # Process context documents if provided
-            if request.context_documents:
-                options["context_documents"] = request.context_documents
-
-            # Check if tools/function calling is enabled
-            if request.enable_tools:
-                # Get available tools from the LLM service
-                available_tools = await llm_service.get_available_functions()
-
-                # Convert tool_choice string to ToolChoice object
-                tool_choice = None
-                if request.tool_choice:
-                    from doc_ai_helper_backend.models.llm import ToolChoice
-
-                    if request.tool_choice in ["auto", "none", "required"]:
-                        tool_choice = ToolChoice(type=request.tool_choice)  # type: ignore
-                    else:
-                        # Assume it's a specific function name
-                        tool_choice = ToolChoice(
-                            type="required", function=request.tool_choice
-                        )
-
-                # For streaming with Function Calling, we need to handle it differently
-                if request.complete_tool_flow:
-                    # Use complete flow with streaming
-                    yield json.dumps(
-                        {
-                            "status": "tools_processing",
-                            "message": "Analyzing request and selecting tools...",
-                        }
-                    )
-
-                    # Execute tools first, then stream the final response
-                    response = await llm_service.query_with_tools_and_followup(
-                        prompt=request.prompt,
-                        tools=available_tools,
-                        conversation_history=conversation_history,  # Use processed conversation history
-                        tool_choice=tool_choice,
-                        options=options,
-                    )
-
-                    # Stream the final response content
-                    if hasattr(response, "content") and response.content:
-                        # Send tool execution info
-                        if (
-                            hasattr(response, "tool_execution_results")
-                            and response.tool_execution_results
-                        ):
-                            tool_info = {
-                                "tools_executed": len(response.tool_execution_results),
-                                "tool_names": [
-                                    r.get("function_name", "unknown")
-                                    for r in response.tool_execution_results
-                                ],
-                            }
-                            yield json.dumps(
-                                {"status": "tools_completed", "tool_info": tool_info}
-                            )
-
-                        # Stream the content word by word for a smooth experience
-                        words = response.content.split()
-                        for i, word in enumerate(words):
-                            chunk = word + (" " if i < len(words) - 1 else "")
-                            yield json.dumps({"text": chunk})
-                            # Small delay for smooth streaming effect
-                            import asyncio
-
-                            await asyncio.sleep(0.02)
-
-                else:
-                    # Legacy flow - execute tools and return results
-                    yield json.dumps(
-                        {"status": "tools_processing", "message": "Executing tools..."}
-                    )
-
-                    response = await llm_service.query_with_tools(
-                        prompt=request.prompt,
-                        tools=available_tools,
-                        conversation_history=request.conversation_history,
-                        tool_choice=tool_choice,
-                        options=options,
-                    )
-
-                    # Execute function calls if present
-                    if response.tool_calls:
-                        executed_results = []
-                        for tool_call in response.tool_calls:
-                            try:
-                                # Convert repository context to dict if available
-                                repo_context_dict = None
-                                if request.repository_context:
-                                    repo_context_dict = request.repository_context.model_dump()
-                                
-                                result = await llm_service.execute_function_call(
-                                    tool_call.function,
-                                    {func.name: func for func in available_tools},
-                                    repository_context=repo_context_dict,
-                                )
-                                executed_results.append(
-                                    {
-                                        "tool_call_id": tool_call.id,
-                                        "function_name": tool_call.function.name,
-                                        "result": result,
-                                    }
-                                )
-                                # Send progress update
-                                yield json.dumps(
-                                    {
-                                        "status": "tool_executed",
-                                        "tool_name": tool_call.function.name,
-                                    }
-                                )
-                            except Exception as e:
-                                executed_results.append(
-                                    {
-                                        "tool_call_id": tool_call.id,
-                                        "function_name": tool_call.function.name,
-                                        "error": str(e),
-                                    }
-                                )
-
-                        # Send tool execution results
-                        yield json.dumps({"tool_execution_results": executed_results})
-
-                    # Send any content from the initial response
-                    if hasattr(response, "content") and response.content:
-                        yield json.dumps({"text": response.content})
-
-            else:
-                # Regular streaming without tools
-                # stream_queryメソッドを呼び出してAsyncGeneratorを取得
-                async for text_chunk in llm_service.stream_query(
-                    request.prompt,
-                    conversation_history=conversation_history,  # Use processed conversation history
-                    options=options,
-                    repository_context=request.repository_context,
-                    document_metadata=request.document_metadata,
-                    document_content=request.document_content,
-                    system_prompt_template=request.system_prompt_template
-                    or "contextual_document_assistant_ja",
-                    include_document_in_system_prompt=request.include_document_in_system_prompt,
-                ):
-                    # Send each chunk as an SSE event
-                    yield json.dumps({"text": text_chunk})
-
-            # Signal completion
-            yield json.dumps({"done": True})
-
+        except ParameterValidationError as e:
+            logger.warning(f"Parameter validation failed: {e.validation_errors}")
+            yield json.dumps({
+                "error": e.message,
+                "validation_errors": e.validation_errors
+            })
+        except ServiceNotFoundError as e:
+            yield json.dumps({"error": f"Service not found: {str(e)}"})
+        except LLMServiceException as e:
+            yield json.dumps({"error": f"LLM service error: {str(e)}"})
         except Exception as e:
-            # Send error as an event
-            error_msg = str(e)
-            yield json.dumps({"error": error_msg})
+            logger.error(f"Unexpected error in stream_llm_response: {e}")
+            yield json.dumps({"error": "Internal server error"})
 
-    # Return an SSE response
     return EventSourceResponse(event_generator())
 
 
@@ -676,248 +426,3 @@ async def get_mcp_tool(
     except Exception as e:
         logger.error(f"Error getting MCP tool '{tool_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get MCP tool: {str(e)}")
-
-
-# === New Refactored Endpoints ===
-
-def get_query_processor(
-    conversation_manager: ConversationManager = Depends(get_conversation_manager)
-) -> QueryProcessor:
-    """Dependency to get QueryProcessor instance."""
-    return QueryProcessor(conversation_manager)
-
-
-def get_parameter_validator() -> ParameterValidator:
-    """Dependency to get ParameterValidator instance."""
-    return ParameterValidator()
-
-
-@router.post(
-    "/v2/query",
-    response_model=LLMResponse,
-    summary="Query LLM (v2)",
-    description="Send a query to an LLM with structured parameters (new format)",
-    tags=["LLM v2"]
-)
-async def query_llm_v2(
-    request: LLMQueryRequestV2,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
-):
-    """
-    Send a query to an LLM using the new structured request format.
-    
-    This endpoint provides a cleaner, more maintainable interface with
-    grouped parameters and improved validation.
-
-    Args:
-        request: Structured LLM query request
-        query_processor: Query processing service
-        validator: Parameter validation service
-
-    Returns:
-        LLMResponse: The response from the LLM
-    """
-    try:
-        # Validate request parameters
-        validator.validate_request(request)
-        
-        # Process query
-        response = await query_processor.execute_query(request, streaming=False)
-        return response
-
-    except ParameterValidationError as e:
-        logger.warning(f"Parameter validation failed: {e.validation_errors}")
-        raise HTTPException(
-            status_code=400, 
-            detail={
-                "message": e.message,
-                "validation_errors": e.validation_errors
-            }
-        )
-    except ServiceNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except LLMServiceException as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        logger.error(f"Unexpected error in query_llm_v2: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post(
-    "/v2/stream",
-    summary="Stream LLM response (v2)",
-    description="Stream response from LLM in real-time using Server-Sent Events (new format)",
-    tags=["LLM v2"]
-)
-async def stream_llm_v2(
-    request: LLMQueryRequestV2,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
-):
-    """
-    Stream a response from an LLM using the new structured request format.
-    
-    This endpoint provides streaming responses with the improved parameter structure
-    and centralized processing logic.
-
-    Args:
-        request: Structured LLM query request
-        query_processor: Query processing service
-        validator: Parameter validation service
-
-    Returns:
-        EventSourceResponse: Server-Sent Events response
-    """
-    async def event_generator():
-        try:
-            # Validate request parameters
-            validator.validate_request(request)
-            
-            # Execute streaming query
-            stream_generator = await query_processor.execute_query(request, streaming=True)
-            async for chunk in stream_generator:
-                yield json.dumps(chunk)
-
-        except ParameterValidationError as e:
-            logger.warning(f"Parameter validation failed: {e.validation_errors}")
-            yield json.dumps({
-                "error": e.message,
-                "validation_errors": e.validation_errors
-            })
-        except ServiceNotFoundError as e:
-            yield json.dumps({"error": f"Service not found: {str(e)}"})
-        except LLMServiceException as e:
-            yield json.dumps({"error": f"LLM service error: {str(e)}"})
-        except Exception as e:
-            logger.error(f"Unexpected error in stream_llm_v2: {e}")
-            yield json.dumps({"error": "Internal server error"})
-
-    return EventSourceResponse(event_generator())
-
-
-@router.post(
-    "/v2/query/legacy-convert",
-    response_model=LLMResponse,
-    summary="Convert and query (legacy to v2)",
-    description="Convert legacy request format to v2 and execute query",
-    tags=["LLM v2", "Legacy Support"]
-)
-async def query_llm_legacy_convert(
-    legacy_request: LLMQueryRequest,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
-):
-    """
-    Convert legacy request format to v2 and execute query.
-    
-    This endpoint provides backward compatibility by converting legacy
-    LLMQueryRequest format to the new structured format.
-
-    Args:
-        legacy_request: Legacy format request
-        query_processor: Query processing service
-        validator: Parameter validation service
-
-    Returns:
-        LLMResponse: The response from the LLM
-    """
-    try:
-        # Validate legacy request for conversion
-        validator.validate_legacy_conversion(legacy_request.model_dump())
-        
-        # Convert to new format
-        v2_request = LLMQueryRequestV2.from_legacy_request(legacy_request)
-        
-        # Validate converted request
-        validator.validate_request(v2_request)
-        
-        # Process query
-        response = await query_processor.execute_query(v2_request, streaming=False)
-        return response
-
-    except ParameterValidationError as e:
-        logger.warning(f"Legacy conversion validation failed: {e.validation_errors}")
-        raise HTTPException(
-            status_code=400, 
-            detail={
-                "message": e.message,
-                "validation_errors": e.validation_errors
-            }
-        )
-    except ServiceNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except LLMServiceException as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        logger.error(f"Unexpected error in legacy conversion: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get(
-    "/v2/providers",
-    response_model=Dict[str, Any],
-    summary="Get provider information (v2)",
-    description="Get information about available LLM providers and their status",
-    tags=["LLM v2"]
-)
-async def get_provider_info_v2():
-    """
-    Get information about available LLM providers.
-    
-    Returns detailed information about each provider including
-    configuration status and capabilities.
-
-    Returns:
-        Dict[str, Any]: Provider information and status
-    """
-    try:
-        available_providers = provider_config_service.get_available_providers()
-        all_providers = provider_config_service.get_all_supported_providers()
-        
-        provider_statuses = {}
-        for provider in all_providers:
-            provider_statuses[provider] = provider_config_service.get_provider_status(provider)
-        
-        return {
-            "available_providers": available_providers,
-            "all_supported_providers": all_providers,
-            "provider_details": provider_statuses,
-            "total_available": len(available_providers),
-            "total_supported": len(all_providers),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting provider information: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get provider information: {str(e)}")
-
-
-@router.get(
-    "/v2/providers/{provider_name}/status",
-    response_model=Dict[str, Any],
-    summary="Get specific provider status (v2)",
-    description="Get detailed status information for a specific provider",
-    tags=["LLM v2"]
-)
-async def get_provider_status_v2(
-    provider_name: str = Path(..., description="Name of the provider to check")
-):
-    """
-    Get detailed status information for a specific provider.
-
-    Args:
-        provider_name: Name of the provider
-
-    Returns:
-        Dict[str, Any]: Detailed provider status
-    """
-    try:
-        status = provider_config_service.get_provider_status(provider_name)
-        return status
-
-    except Exception as e:
-        logger.error(f"Error getting provider status for '{provider_name}': {e}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Failed to get provider status: {str(e)}"
-        )

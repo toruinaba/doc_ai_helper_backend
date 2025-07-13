@@ -13,7 +13,7 @@ from datetime import datetime
 
 from doc_ai_helper_backend.main import app
 from doc_ai_helper_backend.models.llm import (
-    LLMQueryRequestV2,
+    LLMQueryRequest,
     CoreQueryRequest,
     ToolConfiguration,
     DocumentContext,
@@ -21,12 +21,12 @@ from doc_ai_helper_backend.models.llm import (
 )
 
 
-class TestLLMV2APIIntegration:
-    """Integration tests for LLM v2 API endpoints."""
+class TestLLMAPIIntegration:
+    """Integration tests for LLM API endpoints with structured parameters."""
     
     @pytest.mark.asyncio
-    async def test_v2_query_basic_request(self):
-        """Test basic v2 query endpoint functionality."""
+    async def test_query_basic_request(self):
+        """Test basic query endpoint functionality."""
         request_data = {
             "query": {
                 "prompt": "Hello, world!",
@@ -38,7 +38,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
@@ -51,7 +51,7 @@ class TestLLMV2APIIntegration:
         assert data["provider"] == "mock"
     
     @pytest.mark.asyncio
-    async def test_v2_query_with_tools(self):
+    async def test_query_with_tools(self):
         """Test v2 query with tool configuration."""
         request_data = {
             "query": {
@@ -68,7 +68,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
@@ -78,7 +78,7 @@ class TestLLMV2APIIntegration:
         # The important thing is the request doesn't fail
     
     @pytest.mark.asyncio
-    async def test_v2_query_with_document_context(self):
+    async def test_query_with_document_context(self):
         """Test v2 query with document integration."""
         request_data = {
             "query": {
@@ -128,14 +128,14 @@ class TestLLMV2APIIntegration:
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app), base_url="http://test"
             ) as client:
-                response = await client.post("/api/v1/llm/v2/query", json=request_data)
+                response = await client.post("/api/v1/llm/query", json=request_data)
             
             assert response.status_code == 200
             data = response.json()
             assert "content" in data
     
     @pytest.mark.asyncio
-    async def test_v2_query_with_processing_options(self):
+    async def test_query_with_processing_options(self):
         """Test v2 query with processing options."""
         request_data = {
             "query": {
@@ -154,14 +154,14 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
         assert "content" in data
     
     @pytest.mark.asyncio
-    async def test_v2_query_full_request(self):
+    async def test_query_full_request(self):
         """Test v2 query with all parameter groups."""
         request_data = {
             "query": {
@@ -201,7 +201,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
@@ -210,7 +210,7 @@ class TestLLMV2APIIntegration:
         assert data["provider"] == "mock"
     
     @pytest.mark.asyncio
-    async def test_v2_stream_basic(self):
+    async def test_stream_basic(self):
         """Test basic v2 streaming endpoint."""
         request_data = {
             "query": {
@@ -222,7 +222,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            async with client.stream("POST", "/api/v1/llm/v2/stream", json=request_data) as response:
+            async with client.stream("POST", "/api/v1/llm/stream", json=request_data) as response:
                 assert response.status_code == 200
                 assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
                 
@@ -246,7 +246,7 @@ class TestLLMV2APIIntegration:
                 assert len(done_events) > 0
     
     @pytest.mark.asyncio
-    async def test_v2_validation_error(self):
+    async def test_validation_error(self):
         """Test v2 endpoint validation error handling."""
         # Invalid request: empty prompt
         request_data = {
@@ -259,14 +259,14 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 422  # Pydantic validation error
         data = response.json()
         assert "detail" in data
     
     @pytest.mark.asyncio
-    async def test_v2_unsupported_provider(self):
+    async def test_unsupported_provider(self):
         """Test v2 endpoint with unsupported provider."""
         request_data = {
             "query": {
@@ -278,7 +278,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 400
         data = response.json()
@@ -286,36 +286,12 @@ class TestLLMV2APIIntegration:
         assert "validation_errors" in data["detail"]
     
     @pytest.mark.asyncio
-    async def test_legacy_convert_endpoint(self):
-        """Test legacy conversion endpoint."""
-        # Legacy format request
-        legacy_request = {
-            "prompt": "Test prompt",
-            "provider": "mock",
-            "enable_tools": True,
-            "tool_choice": "auto",
-            "disable_cache": True,
-            "options": {"temperature": 0.5}
-        }
-        
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post("/api/v1/llm/v2/query/legacy-convert", json=legacy_request)
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert "content" in data
-        assert "provider" in data
-        assert data["provider"] == "mock"
-    
-    @pytest.mark.asyncio
     async def test_provider_info_endpoint(self):
         """Test provider information endpoint."""
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.get("/api/v1/llm/v2/providers")
+            response = await client.get("/api/v1/llm/providers")
         
         assert response.status_code == 200
         data = response.json()
@@ -337,7 +313,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.get("/api/v1/llm/v2/providers/mock/status")
+            response = await client.get("/api/v1/llm/providers/mock/status")
         
         assert response.status_code == 200
         data = response.json()
@@ -357,7 +333,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.get("/api/v1/llm/v2/providers/nonexistent/status")
+            response = await client.get("/api/v1/llm/providers/nonexistent/status")
         
         assert response.status_code == 200
         data = response.json()
@@ -369,7 +345,7 @@ class TestLLMV2APIIntegration:
         assert data["supported"] is False
     
     @pytest.mark.asyncio
-    async def test_v2_conversation_history_handling(self):
+    async def test_conversation_history_handling(self):
         """Test that v2 endpoints handle conversation history correctly."""
         conversation_history = [
             {"role": "user", "content": "What is Python?"},
@@ -388,7 +364,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
@@ -399,7 +375,7 @@ class TestLLMV2APIIntegration:
         assert data["optimized_conversation_history"] is not None
     
     @pytest.mark.asyncio
-    async def test_v2_parameter_validation_detailed(self):
+    async def test_parameter_validation_detailed(self):
         """Test detailed parameter validation in v2 endpoints."""
         # Test invalid temperature
         request_data = {
@@ -417,7 +393,7 @@ class TestLLMV2APIIntegration:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            response = await client.post("/api/v1/llm/v2/query", json=request_data)
+            response = await client.post("/api/v1/llm/query", json=request_data)
         
         assert response.status_code == 400
         data = response.json()
@@ -430,69 +406,3 @@ class TestLLMV2APIIntegration:
         assert len(temp_errors) > 0
 
 
-class TestV2LegacyCompatibility:
-    """Test compatibility between v2 and legacy formats."""
-    
-    @pytest.mark.asyncio
-    async def test_legacy_endpoint_still_works(self):
-        """Test that legacy endpoints still work after refactoring."""
-        legacy_request = {
-            "prompt": "Test legacy endpoint",
-            "provider": "mock",
-            "enable_tools": False,
-            "options": {"temperature": 0.7}
-        }
-        
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post("/api/v1/llm/query", json=legacy_request)
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert "content" in data
-        assert "provider" in data
-        assert data["provider"] == "mock"
-    
-    @pytest.mark.asyncio
-    async def test_v2_vs_legacy_equivalent_requests(self):
-        """Test that equivalent v2 and legacy requests produce similar results."""
-        # Legacy request
-        legacy_request = {
-            "prompt": "What is FastAPI?",
-            "provider": "mock",
-            "options": {"temperature": 0.5}
-        }
-        
-        # Equivalent v2 request
-        v2_request = {
-            "query": {
-                "prompt": "What is FastAPI?",
-                "provider": "mock"
-            },
-            "processing": {
-                "options": {"temperature": 0.5}
-            }
-        }
-        
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            # Send legacy request
-            legacy_response = await client.post("/api/v1/llm/query", json=legacy_request)
-            
-            # Send v2 request
-            v2_response = await client.post("/api/v1/llm/v2/query", json=v2_request)
-        
-        assert legacy_response.status_code == 200
-        assert v2_response.status_code == 200
-        
-        legacy_data = legacy_response.json()
-        v2_data = v2_response.json()
-        
-        # Both should have similar structure
-        assert "content" in legacy_data
-        assert "content" in v2_data
-        assert "provider" in legacy_data
-        assert "provider" in v2_data
-        assert legacy_data["provider"] == v2_data["provider"]

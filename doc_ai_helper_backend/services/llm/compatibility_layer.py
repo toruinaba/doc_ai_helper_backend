@@ -9,7 +9,7 @@ import logging
 from typing import Optional
 from functools import wraps
 
-from doc_ai_helper_backend.models.llm import LLMQueryRequest, LLMQueryRequestV2, LLMResponse
+from doc_ai_helper_backend.models.llm import LLMQueryRequest, LLMResponse
 from doc_ai_helper_backend.services.llm.query_processor import QueryProcessor
 from doc_ai_helper_backend.services.llm.parameter_validator import ParameterValidator
 from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
@@ -54,7 +54,7 @@ class CompatibilityProcessor:
             logger.debug("Processing legacy request using new infrastructure")
             
             # Convert to new format
-            v2_request = LLMQueryRequestV2.from_legacy_request(legacy_request)
+            v2_request = LLMQueryRequest.from_legacy_request(legacy_request)
             
             # Validate converted request
             self.validator.validate_request(v2_request)
@@ -189,7 +189,7 @@ class MigrationHelper:
     """
     
     @staticmethod
-    def convert_legacy_to_v2(legacy_request: LLMQueryRequest) -> LLMQueryRequestV2:
+    def convert_legacy_to_v2(legacy_request: LLMQueryRequest) -> LLMQueryRequest:
         """
         Convert legacy request to v2 format with detailed logging.
         
@@ -197,11 +197,11 @@ class MigrationHelper:
             legacy_request: Legacy format request
             
         Returns:
-            LLMQueryRequestV2: Converted request
+            LLMQueryRequest: Converted request
         """
         logger.info("Converting legacy request to v2 format")
         
-        v2_request = LLMQueryRequestV2.from_legacy_request(legacy_request)
+        v2_request = LLMQueryRequest.from_legacy_request(legacy_request)
         
         # Log the conversion details
         conversion_details = {
@@ -224,7 +224,7 @@ class MigrationHelper:
         return v2_request
     
     @staticmethod
-    def convert_v2_to_legacy(v2_request: LLMQueryRequestV2) -> LLMQueryRequest:
+    def convert_v2_to_legacy(v2_request: LLMQueryRequest) -> LLMQueryRequest:
         """
         Convert v2 request to legacy format.
         

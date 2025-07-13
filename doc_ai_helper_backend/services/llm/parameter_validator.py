@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 
 from pydantic import ValidationError
 from doc_ai_helper_backend.models.llm import (
-    LLMQueryRequestV2,
+    LLMQueryRequest,
     CoreQueryRequest,
     ToolConfiguration,
     DocumentContext,
@@ -49,7 +49,7 @@ class ParameterValidator:
     MAX_CONVERSATION_HISTORY = 100  # Maximum number of conversation messages
     MAX_CONTEXT_DOCUMENTS = 10  # Maximum number of context documents
     
-    def validate_request(self, request: LLMQueryRequestV2) -> None:
+    def validate_request(self, request: LLMQueryRequest) -> None:
         """
         Validate the complete LLM request.
         
@@ -254,7 +254,7 @@ class ParameterValidator:
                 validation_errors=errors
             )
     
-    def validate_parameter_combinations(self, request: LLMQueryRequestV2) -> None:
+    def validate_parameter_combinations(self, request: LLMQueryRequest) -> None:
         """
         Validate cross-parameter combinations and dependencies.
         

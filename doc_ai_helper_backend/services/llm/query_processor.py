@@ -11,7 +11,7 @@ import logging
 from typing import Dict, Any, List, Optional, Tuple, AsyncGenerator, Union
 
 from doc_ai_helper_backend.models.llm import (
-    LLMQueryRequestV2,
+    LLMQueryRequest,
     CoreQueryRequest,
     ToolConfiguration,
     DocumentContext,
@@ -201,7 +201,7 @@ class QueryProcessor:
     
     async def execute_query(
         self,
-        request: LLMQueryRequestV2,
+        request: LLMQueryRequest,
         streaming: bool = False
     ) -> Union[LLMResponse, AsyncGenerator[Dict[str, Any], None]]:
         """
@@ -259,7 +259,7 @@ class QueryProcessor:
     async def _execute_regular_query(
         self,
         llm_service: LLMServiceBase,
-        request: LLMQueryRequestV2,
+        request: LLMQueryRequest,
         conversation_history: List[MessageItem],
         available_tools: Optional[List[FunctionDefinition]],
         tool_choice: Optional[ToolChoice],
@@ -345,7 +345,7 @@ class QueryProcessor:
     async def _execute_streaming_query(
         self,
         llm_service: LLMServiceBase,
-        request: LLMQueryRequestV2,
+        request: LLMQueryRequest,
         conversation_history: List[MessageItem],
         available_tools: Optional[List[FunctionDefinition]],
         tool_choice: Optional[ToolChoice],
