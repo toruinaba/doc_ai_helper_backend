@@ -112,7 +112,7 @@ class BackendAPIClient:
         auto_include_document: bool = False,
     ) -> Dict[str, Any]:
         """
-        Send a query to the LLM via the backend API.
+        Send a query to the LLM via the backend API using structured parameters.
 
         Args:
             prompt: The prompt to send to the LLM
@@ -131,27 +131,43 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/query"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "enable_tools": tools_enabled,
-            "complete_tool_flow": True,  # Use new complete flow for better tool execution
-            "tool_choice": "auto",  # Allow multiple tool selection
+            "query": {
+                "prompt": prompt,
+                "provider": provider or "openai"
+            }
         }
-
-        if provider:
-            payload["provider"] = provider
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
-        if repository_context:
-            payload["repository_context"] = repository_context
+            payload["query"]["model"] = model
         if conversation_history:
-            payload["conversation_history"] = conversation_history
-        if auto_include_document:
-            payload["auto_include_document"] = auto_include_document
+            payload["query"]["conversation_history"] = conversation_history
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Document context
+        if repository_context or auto_include_document:
+            payload["document"] = {}
+            if repository_context:
+                payload["document"]["repository_context"] = repository_context
+            if auto_include_document:
+                payload["document"]["auto_include_document"] = auto_include_document
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
 
-        logger.info(f"Sending LLM query: {prompt[:100]}...")
+        logger.info(f"Sending structured LLM query: {prompt[:100]}...")
 
         response = await self._client.post(url, json=payload)
         response.raise_for_status()
@@ -166,7 +182,7 @@ class BackendAPIClient:
         model: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
-        Send a streaming query to the LLM via the backend API.
+        Send a streaming query to the LLM via the backend API using structured parameters.
 
         Args:
             prompt: The prompt to send to the LLM
@@ -182,21 +198,33 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/stream"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "enable_tools": tools_enabled,
-            "complete_tool_flow": True,  # Use new complete flow for better tool execution
-            "tool_choice": "auto",  # Allow multiple tool selection
+            "query": {
+                "prompt": prompt,
+                "provider": provider or "openai"
+            }
         }
-
-        if provider:
-            payload["provider"] = provider
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
+            payload["query"]["model"] = model
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
 
-        logger.info(f"Starting streaming LLM query: {prompt[:100]}...")
+        logger.info(f"Starting structured streaming LLM query: {prompt[:100]}...")
 
         async with self._client.stream("POST", url, json=payload) as response:
             response.raise_for_status()

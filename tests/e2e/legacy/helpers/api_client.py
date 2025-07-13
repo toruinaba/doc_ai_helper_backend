@@ -131,20 +131,41 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/query"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "provider": provider,
-            "enable_tools": tools_enabled,
+            "query": {
+                "prompt": prompt,
+                "provider": provider
+            }
         }
-
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
-        if stream:
-            payload["stream"] = stream
+            payload["query"]["model"] = model
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Document context
         if repository_context:
-            payload["repository_context"] = repository_context
+            payload["document"] = {
+                "repository_context": repository_context
+            }
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
+        if stream:
+            payload["processing"] = payload.get("processing", {})
+            payload["processing"]["options"] = payload["processing"].get("options", {})
+            payload["processing"]["options"]["stream"] = stream
 
         logger.info(f"Sending LLM query: {prompt[:100]}...")
 
@@ -177,16 +198,31 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/stream"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "provider": provider,
-            "enable_tools": tools_enabled,
+            "query": {
+                "prompt": prompt,
+                "provider": provider
+            }
         }
-
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
+            payload["query"]["model"] = model
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
 
         logger.info(f"Starting streaming LLM query: {prompt[:100]}...")
 
