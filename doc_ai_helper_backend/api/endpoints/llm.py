@@ -12,6 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
+    LLMQueryRequestV2,
     LLMResponse,
     PromptTemplate,
     MCPToolsResponse,
@@ -29,6 +30,9 @@ from doc_ai_helper_backend.core.exceptions import (
     TemplateSyntaxError,
 )
 from doc_ai_helper_backend.api.dependencies import get_llm_service, get_conversation_manager
+from doc_ai_helper_backend.services.llm.query_processor import QueryProcessor
+from doc_ai_helper_backend.services.llm.parameter_validator import ParameterValidator, ParameterValidationError
+from doc_ai_helper_backend.services.llm.provider_configuration import provider_config_service
 
 logger = logging.getLogger(__name__)
 
@@ -672,3 +676,248 @@ async def get_mcp_tool(
     except Exception as e:
         logger.error(f"Error getting MCP tool '{tool_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get MCP tool: {str(e)}")
+
+
+# === New Refactored Endpoints ===
+
+def get_query_processor(
+    conversation_manager: ConversationManager = Depends(get_conversation_manager)
+) -> QueryProcessor:
+    """Dependency to get QueryProcessor instance."""
+    return QueryProcessor(conversation_manager)
+
+
+def get_parameter_validator() -> ParameterValidator:
+    """Dependency to get ParameterValidator instance."""
+    return ParameterValidator()
+
+
+@router.post(
+    "/v2/query",
+    response_model=LLMResponse,
+    summary="Query LLM (v2)",
+    description="Send a query to an LLM with structured parameters (new format)",
+    tags=["LLM v2"]
+)
+async def query_llm_v2(
+    request: LLMQueryRequestV2,
+    query_processor: QueryProcessor = Depends(get_query_processor),
+    validator: ParameterValidator = Depends(get_parameter_validator),
+):
+    """
+    Send a query to an LLM using the new structured request format.
+    
+    This endpoint provides a cleaner, more maintainable interface with
+    grouped parameters and improved validation.
+
+    Args:
+        request: Structured LLM query request
+        query_processor: Query processing service
+        validator: Parameter validation service
+
+    Returns:
+        LLMResponse: The response from the LLM
+    """
+    try:
+        # Validate request parameters
+        validator.validate_request(request)
+        
+        # Process query
+        response = await query_processor.execute_query(request, streaming=False)
+        return response
+
+    except ParameterValidationError as e:
+        logger.warning(f"Parameter validation failed: {e.validation_errors}")
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "message": e.message,
+                "validation_errors": e.validation_errors
+            }
+        )
+    except ServiceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except LLMServiceException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in query_llm_v2: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post(
+    "/v2/stream",
+    summary="Stream LLM response (v2)",
+    description="Stream response from LLM in real-time using Server-Sent Events (new format)",
+    tags=["LLM v2"]
+)
+async def stream_llm_v2(
+    request: LLMQueryRequestV2,
+    query_processor: QueryProcessor = Depends(get_query_processor),
+    validator: ParameterValidator = Depends(get_parameter_validator),
+):
+    """
+    Stream a response from an LLM using the new structured request format.
+    
+    This endpoint provides streaming responses with the improved parameter structure
+    and centralized processing logic.
+
+    Args:
+        request: Structured LLM query request
+        query_processor: Query processing service
+        validator: Parameter validation service
+
+    Returns:
+        EventSourceResponse: Server-Sent Events response
+    """
+    async def event_generator():
+        try:
+            # Validate request parameters
+            validator.validate_request(request)
+            
+            # Execute streaming query
+            stream_generator = await query_processor.execute_query(request, streaming=True)
+            async for chunk in stream_generator:
+                yield json.dumps(chunk)
+
+        except ParameterValidationError as e:
+            logger.warning(f"Parameter validation failed: {e.validation_errors}")
+            yield json.dumps({
+                "error": e.message,
+                "validation_errors": e.validation_errors
+            })
+        except ServiceNotFoundError as e:
+            yield json.dumps({"error": f"Service not found: {str(e)}"})
+        except LLMServiceException as e:
+            yield json.dumps({"error": f"LLM service error: {str(e)}"})
+        except Exception as e:
+            logger.error(f"Unexpected error in stream_llm_v2: {e}")
+            yield json.dumps({"error": "Internal server error"})
+
+    return EventSourceResponse(event_generator())
+
+
+@router.post(
+    "/v2/query/legacy-convert",
+    response_model=LLMResponse,
+    summary="Convert and query (legacy to v2)",
+    description="Convert legacy request format to v2 and execute query",
+    tags=["LLM v2", "Legacy Support"]
+)
+async def query_llm_legacy_convert(
+    legacy_request: LLMQueryRequest,
+    query_processor: QueryProcessor = Depends(get_query_processor),
+    validator: ParameterValidator = Depends(get_parameter_validator),
+):
+    """
+    Convert legacy request format to v2 and execute query.
+    
+    This endpoint provides backward compatibility by converting legacy
+    LLMQueryRequest format to the new structured format.
+
+    Args:
+        legacy_request: Legacy format request
+        query_processor: Query processing service
+        validator: Parameter validation service
+
+    Returns:
+        LLMResponse: The response from the LLM
+    """
+    try:
+        # Validate legacy request for conversion
+        validator.validate_legacy_conversion(legacy_request.model_dump())
+        
+        # Convert to new format
+        v2_request = LLMQueryRequestV2.from_legacy_request(legacy_request)
+        
+        # Validate converted request
+        validator.validate_request(v2_request)
+        
+        # Process query
+        response = await query_processor.execute_query(v2_request, streaming=False)
+        return response
+
+    except ParameterValidationError as e:
+        logger.warning(f"Legacy conversion validation failed: {e.validation_errors}")
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "message": e.message,
+                "validation_errors": e.validation_errors
+            }
+        )
+    except ServiceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except LLMServiceException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in legacy conversion: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
+    "/v2/providers",
+    response_model=Dict[str, Any],
+    summary="Get provider information (v2)",
+    description="Get information about available LLM providers and their status",
+    tags=["LLM v2"]
+)
+async def get_provider_info_v2():
+    """
+    Get information about available LLM providers.
+    
+    Returns detailed information about each provider including
+    configuration status and capabilities.
+
+    Returns:
+        Dict[str, Any]: Provider information and status
+    """
+    try:
+        available_providers = provider_config_service.get_available_providers()
+        all_providers = provider_config_service.get_all_supported_providers()
+        
+        provider_statuses = {}
+        for provider in all_providers:
+            provider_statuses[provider] = provider_config_service.get_provider_status(provider)
+        
+        return {
+            "available_providers": available_providers,
+            "all_supported_providers": all_providers,
+            "provider_details": provider_statuses,
+            "total_available": len(available_providers),
+            "total_supported": len(all_providers),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting provider information: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get provider information: {str(e)}")
+
+
+@router.get(
+    "/v2/providers/{provider_name}/status",
+    response_model=Dict[str, Any],
+    summary="Get specific provider status (v2)",
+    description="Get detailed status information for a specific provider",
+    tags=["LLM v2"]
+)
+async def get_provider_status_v2(
+    provider_name: str = Path(..., description="Name of the provider to check")
+):
+    """
+    Get detailed status information for a specific provider.
+
+    Args:
+        provider_name: Name of the provider
+
+    Returns:
+        Dict[str, Any]: Detailed provider status
+    """
+    try:
+        status = provider_config_service.get_provider_status(provider_name)
+        return status
+
+    except Exception as e:
+        logger.error(f"Error getting provider status for '{provider_name}': {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to get provider status: {str(e)}"
+        )
