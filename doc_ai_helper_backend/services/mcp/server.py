@@ -227,6 +227,8 @@ class DocumentAIHelperMCPServer:
         async def create_issue_tool(
             title: str,
             description: str,
+            owner: str,
+            repo: str,
             labels: Optional[List[str]] = None,
             assignees: Optional[List[str]] = None,
             service_type: Optional[str] = None,
@@ -236,8 +238,8 @@ class DocumentAIHelperMCPServer:
             forgejo_password: Optional[str] = None,
         ) -> str:
             """Create a new issue in the Git repository (supports GitHub, Forgejo, and other Git services)."""
-            # Get repository context from current session
-            repository_context = getattr(self, "_current_repository_context", None)
+            # Create repository context from parameters
+            repository_context = {"owner": owner, "repo": repo}
 
             # Prepare service-specific kwargs
             kwargs = {}
@@ -265,6 +267,8 @@ class DocumentAIHelperMCPServer:
             title: str,
             description: str,
             head_branch: str,
+            owner: str,
+            repo: str,
             base_branch: str = "main",
             service_type: Optional[str] = None,
             github_token: Optional[str] = None,
@@ -273,8 +277,8 @@ class DocumentAIHelperMCPServer:
             forgejo_password: Optional[str] = None,
         ) -> str:
             """Create new pull request in specified Git service. Supports PR creation for code review, feature integration, bug fixes."""
-            # Get repository context from current session
-            repository_context = getattr(self, "_current_repository_context", None)
+            # Create repository context from parameters
+            repository_context = {"owner": owner, "repo": repo}
 
             # Prepare service-specific kwargs
             kwargs = {}
@@ -299,6 +303,8 @@ class DocumentAIHelperMCPServer:
 
         @self.app.tool("check_git_repository_permissions")
         async def check_permissions_tool(
+            owner: str,
+            repo: str,
             service_type: Optional[str] = None,
             github_token: Optional[str] = None,
             forgejo_token: Optional[str] = None,
@@ -306,8 +312,8 @@ class DocumentAIHelperMCPServer:
             forgejo_password: Optional[str] = None,
         ) -> str:
             """Check permissions for current repository context. Verify access levels including read, write, admin permissions."""
-            # Get repository context from current session
-            repository_context = getattr(self, "_current_repository_context", None)
+            # Create repository context from parameters
+            repository_context = {"owner": owner, "repo": repo}
 
             # Prepare service-specific kwargs
             kwargs = {}
