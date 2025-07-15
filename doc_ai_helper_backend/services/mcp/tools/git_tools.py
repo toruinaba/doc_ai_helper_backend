@@ -105,6 +105,7 @@ async def create_git_issue(
     try:
         # Get the appropriate service
         service = get_configured_service(service_type)
+        logger.info(f"Using Git service: {service.__class__.__name__} for {service_type}")
 
         # Extract repository info from context
         if repository_context:
@@ -118,6 +119,9 @@ async def create_git_issue(
         if not owner or not repo:
             raise ValueError("Repository owner and name must be provided")
 
+        logger.info(f"Creating issue in {owner}/{repo} using {service.__class__.__name__}")
+        logger.debug(f"Issue parameters: title='{title}', labels={labels}, assignees={assignees}")
+
         # Create the issue using the service
         result = await service.create_issue(
             owner=owner,
@@ -128,7 +132,10 @@ async def create_git_issue(
             assignees=assignees,
         )
 
-        return f"Issue created successfully: {result.get('html_url', 'N/A')}"
+        success_msg = f"Issue created successfully: {result.get('html_url', 'N/A')}"
+        logger.info(f"Git issue creation result: {success_msg}")
+        logger.debug(f"Full service response: {result}")
+        return success_msg
 
     except Exception as e:
         logger.error(f"Failed to create Git issue: {e}")

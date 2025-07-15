@@ -655,12 +655,19 @@ class GitHubService(GitServiceBase):
             issue_data["assignees"] = assignees
 
         logger.info(f"Creating issue in {owner}/{repo}: {title}")
+        logger.debug(f"Issue data payload: {issue_data}")
+        logger.debug(f"GitHub API URL: {url}")
 
         try:
-            data, _ = await self._make_request("POST", url, json=issue_data)
+            data, headers = await self._make_request("POST", url, json=issue_data)
+            logger.info(f"GitHub API response status: SUCCESS")
+            logger.info(f"Created issue #{data.get('number', 'N/A')}: {data.get('html_url', 'N/A')}")
+            logger.debug(f"Full GitHub API response: {data}")
+            logger.debug(f"Response headers: {dict(headers)}")
             return data
         except Exception as e:
             logger.error(f"Failed to create issue in {owner}/{repo}: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
             raise
 
     async def create_pull_request(
