@@ -118,8 +118,8 @@ class DocumentService:
 
                 # Transform links if requested
                 if transform_links:
-                    # Construct base URL if not provided
-                    if not base_url:
+                    # Construct base URL if not provided or invalid
+                    if not base_url or not base_url.strip():
                         base_url = (
                             f"/api/v1/documents/contents/{service}/{owner}/{repo}/{ref}"
                         )
