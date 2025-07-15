@@ -119,8 +119,9 @@ class DocumentService:
                 # Transform links if requested
                 if transform_links:
                     # Always construct base URL from request parameters (ignore provided base_url)
+                    # Note: ref is handled as query parameter, not in the path
                     base_url = (
-                        f"/api/v1/documents/contents/{service}/{owner}/{repo}/{ref}"
+                        f"/api/v1/documents/contents/{service}/{owner}/{repo}"
                     )
 
                     transformed_content = processor.transform_links(

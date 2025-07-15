@@ -180,6 +180,10 @@ class LinkTransformer:
             base_url = base_url + "/"
 
         transformed_url = base_url + abs_path.lstrip("/")
+        
+        # refをクエリパラメータとして追加
+        if ref:
+            transformed_url += f"?ref={ref}"
 
         return f"[{text}]({transformed_url})"
 
@@ -230,6 +234,10 @@ class LinkTransformer:
             base_url = base_url + "/"
 
         transformed_url = base_url + abs_path.lstrip("/")
+        
+        # refをクエリパラメータとして追加
+        if ref:
+            transformed_url += f"?ref={ref}"
 
         return f"![{alt_text}]({transformed_url})"
 
