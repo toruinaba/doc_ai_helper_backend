@@ -193,9 +193,8 @@ class QueryProcessor:
             # Merge additional options
             options.update(processing_options.options)
         
-        # Add context documents if provided
-        if document_context and document_context.context_documents:
-            options["context_documents"] = document_context.context_documents
+        # Note: context_documents should be processed internally, not passed to provider API
+        # TODO: Implement proper context_documents processing in conversation preparation
         
         return options
     
