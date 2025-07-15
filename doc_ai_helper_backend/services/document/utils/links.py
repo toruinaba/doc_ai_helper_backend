@@ -175,10 +175,6 @@ class LinkTransformer:
                 return f"[{text}]({raw_url})"
 
         # 通常のドキュメントリンクはAPI経由
-        # base_urlが空または無効な場合はスキップ（相対パスのまま）
-        if not base_url or not base_url.strip():
-            return f"[{text}]({url})"  # 元のURLをそのまま返す
-            
         # base_urlの末尾にスラッシュがなければ追加
         if not base_url.endswith("/"):
             base_url = base_url + "/"
@@ -229,10 +225,6 @@ class LinkTransformer:
                 return f"![{alt_text}]({raw_url})"
 
         # フォールバック: API経由
-        # base_urlが空または無効な場合はスキップ（相対パスのまま）
-        if not base_url or not base_url.strip():
-            return f"![{alt_text}]({url})"  # 元のURLをそのまま返す
-            
         # base_urlの末尾にスラッシュがなければ追加
         if not base_url.endswith("/"):
             base_url = base_url + "/"
