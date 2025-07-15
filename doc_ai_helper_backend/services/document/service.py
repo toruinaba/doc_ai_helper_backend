@@ -125,7 +125,7 @@ class DocumentService:
                         )
 
                     transformed_content = processor.transform_links(
-                        raw_content, path, base_url
+                        raw_content, path, base_url, service, owner, repo, ref
                     )
                     # Store transformed content
                     document.transformed_content = transformed_content

@@ -64,7 +64,16 @@ class DocumentProcessorBase(ABC):
         pass
     
     @abstractmethod
-    def transform_links(self, content: str, path: str, base_url: str) -> str:
+    def transform_links(
+        self, 
+        content: str, 
+        path: str, 
+        base_url: str, 
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
         """
         ドキュメント内のリンクを変換する。
         
@@ -72,6 +81,10 @@ class DocumentProcessorBase(ABC):
             content: 生のドキュメントコンテンツ
             path: ドキュメントのパス
             base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
             
         Returns:
             リンク変換済みのコンテンツ
