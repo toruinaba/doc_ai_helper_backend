@@ -206,46 +206,19 @@ class DocumentAIHelperMCPServer:
         async def create_issue_tool(
             title: str,
             description: str,
-            owner: Optional[str] = None,
-            repo: Optional[str] = None,
             labels: Optional[List[str]] = None,
             assignees: Optional[List[str]] = None,
-            service_type: Optional[str] = None,
-            github_token: Optional[str] = None,
-            forgejo_token: Optional[str] = None,
-            forgejo_username: Optional[str] = None,
-            forgejo_password: Optional[str] = None,
             repository_context: Optional[Dict[str, Any]] = None,
         ) -> str:
-            """Create a new issue in the Git repository (supports GitHub, Forgejo, and other Git services)."""
-            # Use repository_context if provided, otherwise create from parameters
-            if repository_context:
-                final_owner = repository_context.get("owner") or owner
-                final_repo = repository_context.get("repo") or repo
-                logger.info(f"Using repository_context: {final_owner}/{final_repo}")
-            else:
-                final_owner = owner
-                final_repo = repo
-                logger.info(f"Using direct parameters: {final_owner}/{final_repo}")
-
-            if not final_owner or not final_repo:
-                logger.error(f"Missing repository information: owner={final_owner}, repo={final_repo}")
-                return "Error: Repository owner and name must be provided"
-
-            # Create final repository context
-            final_repository_context = {"owner": final_owner, "repo": final_repo}
-
+            """Create a new issue in the Git repository. Repository context is automatically injected by the LLM service."""
+            logger.info(f"Creating Git issue with repository_context: {repository_context}")
+            
             return await create_git_issue(
                 title=title,
                 description=description,
                 labels=labels,
                 assignees=assignees,
-                repository_context=final_repository_context,
-                service_type=service_type,
-                github_token=github_token,
-                forgejo_token=forgejo_token,
-                forgejo_username=forgejo_username,
-                forgejo_password=forgejo_password,
+                repository_context=repository_context,
             )
 
         @self.app.tool("create_git_pull_request")
@@ -253,18 +226,11 @@ class DocumentAIHelperMCPServer:
             title: str,
             description: str,
             head_branch: str,
-            owner: str,
-            repo: str,
             base_branch: str = "main",
-            service_type: Optional[str] = None,
-            github_token: Optional[str] = None,
-            forgejo_token: Optional[str] = None,
-            forgejo_username: Optional[str] = None,
-            forgejo_password: Optional[str] = None,
+            repository_context: Optional[Dict[str, Any]] = None,
         ) -> str:
-            """Create new pull request in specified Git service. Supports PR creation for code review, feature integration, bug fixes."""
-            # Create repository context from parameters
-            repository_context = {"owner": owner, "repo": repo}
+            """Create new pull request in the Git repository. Repository context is automatically injected by the LLM service."""
+            logger.info(f"Creating Git PR with repository_context: {repository_context}")
 
             return await create_git_pull_request(
                 title=title,
@@ -272,34 +238,17 @@ class DocumentAIHelperMCPServer:
                 head_branch=head_branch,
                 base_branch=base_branch,
                 repository_context=repository_context,
-                service_type=service_type,
-                github_token=github_token,
-                forgejo_token=forgejo_token,
-                forgejo_username=forgejo_username,
-                forgejo_password=forgejo_password,
             )
 
         @self.app.tool("check_git_repository_permissions")
         async def check_permissions_tool(
-            owner: str,
-            repo: str,
-            service_type: Optional[str] = None,
-            github_token: Optional[str] = None,
-            forgejo_token: Optional[str] = None,
-            forgejo_username: Optional[str] = None,
-            forgejo_password: Optional[str] = None,
-        ) -> str:
-            """Check permissions for current repository context. Verify access levels including read, write, admin permissions."""
-            # Create repository context from parameters
-            repository_context = {"owner": owner, "repo": repo}
+            repository_context: Optional[Dict[str, Any]] = None,
+        ) -> Dict[str, Any]:
+            """Check permissions for current repository context. Repository context is automatically injected by the LLM service."""
+            logger.info(f"Checking Git permissions with repository_context: {repository_context}")
 
             return await check_git_repository_permissions(
                 repository_context=repository_context,
-                service_type=service_type,
-                github_token=github_token,
-                forgejo_token=forgejo_token,
-                forgejo_username=forgejo_username,
-                forgejo_password=forgejo_password,
             )
 
         logger.info("Git tools registered with FastMCP")

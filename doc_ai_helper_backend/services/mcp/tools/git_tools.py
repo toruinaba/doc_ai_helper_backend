@@ -2,6 +2,7 @@
 Git tools for MCP integration.
 
 This module provides direct Git operations using GitServiceFactory.
+Repository context is automatically injected by the LLM service.
 """
 
 from typing import Optional, List, Dict, Any
@@ -12,14 +13,45 @@ from ....core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _extract_service_type_from_context(repository_context: Dict[str, Any]) -> str:
+    """
+    Extract git service type from repository context.
+    
+    Args:
+        repository_context: Repository context containing service info
+        
+    Returns:
+        Service type (github, forgejo, etc.)
+    """
+    # Check if service type is explicitly specified in context
+    if "service" in repository_context:
+        return repository_context["service"]
+    
+    # Detect service type from URL patterns if available
+    if "base_url" in repository_context:
+        base_url = repository_context["base_url"].lower()
+        if "github.com" in base_url:
+            return "github"
+        elif "forgejo" in base_url or repository_context.get("is_forgejo"):
+            return "forgejo"
+    
+    # Check for service-specific indicators
+    if repository_context.get("github_token"):
+        return "github"
+    elif repository_context.get("forgejo_token") or repository_context.get("forgejo_username"):
+        return "forgejo"
+    
+    # Fallback to configured default
+    return settings.default_git_service or "github"
+
+
 async def create_git_issue(
     title: str,
     description: str,
     labels: Optional[List[str]] = None,
     assignees: Optional[List[str]] = None,
     repository_context: Optional[Dict[str, Any]] = None,
-    service_type: Optional[str] = None,
-    **service_kwargs,
+    **legacy_kwargs,  # For backward compatibility only
 ) -> str:
     """
     Create a new issue in the Git repository.
@@ -29,35 +61,51 @@ async def create_git_issue(
         description: Issue description/body
         labels: List of labels to apply
         assignees: List of usernames to assign
-        repository_context: Repository context (owner/repo info)
-        service_type: Specific Git service to use
-        **service_kwargs: Additional service-specific arguments
+        repository_context: Repository context with owner/repo/service info (injected by LLM)
+        **legacy_kwargs: Legacy parameters for backward compatibility
 
     Returns:
         Result message with issue URL
+        
+    Note:
+        repository_context is automatically injected by the LLM service and contains:
+        - owner: Repository owner
+        - repo: Repository name  
+        - service: Git service type (github, forgejo, etc.)
+        - Authentication info (tokens, etc.)
     """
     try:
+        # Validate repository context
+        if not repository_context:
+            raise ValueError(
+                "Repository context is required but not provided. "
+                "This context should be automatically injected by the LLM service."
+            )
+
         # Extract repository info from context
-        if repository_context:
-            owner = repository_context.get("owner")
-            repo = repository_context.get("repo")
-        else:
-            owner = service_kwargs.get("owner")
-            repo = service_kwargs.get("repo")
-
+        owner = repository_context.get("owner")
+        repo = repository_context.get("repo")
+        
         if not owner or not repo:
-            raise ValueError("Repository owner and name must be provided")
+            # Fallback to legacy kwargs for backward compatibility
+            owner = owner or legacy_kwargs.get("owner")
+            repo = repo or legacy_kwargs.get("repo")
+            
+        if not owner or not repo:
+            raise ValueError(
+                f"Repository owner and name must be provided in repository_context. "
+                f"Got: owner='{owner}', repo='{repo}'"
+            )
 
-        # Use service_type or fallback to default
-        if not service_type:
-            service_type = settings.default_git_service or "github"
+        # Determine service type from repository context
+        service_type = _extract_service_type_from_context(repository_context)
+        
+        logger.info(f"Creating issue in {owner}/{repo} using service: {service_type}")
+        logger.debug(f"Issue parameters: title='{title}', labels={labels}, assignees={assignees}")
 
         # Create service instance directly via factory
         service = GitServiceFactory.create(service_type)
         
-        logger.info(f"Creating issue in {owner}/{repo} using {service.__class__.__name__}")
-        logger.debug(f"Issue parameters: title='{title}', labels={labels}, assignees={assignees}")
-
         # Create the issue using the service
         result = await service.create_issue(
             owner=owner,
@@ -83,8 +131,7 @@ async def create_git_pull_request(
     head_branch: str,
     base_branch: str = "main",
     repository_context: Optional[Dict[str, Any]] = None,
-    service_type: Optional[str] = None,
-    **service_kwargs,
+    **legacy_kwargs,  # For backward compatibility only
 ) -> str:
     """
     Create a new pull request in the Git repository.
@@ -94,28 +141,42 @@ async def create_git_pull_request(
         description: PR description/body
         head_branch: Source branch for the PR
         base_branch: Target branch for the PR
-        repository_context: Repository context (owner/repo info)
-        service_type: Specific Git service to use
-        **service_kwargs: Additional service-specific arguments
+        repository_context: Repository context with owner/repo/service info (injected by LLM)
+        **legacy_kwargs: Legacy parameters for backward compatibility
 
     Returns:
         Result message with PR URL
+        
+    Note:
+        repository_context is automatically injected by the LLM service.
     """
     try:
+        # Validate repository context
+        if not repository_context:
+            raise ValueError(
+                "Repository context is required but not provided. "
+                "This context should be automatically injected by the LLM service."
+            )
+
         # Extract repository info from context
-        if repository_context:
-            owner = repository_context.get("owner")
-            repo = repository_context.get("repo")
-        else:
-            owner = service_kwargs.get("owner")
-            repo = service_kwargs.get("repo")
-
+        owner = repository_context.get("owner")
+        repo = repository_context.get("repo")
+        
         if not owner or not repo:
-            raise ValueError("Repository owner and name must be provided")
+            # Fallback to legacy kwargs for backward compatibility
+            owner = owner or legacy_kwargs.get("owner")
+            repo = repo or legacy_kwargs.get("repo")
+            
+        if not owner or not repo:
+            raise ValueError(
+                f"Repository owner and name must be provided in repository_context. "
+                f"Got: owner='{owner}', repo='{repo}'"
+            )
 
-        # Use service_type or fallback to default
-        if not service_type:
-            service_type = settings.default_git_service or "github"
+        # Determine service type from repository context
+        service_type = _extract_service_type_from_context(repository_context)
+        
+        logger.info(f"Creating PR in {owner}/{repo} using service: {service_type}")
 
         # Create service instance directly via factory
         service = GitServiceFactory.create(service_type)
@@ -130,7 +191,9 @@ async def create_git_pull_request(
             base=base_branch,
         )
 
-        return f"Pull request created successfully: {result.get('html_url', 'N/A')}"
+        success_msg = f"Pull request created successfully: {result.get('html_url', 'N/A')}"
+        logger.info(f"Git PR creation result: {success_msg}")
+        return success_msg
 
     except Exception as e:
         logger.error(f"Failed to create Git pull request: {e}")
@@ -139,35 +202,50 @@ async def create_git_pull_request(
 
 async def check_git_repository_permissions(
     repository_context: Optional[Dict[str, Any]] = None,
-    service_type: Optional[str] = None,
-    **service_kwargs,
+    **legacy_kwargs,  # For backward compatibility only
 ) -> Dict[str, Any]:
     """
     Check repository permissions for the configured Git service.
 
     Args:
-        repository_context: Repository context (owner/repo info)
-        service_type: Specific Git service to use
-        **service_kwargs: Additional service-specific arguments
+        repository_context: Repository context with owner/repo/service info (injected by LLM)
+        **legacy_kwargs: Legacy parameters for backward compatibility
 
     Returns:
         Dictionary with permission information
+        
+    Note:
+        repository_context is automatically injected by the LLM service.
     """
     try:
+        # Validate repository context
+        if not repository_context:
+            raise ValueError(
+                "Repository context is required but not provided. "
+                "This context should be automatically injected by the LLM service."
+            )
+
         # Extract repository info from context
-        if repository_context:
-            owner = repository_context.get("owner")
-            repo = repository_context.get("repo")
-        else:
-            owner = service_kwargs.get("owner")
-            repo = service_kwargs.get("repo")
-
+        owner = repository_context.get("owner")
+        repo = repository_context.get("repo")
+        
         if not owner or not repo:
-            raise ValueError("Repository owner and name must be provided")
+            # Fallback to legacy kwargs for backward compatibility
+            owner = owner or legacy_kwargs.get("owner")
+            repo = repo or legacy_kwargs.get("repo")
+            
+        if not owner or not repo:
+            return {
+                "error": f"Repository owner and name must be provided in repository_context. Got: owner='{owner}', repo='{repo}'",
+                "can_read": False,
+                "can_write": False,
+                "repository_exists": False,
+            }
 
-        # Use service_type or fallback to default
-        if not service_type:
-            service_type = settings.default_git_service or "github"
+        # Determine service type from repository context
+        service_type = _extract_service_type_from_context(repository_context)
+        
+        logger.info(f"Checking permissions for {owner}/{repo} using service: {service_type}")
 
         # Create service instance directly via factory
         service = GitServiceFactory.create(service_type)
@@ -183,6 +261,7 @@ async def check_git_repository_permissions(
                 "can_read": True,
                 "can_write": repo_info.get("permissions", {}).get("push", False),
                 "repository_exists": True,
+                "service_type": service_type,
             }
 
     except Exception as e:
