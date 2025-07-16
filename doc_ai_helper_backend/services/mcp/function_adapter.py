@@ -235,6 +235,14 @@ class MCPFunctionAdapter:
                         "type": "string",
                         "description": "Issue description/body",
                     },
+                    "owner": {
+                        "type": "string",
+                        "description": "Repository owner (will be auto-filled from context if not provided)",
+                    },
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository name (will be auto-filled from context if not provided)",
+                    },
                     "labels": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -775,6 +783,18 @@ class MCPFunctionAdapter:
             # Git関連ツールとLLM強化ツールの場合、直接渡されたrepository_contextを注入
             if function_call.name.startswith(("create_git_", "check_git_", "summarize_document_with_llm", "create_improvement_recommendations_with_llm")):
                 if repository_context:
+                    # For Git tools, inject owner and repo directly into arguments for safety
+                    if function_call.name.startswith("create_git_") or function_call.name.startswith("check_git_"):
+                        # Inject owner and repo from repository_context if not already provided
+                        if not arguments.get("owner") and repository_context.get("owner"):
+                            arguments["owner"] = repository_context.get("owner")
+                            logger.info(f"Auto-injected owner: {arguments['owner']} for {function_call.name}")
+                        
+                        if not arguments.get("repo") and repository_context.get("repo"):
+                            arguments["repo"] = repository_context.get("repo")
+                            logger.info(f"Auto-injected repo: {arguments['repo']} for {function_call.name}")
+                    
+                    # Always inject repository_context for backwards compatibility
                     if "repository_context" not in arguments:
                         arguments["repository_context"] = repository_context
                         logger.info(

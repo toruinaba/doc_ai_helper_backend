@@ -254,8 +254,8 @@ class DocumentAIHelperMCPServer:
         async def create_issue_tool(
             title: str,
             description: str,
-            owner: str,
-            repo: str,
+            owner: Optional[str] = None,
+            repo: Optional[str] = None,
             labels: Optional[List[str]] = None,
             assignees: Optional[List[str]] = None,
             service_type: Optional[str] = None,
@@ -263,10 +263,25 @@ class DocumentAIHelperMCPServer:
             forgejo_token: Optional[str] = None,
             forgejo_username: Optional[str] = None,
             forgejo_password: Optional[str] = None,
+            repository_context: Optional[Dict[str, Any]] = None,
         ) -> str:
             """Create a new issue in the Git repository (supports GitHub, Forgejo, and other Git services)."""
-            # Create repository context from parameters
-            repository_context = {"owner": owner, "repo": repo}
+            # Use repository_context if provided, otherwise create from parameters
+            if repository_context:
+                final_owner = repository_context.get("owner") or owner
+                final_repo = repository_context.get("repo") or repo
+                logger.info(f"Using repository_context: {final_owner}/{final_repo}")
+            else:
+                final_owner = owner
+                final_repo = repo
+                logger.info(f"Using direct parameters: {final_owner}/{final_repo}")
+
+            if not final_owner or not final_repo:
+                logger.error(f"Missing repository information: owner={final_owner}, repo={final_repo}")
+                return "Error: Repository owner and name must be provided"
+
+            # Create final repository context
+            final_repository_context = {"owner": final_owner, "repo": final_repo}
 
             # Prepare service-specific kwargs
             kwargs = {}
@@ -284,7 +299,7 @@ class DocumentAIHelperMCPServer:
                 description=description,
                 labels=labels,
                 assignees=assignees,
-                repository_context=repository_context,
+                repository_context=final_repository_context,
                 service_type=service_type,
                 **kwargs,
             )
