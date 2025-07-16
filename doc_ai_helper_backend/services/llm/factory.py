@@ -62,15 +62,15 @@ class LLMServiceFactory:
         cls, provider: str, enable_mcp: bool = True, **config
     ) -> LLMServiceBase:
         """
-        Create an LLM service instance with MCP integration.
+        Create an LLM service instance with FastMCP integration.
 
         Args:
             provider: The name of the LLM provider
-            enable_mcp: Whether to enable MCP function calling integration
+            enable_mcp: Whether to enable FastMCP integration
             **config: Configuration options for the service
 
         Returns:
-            LLMServiceBase: An instance of the requested LLM service with MCP integration
+            LLMServiceBase: An instance of the requested LLM service with FastMCP integration
 
         Raises:
             ServiceNotFoundError: If the requested provider is not registered
@@ -80,17 +80,13 @@ class LLMServiceFactory:
         if enable_mcp:
             try:
                 from doc_ai_helper_backend.services.mcp.server import mcp_server
-                from doc_ai_helper_backend.services.mcp.function_adapter import (
-                    MCPFunctionAdapter,
-                )
 
-                # Create MCP adapter and set it on the service
-                mcp_adapter = MCPFunctionAdapter(mcp_server)
-                if hasattr(service, "set_mcp_adapter"):
-                    service.set_mcp_adapter(mcp_adapter)
+                # Set FastMCP server directly on the service (no adapter layer)
+                if hasattr(service, "set_mcp_server"):
+                    service.set_mcp_server(mcp_server)
 
             except ImportError as e:
-                # MCP not available, continue without it
+                # FastMCP not available, continue without it
                 pass
 
         return service

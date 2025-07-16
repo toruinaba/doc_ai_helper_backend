@@ -101,8 +101,8 @@ class OpenAIService(LLMServiceBase):
         self.set_service_property("base_url", base_url)
         self.set_service_property("default_options", kwargs)
 
-        # Initialize MCP adapter as None (can be set later)
-        self._mcp_adapter = None
+        # Initialize FastMCP server as None (can be set later)
+        self._mcp_server = None
 
         self._initialize_clients_and_encoder()
 
@@ -148,20 +148,20 @@ class OpenAIService(LLMServiceBase):
         """Access to function manager (backward compatibility alias)."""
         return self.function_manager
 
-    # === MCP adapter methods ===
+    # === FastMCP server methods ===
 
     @property
-    def mcp_adapter(self):
-        """Get the MCP adapter."""
-        return self._mcp_adapter
+    def mcp_server(self):
+        """Get the FastMCP server."""
+        return self._mcp_server
 
-    def set_mcp_adapter(self, adapter):
-        """Set the MCP adapter."""
-        self._mcp_adapter = adapter
+    def set_mcp_server(self, server):
+        """Set the FastMCP server."""
+        self._mcp_server = server
 
-    def get_mcp_adapter(self):
-        """Get the MCP adapter."""
-        return self._mcp_adapter
+    def get_mcp_server(self):
+        """Get the FastMCP server."""
+        return self._mcp_server
 
     # === Service initialization and client management ===
 
@@ -297,17 +297,23 @@ class OpenAIService(LLMServiceBase):
         available_functions: Dict[str, Any],
         repository_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Execute function call, trying MCP adapter first if available."""
-        # Try MCP adapter first if available
-        if self._mcp_adapter:
+        """Execute function call using FastMCP server directly."""
+        # Try FastMCP server first if available
+        if self._mcp_server:
             try:
-                result = await self._mcp_adapter.execute_function_call(
-                    function_call, repository_context=repository_context
-                )
-                if result.get("success"):
-                    return result
+                tool_name = function_call.name
+                arguments = function_call.arguments
+                
+                # Add repository context to arguments if provided
+                if repository_context:
+                    arguments['repository_context'] = repository_context
+                
+                logger.info(f"Executing function via FastMCP: {tool_name}")
+                result = await self._mcp_server.call_tool(tool_name, **arguments)
+                return {"success": True, "result": result, "error": None}
+                
             except Exception as e:
-                logger.warning(f"MCP adapter execution failed: {e}")
+                logger.warning(f"FastMCP execution failed: {e}, falling back to function manager")
         
         # Fall back to function manager
         return await self.function_manager.execute_function_call(
@@ -315,16 +321,36 @@ class OpenAIService(LLMServiceBase):
         )
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
-        """Get available functions including MCP tools."""
+        """Get available functions including FastMCP tools."""
         # Get regular functions
         functions = self.function_manager.get_available_functions()
         
-        # Add MCP functions if adapter is available
-        if self._mcp_adapter:
-            mcp_functions = await self._mcp_adapter.get_available_functions()
-            functions.extend(mcp_functions)
+        # Add FastMCP functions if server is available
+        if self._mcp_server:
+            try:
+                mcp_tools = await self._mcp_server.app.get_tools()
+                mcp_functions = self._convert_mcp_tools_to_function_definitions(mcp_tools)
+                functions.extend(mcp_functions)
+            except Exception as e:
+                logger.warning(f"Failed to get FastMCP tools: {e}")
         
         return functions
+    
+    def _convert_mcp_tools_to_function_definitions(self, mcp_tools: Dict) -> List[FunctionDefinition]:
+        """Convert FastMCP tools to function definitions."""
+        function_definitions = []
+        for tool_name, tool in mcp_tools.items():
+            try:
+                function_def = FunctionDefinition(
+                    name=tool_name,
+                    description=tool.description or f"FastMCP tool: {tool_name}",
+                    parameters=tool.parameters or {"type": "object", "properties": {}, "required": []}
+                )
+                function_definitions.append(function_def)
+            except Exception as e:
+                logger.warning(f"Failed to convert FastMCP tool {tool_name}: {e}")
+        
+        return function_definitions
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
         """Direct delegation to template manager."""
