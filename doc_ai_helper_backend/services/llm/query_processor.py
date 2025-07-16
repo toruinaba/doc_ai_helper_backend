@@ -266,6 +266,22 @@ class QueryProcessor:
     ) -> LLMResponse:
         """Execute regular (non-streaming) query."""
         
+        # Validate repository_context for Git tools
+        if available_tools:
+            git_tools = [tool for tool in available_tools if tool.name.startswith(("create_git_", "check_git_"))]
+            if git_tools and not (request.document and request.document.repository_context):
+                git_tool_names = [tool.name for tool in git_tools]
+                logger.error(f"Git tools detected ({git_tool_names}) but no repository_context provided")
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": "repository_context is required when using Git tools",
+                        "required_for_tools": git_tool_names,
+                        "missing_fields": ["document.repository_context"]
+                    }
+                )
+        
         if request.tools and request.tools.enable_tools and available_tools:
             # Tool-enabled query
             if request.tools.complete_tool_flow:
@@ -353,6 +369,19 @@ class QueryProcessor:
         """Execute streaming query."""
         
         try:
+            # Validate repository_context for Git tools
+            if available_tools:
+                git_tools = [tool for tool in available_tools if tool.name.startswith(("create_git_", "check_git_"))]
+                if git_tools and not (request.document and request.document.repository_context):
+                    git_tool_names = [tool.name for tool in git_tools]
+                    logger.error(f"Git tools detected ({git_tool_names}) but no repository_context provided in streaming query")
+                    yield {
+                        "error": "repository_context is required when using Git tools",
+                        "required_for_tools": git_tool_names,
+                        "missing_fields": ["document.repository_context"]
+                    }
+                    return
+            
             # Check if streaming is supported
             capabilities = await llm_service.get_capabilities()
             if not capabilities.supports_streaming:
