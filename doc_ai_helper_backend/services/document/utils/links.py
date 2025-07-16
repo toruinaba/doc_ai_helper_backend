@@ -16,6 +16,15 @@ class LinkTransformer:
 
     # イメージパターン ![alt](url)
     IMG_LINK_PATTERN = r"!\[([^\]]*)\]\(([^)]+)\)"
+    
+    # HTMLアンカータグパターン <a href="url">text</a>
+    HTML_ANCHOR_PATTERN = r'<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>'
+    
+    # HTMLイメージタグパターン <img src="url" alt="alt">
+    HTML_IMG_PATTERN = r'<img\s+[^>]*src=["\']([^"\']+)["\'][^>]*>'
+    
+    # HTMLリンクタグパターン <link href="url">
+    HTML_LINK_PATTERN = r'<link\s+[^>]*href=["\']([^"\']+)["\'][^>]*>'
 
     # 画像ファイル拡張子
     IMAGE_EXTENSIONS = {
@@ -124,6 +133,28 @@ class LinkTransformer:
         transformed_content = re.sub(
             cls.IMG_LINK_PATTERN,
             lambda m: cls._transform_image_match(m, base_dir, base_url, service, owner, repo, ref),
+            transformed_content,
+        )
+
+        # HTMLアンカータグを変換
+        transformed_content = re.sub(
+            cls.HTML_ANCHOR_PATTERN,
+            lambda m: cls._transform_html_anchor_match(m, base_dir, base_url, service, owner, repo, ref),
+            transformed_content,
+            flags=re.DOTALL,
+        )
+
+        # HTMLイメージタグを変換
+        transformed_content = re.sub(
+            cls.HTML_IMG_PATTERN,
+            lambda m: cls._transform_html_img_match(m, base_dir, base_url, service, owner, repo, ref),
+            transformed_content,
+        )
+
+        # HTMLリンクタグを変換
+        transformed_content = re.sub(
+            cls.HTML_LINK_PATTERN,
+            lambda m: cls._transform_html_link_match(m, base_dir, base_url, service, owner, repo, ref),
             transformed_content,
         )
 
@@ -240,6 +271,166 @@ class LinkTransformer:
             transformed_url += f"?ref={ref}"
 
         return f"![{alt_text}]({transformed_url})"
+
+    @classmethod
+    def _transform_html_anchor_match(
+        cls, 
+        match: Match, 
+        base_dir: str, 
+        base_url: str,
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
+        """
+        HTMLアンカータグマッチを変換する。
+
+        Args:
+            match: 正規表現マッチオブジェクト
+            base_dir: 基準ディレクトリ
+            base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
+
+        Returns:
+            変換されたHTMLアンカータグ文字列
+        """
+        url, text = match.groups()
+        original_tag = match.group(0)
+
+        # 外部リンクはそのまま
+        if cls.is_external_link(url):
+            return original_tag
+
+        # アンカーリンクはそのまま
+        if url.startswith("#"):
+            return original_tag
+
+        # 相対パスを絶対パスに変換
+        abs_path = cls.resolve_relative_path(base_dir, url)
+
+        # 画像リンクの場合は外部Raw URLに変換
+        if cls.is_image_link(url) and service and owner and repo and ref:
+            raw_url = cls._build_raw_url(service, owner, repo, ref, abs_path)
+            if raw_url:
+                return original_tag.replace(url, raw_url)
+
+        # 通常のドキュメントリンクはAPI経由
+        if not base_url.endswith("/"):
+            base_url = base_url + "/"
+
+        transformed_url = base_url + abs_path.lstrip("/")
+        
+        # refをクエリパラメータとして追加
+        if ref:
+            transformed_url += f"?ref={ref}"
+
+        return original_tag.replace(url, transformed_url)
+
+    @classmethod
+    def _transform_html_img_match(
+        cls, 
+        match: Match, 
+        base_dir: str, 
+        base_url: str,
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
+        """
+        HTMLイメージタグマッチを変換する。
+
+        Args:
+            match: 正規表現マッチオブジェクト
+            base_dir: 基準ディレクトリ
+            base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
+
+        Returns:
+            変換されたHTMLイメージタグ文字列
+        """
+        url = match.group(1)
+        original_tag = match.group(0)
+
+        # 外部リンクはそのまま
+        if cls.is_external_link(url):
+            return original_tag
+
+        # 相対パスを絶対パスに変換
+        abs_path = cls.resolve_relative_path(base_dir, url)
+
+        # 画像は外部Raw URLに変換
+        if service and owner and repo and ref:
+            raw_url = cls._build_raw_url(service, owner, repo, ref, abs_path)
+            if raw_url:
+                return original_tag.replace(url, raw_url)
+
+        # フォールバック: API経由
+        if not base_url.endswith("/"):
+            base_url = base_url + "/"
+
+        transformed_url = base_url + abs_path.lstrip("/")
+        
+        # refをクエリパラメータとして追加
+        if ref:
+            transformed_url += f"?ref={ref}"
+
+        return original_tag.replace(url, transformed_url)
+
+    @classmethod
+    def _transform_html_link_match(
+        cls, 
+        match: Match, 
+        base_dir: str, 
+        base_url: str,
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
+        """
+        HTMLリンクタグマッチを変換する。
+
+        Args:
+            match: 正規表現マッチオブジェクト
+            base_dir: 基準ディレクトリ
+            base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
+
+        Returns:
+            変換されたHTMLリンクタグ文字列
+        """
+        url = match.group(1)
+        original_tag = match.group(0)
+
+        # 外部リンクはそのまま
+        if cls.is_external_link(url):
+            return original_tag
+
+        # 相対パスを絶対パスに変換
+        abs_path = cls.resolve_relative_path(base_dir, url)
+
+        # 通常のリソースリンクはAPI経由
+        if not base_url.endswith("/"):
+            base_url = base_url + "/"
+
+        transformed_url = base_url + abs_path.lstrip("/")
+        
+        # refをクエリパラメータとして追加
+        if ref:
+            transformed_url += f"?ref={ref}"
+
+        return original_tag.replace(url, transformed_url)
 
     @staticmethod
     def _build_raw_url(service: str, owner: str, repo: str, ref: str, path: str, service_base_url: Optional[str] = None) -> Optional[str]:
