@@ -21,7 +21,7 @@ from doc_ai_helper_backend.services.llm.utils import (
 )
 
 # MCP integration
-from doc_ai_helper_backend.services.mcp import get_mcp_server, get_available_tools
+from doc_ai_helper_backend.services.mcp import mcp_server
 
 # Register available LLM services with new composition-based implementation
 LLMServiceFactory.register("mock", MockLLMService)
@@ -37,6 +37,5 @@ __all__ = [
     "PromptTemplateManager",
     "LLMCacheService",
     # MCP integration
-    "get_mcp_server",
-    "get_available_tools",
+    "mcp_server",
 ]

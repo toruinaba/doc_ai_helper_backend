@@ -34,8 +34,7 @@ class DocumentAIHelperMCPServer:
         """Set up the MCP server with tools and resources."""
         logger.info(f"Setting up MCP Server '{self.config.server_name}'")
 
-        # Initialize unified Git tools
-        self._setup_unified_git_tools()
+        # Git tools use GitServiceFactory directly, no setup needed
 
         # Register tools based on configuration
         if self.config.enable_document_tools:
@@ -194,56 +193,9 @@ class DocumentAIHelperMCPServer:
 
         logger.info("Analysis tools registered with FastMCP")
 
-    def _setup_unified_git_tools(self):
-        """Set up unified Git tools with configured services."""
-        from .tools.git_tools import configure_git_service
-        from doc_ai_helper_backend.core.config import settings
-
-        # Get tokens from settings (which loads from .env)
-        github_token = settings.github_token
-        forgejo_token = settings.forgejo_token
-        forgejo_base_url = settings.forgejo_base_url
-        forgejo_username = settings.forgejo_username
-        forgejo_password = settings.forgejo_password
-        default_git_service = settings.default_git_service or "github"
-
-        # Configure GitHub if token is available
-        if github_token:
-            try:
-                configure_git_service(
-                    "github",
-                    config={
-                        "access_token": github_token,
-                        "default_labels": ["documentation", "improvement"],
-                    },
-                    set_as_default=(default_git_service == "github"),
-                )
-                logger.info("Configured GitHub service for unified Git tools")
-            except Exception as e:
-                logger.warning(f"Failed to configure GitHub service: {str(e)}")
-
-        # Configure Forgejo if configured
-        if forgejo_base_url and (
-            forgejo_token or (forgejo_username and forgejo_password)
-        ):
-            try:
-                configure_git_service(
-                    "forgejo",
-                    config={
-                        "base_url": forgejo_base_url,
-                        "access_token": forgejo_token,
-                        "username": forgejo_username,
-                        "password": forgejo_password,
-                        "default_labels": ["documentation", "improvement"],
-                    },
-                    set_as_default=(default_git_service == "forgejo"),
-                )
-                logger.info("Configured Forgejo service for unified Git tools")
-            except Exception as e:
-                logger.warning(f"Failed to configure Forgejo service: {str(e)}")
 
     def _register_git_tools(self):
-        """Register unified Git tools using FastMCP decorators."""
+        """Register Git tools using FastMCP decorators."""
         from .tools.git_tools import (
             create_git_issue,
             create_git_pull_request,
@@ -283,17 +235,6 @@ class DocumentAIHelperMCPServer:
             # Create final repository context
             final_repository_context = {"owner": final_owner, "repo": final_repo}
 
-            # Prepare service-specific kwargs
-            kwargs = {}
-            if github_token:
-                kwargs["github_token"] = github_token
-            if forgejo_token:
-                kwargs["forgejo_token"] = forgejo_token
-            if forgejo_username:
-                kwargs["forgejo_username"] = forgejo_username
-            if forgejo_password:
-                kwargs["forgejo_password"] = forgejo_password
-
             return await create_git_issue(
                 title=title,
                 description=description,
@@ -301,7 +242,10 @@ class DocumentAIHelperMCPServer:
                 assignees=assignees,
                 repository_context=final_repository_context,
                 service_type=service_type,
-                **kwargs,
+                github_token=github_token,
+                forgejo_token=forgejo_token,
+                forgejo_username=forgejo_username,
+                forgejo_password=forgejo_password,
             )
 
         @self.app.tool("create_git_pull_request")
@@ -322,17 +266,6 @@ class DocumentAIHelperMCPServer:
             # Create repository context from parameters
             repository_context = {"owner": owner, "repo": repo}
 
-            # Prepare service-specific kwargs
-            kwargs = {}
-            if github_token:
-                kwargs["github_token"] = github_token
-            if forgejo_token:
-                kwargs["forgejo_token"] = forgejo_token
-            if forgejo_username:
-                kwargs["forgejo_username"] = forgejo_username
-            if forgejo_password:
-                kwargs["forgejo_password"] = forgejo_password
-
             return await create_git_pull_request(
                 title=title,
                 description=description,
@@ -340,7 +273,10 @@ class DocumentAIHelperMCPServer:
                 base_branch=base_branch,
                 repository_context=repository_context,
                 service_type=service_type,
-                **kwargs,
+                github_token=github_token,
+                forgejo_token=forgejo_token,
+                forgejo_username=forgejo_username,
+                forgejo_password=forgejo_password,
             )
 
         @self.app.tool("check_git_repository_permissions")
@@ -357,24 +293,16 @@ class DocumentAIHelperMCPServer:
             # Create repository context from parameters
             repository_context = {"owner": owner, "repo": repo}
 
-            # Prepare service-specific kwargs
-            kwargs = {}
-            if github_token:
-                kwargs["github_token"] = github_token
-            if forgejo_token:
-                kwargs["forgejo_token"] = forgejo_token
-            if forgejo_username:
-                kwargs["forgejo_username"] = forgejo_username
-            if forgejo_password:
-                kwargs["forgejo_password"] = forgejo_password
-
             return await check_git_repository_permissions(
                 repository_context=repository_context,
                 service_type=service_type,
-                **kwargs,
+                github_token=github_token,
+                forgejo_token=forgejo_token,
+                forgejo_username=forgejo_username,
+                forgejo_password=forgejo_password,
             )
 
-        logger.info("Unified Git tools registered with FastMCP")
+        logger.info("Git tools registered with FastMCP")
 
     def _register_llm_enhanced_tools(self):
         """Register LLM-enhanced tools for Japanese document processing using FastMCP decorators."""
