@@ -103,19 +103,46 @@ class DocumentAIHelperMCPServer:
         @self.app.tool("generate_feedback_from_conversation")
         async def generate_feedback_tool(
             conversation_history: List[Dict[str, Any]], feedback_type: str = "general"
-        ) -> Dict[str, Any]:
-            """Generate structured feedback from conversation history. Analyze dialogue patterns and improvement points to create detailed feedback reports."""
+        ) -> str:
+            """
+            Analyze conversation history and generate structured feedback about user interactions.
+            
+            This tool examines conversation patterns, identifies areas for improvement, and provides
+            actionable insights about user engagement, question patterns, and response effectiveness.
+            Use this to understand how well conversations are meeting user needs.
+            
+            Args:
+            - conversation_history: List of conversation messages with role and content
+            - feedback_type: Type of analysis (general, comprehension, gaps, suggestions)
+            
+            Returns: JSON string with comprehensive feedback analysis including suggestions and metrics
+            """
             return await generate_feedback_from_conversation(
                 conversation_history=conversation_history, feedback_type=feedback_type
             )
 
         @self.app.tool("create_improvement_proposal")
         async def create_proposal_tool(
-            current_content: str, feedback_data: Dict[str, Any]
-        ) -> Dict[str, Any]:
-            """Create improvement proposals based on feedback data. Analyze current content and provide specific, practical improvement suggestions."""
+            current_content: str, feedback_data: str, improvement_type: str = "general"
+        ) -> str:
+            """
+            Create structured improvement proposals for documents based on analysis and feedback.
+            
+            This tool analyzes the current document content and generates actionable improvement 
+            suggestions including readability enhancements, structural optimizations, and content gaps.
+            Use this when you need to provide specific, practical recommendations for document improvement.
+            
+            Args:
+            - current_content: The document content to analyze and improve
+            - feedback_data: Feedback analysis data as JSON string  
+            - improvement_type: Type of improvement focus (general, structure, content, readability)
+            
+            Returns: JSON string with structured improvement proposal including specific suggestions and implementation guidance
+            """
             return await create_improvement_proposal(
-                current_content=current_content, feedback_data=feedback_data
+                current_content=current_content, 
+                feedback_data=feedback_data,
+                improvement_type=improvement_type
             )
 
         @self.app.tool("analyze_conversation_patterns")

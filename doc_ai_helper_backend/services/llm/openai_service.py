@@ -431,14 +431,25 @@ class OpenAIService(LLMServiceBase):
         if tools:
             logger.info(f"Converting {len(tools)} tools to OpenAI format")
             logger.debug(f"Tool names: {[tool.name for tool in tools]}")
+            
+            # Log detailed tool information
+            for i, tool in enumerate(tools):
+                logger.debug(f"Tool {i+1}: {tool.name} - {tool.description[:100]}...")
+            
             provider_options["tools"] = self._convert_tools_to_openai_format(tools)
             logger.info(f"Converted {len(provider_options['tools'])} tools to OpenAI format")
+            
+            # Log the actual OpenAI format tools for debugging
+            for i, openai_tool in enumerate(provider_options["tools"]):
+                logger.debug(f"OpenAI tool {i+1}: {openai_tool['function']['name']}")
             
             if tool_choice:
                 provider_options["tool_choice"] = (
                     self._convert_tool_choice_to_openai_format(tool_choice)
                 )
                 logger.info(f"Tool choice set: {provider_options.get('tool_choice', 'None')}")
+            else:
+                logger.info("No specific tool choice set, using OpenAI default (auto)")
         else:
             logger.warning("No tools provided to OpenAI API call")
 
@@ -460,17 +471,36 @@ class OpenAIService(LLMServiceBase):
             if options.get('tools'):
                 logger.debug(f"Tools being sent: {len(options['tools'])} tools")
                 logger.debug(f"First tool: {options['tools'][0] if options['tools'] else 'None'}")
+                # Log prompt to understand context
+                messages = options.get('messages', [])
+                user_messages = [msg for msg in messages if msg.get('role') == 'user']
+                if user_messages:
+                    last_user_msg = user_messages[-1].get('content', '')[:200]
+                    logger.debug(f"Last user message (first 200 chars): {last_user_msg}")
             
             response = await self.async_client.chat.completions.create(**options)
             logger.info(f"OpenAI API call successful, model: {response.model}")
             
-            # Log if tools were used in response
-            if hasattr(response.choices[0].message, 'tool_calls') and response.choices[0].message.tool_calls:
-                logger.info(f"OpenAI returned {len(response.choices[0].message.tool_calls)} tool calls")
-                for i, tool_call in enumerate(response.choices[0].message.tool_calls):
-                    logger.info(f"Tool call {i}: {tool_call.function.name}")
-            else:
-                logger.warning("OpenAI did not return any tool calls despite tools being available")
+            # Log detailed response information
+            choice = response.choices[0] if response.choices else None
+            if choice:
+                logger.debug(f"Response finish reason: {choice.finish_reason}")
+                if hasattr(choice.message, 'content') and choice.message.content:
+                    content_preview = choice.message.content[:100]
+                    logger.debug(f"Response content preview: {content_preview}...")
+                
+                # Log if tools were used in response
+                if hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
+                    logger.info(f"OpenAI returned {len(choice.message.tool_calls)} tool calls")
+                    for i, tool_call in enumerate(choice.message.tool_calls):
+                        logger.info(f"Tool call {i+1}: {tool_call.function.name}")
+                        logger.debug(f"Tool call {i+1} arguments: {tool_call.function.arguments}")
+                else:
+                    if options.get('tools'):
+                        logger.warning("OpenAI did not return any tool calls despite tools being available")
+                        logger.debug(f"Model temperature: {options.get('temperature')}, max_tokens: {options.get('max_tokens')}")
+                    else:
+                        logger.debug("No tools were provided, no tool calls expected")
                 
             return response
         except Exception as e:

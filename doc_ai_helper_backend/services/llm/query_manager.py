@@ -255,7 +255,7 @@ class QueryManager:
             )
 
             # 5. Handle tool execution and followup if tools were called
-            if llm_response.tool_calls:
+            if llm_response.tool_calls and len(llm_response.tool_calls) > 0:
                 logger.info(f"Tool calls detected: {len(llm_response.tool_calls)}, executing tools and generating followup response")
                 
                 # Execute all tool calls
@@ -300,7 +300,7 @@ class QueryManager:
                         })
                         logger.error(f"Tool '{tool_call.function.name}' execution failed: {e}")
 
-                # Add execution results to response
+                # Add execution results to response only if tools were actually called
                 llm_response.tool_execution_results = executed_results
                 
                 # Generate followup response based on tool execution results
@@ -326,6 +326,10 @@ class QueryManager:
                     logger.info(f"Followup response generated: {len(llm_response.content)} characters")
                 else:
                     logger.warning("Followup response generation failed or returned empty content")
+            else:
+                # No tool calls were made
+                logger.info("No tool calls detected in LLM response")
+                llm_response.tool_execution_results = []
 
             # 6. Set conversation history optimization information
             if conversation_history:

@@ -380,17 +380,24 @@ class QueryProcessor:
                     
                     # Stream the final response content
                     if hasattr(response, "content") and response.content:
-                        # Send tool execution info
+                        # Send tool execution info only if tools were actually executed
                         if (hasattr(response, "tool_execution_results") and 
-                            response.tool_execution_results):
-                            tool_info = {
-                                "tools_executed": len(response.tool_execution_results),
-                                "tool_names": [
-                                    r.get("function_name", "unknown")
-                                    for r in response.tool_execution_results
-                                ],
-                            }
-                            yield {"status": "tools_completed", "tool_info": tool_info}
+                            response.tool_execution_results and 
+                            len(response.tool_execution_results) > 0):
+                            # Verify that at least one tool was actually executed (not just error results)
+                            successful_tools = [
+                                r for r in response.tool_execution_results 
+                                if "error" not in r or r.get("result") is not None
+                            ]
+                            if successful_tools:
+                                tool_info = {
+                                    "tools_executed": len(response.tool_execution_results),
+                                    "tool_names": [
+                                        r.get("function_name", "unknown")
+                                        for r in response.tool_execution_results
+                                    ],
+                                }
+                                yield {"status": "tools_completed", "tool_info": tool_info}
                         
                         # Stream the content word by word for a smooth experience
                         words = response.content.split()
