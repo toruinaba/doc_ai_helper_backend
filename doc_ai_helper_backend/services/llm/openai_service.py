@@ -158,6 +158,7 @@ class OpenAIService(LLMServiceBase):
     def set_mcp_server(self, server):
         """Set the FastMCP server."""
         self._mcp_server = server
+        logger.info(f"MCP server set on OpenAI service: {server is not None}")
 
     def get_mcp_server(self):
         """Get the FastMCP server."""
@@ -304,11 +305,24 @@ class OpenAIService(LLMServiceBase):
                 tool_name = function_call.name
                 arguments = function_call.arguments
                 
+                # Parse arguments if they are in JSON string format
+                if isinstance(arguments, str):
+                    import json
+                    arguments = json.loads(arguments)
+                elif not isinstance(arguments, dict):
+                    arguments = {}
+                
                 # Add repository context to arguments if provided
                 if repository_context:
                     arguments['repository_context'] = repository_context
+                elif tool_name in ['create_git_issue', 'create_git_pull_request', 'check_git_repository_permissions']:
+                    # Git tools require repository_context - fail if not available
+                    error_msg = f"Git tool '{tool_name}' requires repository context but none is available. Please ensure you are viewing a document from a repository."
+                    logger.error(error_msg)
+                    return {"success": False, "result": None, "error": error_msg}
                 
                 logger.info(f"Executing function via FastMCP: {tool_name}")
+                logger.debug(f"Function arguments: {arguments}")
                 result = await self._mcp_server.call_tool(tool_name, **arguments)
                 return {"success": True, "result": result, "error": None}
                 
@@ -324,16 +338,22 @@ class OpenAIService(LLMServiceBase):
         """Get available functions including FastMCP tools."""
         # Get regular functions
         functions = self.function_manager.get_available_functions()
+        logger.debug(f"Regular functions available: {len(functions)}")
         
         # Add FastMCP functions if server is available
         if self._mcp_server:
             try:
                 mcp_tools = await self._mcp_server.app.get_tools()
+                logger.debug(f"FastMCP tools retrieved: {len(mcp_tools) if mcp_tools else 0}")
                 mcp_functions = self._convert_mcp_tools_to_function_definitions(mcp_tools)
+                logger.debug(f"FastMCP functions converted: {len(mcp_functions)}")
                 functions.extend(mcp_functions)
             except Exception as e:
                 logger.warning(f"Failed to get FastMCP tools: {e}")
+        else:
+            logger.warning("No MCP server available for function calling")
         
+        logger.info(f"Total available functions: {len(functions)}")
         return functions
     
     def _convert_mcp_tools_to_function_definitions(self, mcp_tools: Dict) -> List[FunctionDefinition]:
@@ -449,8 +469,8 @@ class OpenAIService(LLMServiceBase):
         provider_options = {
             "model": options.get("model", self.model),
             "messages": openai_messages,
-            "temperature": options.get("temperature", 0.7),
-            "max_tokens": options.get("max_tokens", 1000),
+            "temperature": options.get("temperature", 1.0),
+            "max_completion_tokens": options.get("max_completion_tokens", options.get("max_tokens", 1000)),
         }
 
         # Handle tools/functions
@@ -480,7 +500,7 @@ class OpenAIService(LLMServiceBase):
             logger.warning("No tools provided to OpenAI API call")
 
         # Add any additional options (excluding processed ones)
-        excluded_keys = {"model", "tools", "tool_choice", "temperature", "max_tokens"}
+        excluded_keys = {"model", "tools", "tool_choice", "temperature", "max_tokens", "max_completion_tokens"}
         for key, value in options.items():
             if key not in excluded_keys:
                 provider_options[key] = value
@@ -524,7 +544,7 @@ class OpenAIService(LLMServiceBase):
                 else:
                     if options.get('tools'):
                         logger.warning("OpenAI did not return any tool calls despite tools being available")
-                        logger.debug(f"Model temperature: {options.get('temperature')}, max_tokens: {options.get('max_tokens')}")
+                        logger.debug(f"Model temperature: {options.get('temperature')}, max_completion_tokens: {options.get('max_completion_tokens', options.get('max_tokens'))}")
                     else:
                         logger.debug("No tools were provided, no tool calls expected")
                 

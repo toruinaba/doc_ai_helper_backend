@@ -48,10 +48,9 @@ def _extract_service_type_from_context(repository_context: Dict[str, Any]) -> st
 async def create_git_issue(
     title: str,
     description: str,
+    repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
     labels: Optional[List[str]] = None,
     assignees: Optional[List[str]] = None,
-    repository_context: Optional[Dict[str, Any]] = None,
-    **legacy_kwargs,  # For backward compatibility only
 ) -> str:
     """
     Create a new issue in the Git repository.
@@ -59,10 +58,9 @@ async def create_git_issue(
     Args:
         title: Issue title
         description: Issue description/body
+        repository_context: Repository context with owner/repo/service info (injected by LLM)
         labels: List of labels to apply
         assignees: List of usernames to assign
-        repository_context: Repository context with owner/repo/service info (injected by LLM)
-        **legacy_kwargs: Legacy parameters for backward compatibility
 
     Returns:
         Result message with issue URL
@@ -86,11 +84,6 @@ async def create_git_issue(
         owner = repository_context.get("owner")
         repo = repository_context.get("repo")
         
-        if not owner or not repo:
-            # Fallback to legacy kwargs for backward compatibility
-            owner = owner or legacy_kwargs.get("owner")
-            repo = repo or legacy_kwargs.get("repo")
-            
         if not owner or not repo:
             raise ValueError(
                 f"Repository owner and name must be provided in repository_context. "
@@ -129,9 +122,8 @@ async def create_git_pull_request(
     title: str,
     description: str,
     head_branch: str,
+    repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
     base_branch: str = "main",
-    repository_context: Optional[Dict[str, Any]] = None,
-    **legacy_kwargs,  # For backward compatibility only
 ) -> str:
     """
     Create a new pull request in the Git repository.
@@ -140,15 +132,18 @@ async def create_git_pull_request(
         title: PR title
         description: PR description/body
         head_branch: Source branch for the PR
-        base_branch: Target branch for the PR
         repository_context: Repository context with owner/repo/service info (injected by LLM)
-        **legacy_kwargs: Legacy parameters for backward compatibility
+        base_branch: Target branch for the PR
 
     Returns:
         Result message with PR URL
         
     Note:
-        repository_context is automatically injected by the LLM service.
+        repository_context is automatically injected by the LLM service and contains:
+        - owner: Repository owner
+        - repo: Repository name  
+        - service: Git service type (github, forgejo, etc.)
+        - Authentication info (tokens, etc.)
     """
     try:
         # Validate repository context
@@ -162,11 +157,6 @@ async def create_git_pull_request(
         owner = repository_context.get("owner")
         repo = repository_context.get("repo")
         
-        if not owner or not repo:
-            # Fallback to legacy kwargs for backward compatibility
-            owner = owner or legacy_kwargs.get("owner")
-            repo = repo or legacy_kwargs.get("repo")
-            
         if not owner or not repo:
             raise ValueError(
                 f"Repository owner and name must be provided in repository_context. "
@@ -201,21 +191,23 @@ async def create_git_pull_request(
 
 
 async def check_git_repository_permissions(
-    repository_context: Optional[Dict[str, Any]] = None,
-    **legacy_kwargs,  # For backward compatibility only
+    repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
 ) -> Dict[str, Any]:
     """
     Check repository permissions for the configured Git service.
 
     Args:
         repository_context: Repository context with owner/repo/service info (injected by LLM)
-        **legacy_kwargs: Legacy parameters for backward compatibility
 
     Returns:
         Dictionary with permission information
         
     Note:
-        repository_context is automatically injected by the LLM service.
+        repository_context is automatically injected by the LLM service and contains:
+        - owner: Repository owner
+        - repo: Repository name  
+        - service: Git service type (github, forgejo, etc.)
+        - Authentication info (tokens, etc.)
     """
     try:
         # Validate repository context
@@ -229,11 +221,6 @@ async def check_git_repository_permissions(
         owner = repository_context.get("owner")
         repo = repository_context.get("repo")
         
-        if not owner or not repo:
-            # Fallback to legacy kwargs for backward compatibility
-            owner = owner or legacy_kwargs.get("owner")
-            repo = repo or legacy_kwargs.get("repo")
-            
         if not owner or not repo:
             return {
                 "error": f"Repository owner and name must be provided in repository_context. Got: owner='{owner}', repo='{repo}'",

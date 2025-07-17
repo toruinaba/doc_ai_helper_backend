@@ -225,6 +225,12 @@ class QueryManager:
         logger.info(
             f"Starting query with tools orchestration, tools count: {len(tools)}"
         )
+        
+        # Log repository context details
+        if repository_context:
+            logger.info(f"Repository context received - service: {repository_context.service}, owner: {repository_context.owner}, repo: {repository_context.repo}")
+        else:
+            logger.warning("No repository context passed to orchestrate_query_with_tools")
 
         try:
             # 1. Generate system prompt if needed
@@ -273,6 +279,9 @@ class QueryManager:
                                 "current_path": repository_context.current_path,
                                 "base_url": repository_context.base_url,
                             }
+                            logger.debug(f"Repository context converted to dict: {repo_context_dict}")
+                        else:
+                            logger.warning("No repository context available for tool execution")
                         
                         # Get available functions mapping
                         available_functions = {func.name: func for func in tools}

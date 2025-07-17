@@ -76,6 +76,22 @@ async def query_llm(
         LLMResponse: The response from the LLM
     """
     try:
+        # Log request details for debugging
+        logger.info(f"LLM query request - provider: {request.query.provider}")
+        if request.tools:
+            logger.info(f"Tools configuration - enable_tools: {request.tools.enable_tools}, tool_choice: {request.tools.tool_choice}")
+        else:
+            logger.info("No tools configuration provided in request")
+            
+        if request.document:
+            if request.document.repository_context:
+                repo_ctx = request.document.repository_context
+                logger.info(f"Repository context - service: {repo_ctx.service}, owner: {repo_ctx.owner}, repo: {repo_ctx.repo}")
+            else:
+                logger.info("Document context provided but no repository context")
+        else:
+            logger.info("No document context provided in request")
+        
         # Validate request parameters
         validator.validate_request(request)
         
@@ -279,6 +295,22 @@ async def stream_llm_response(
     """
     async def event_generator():
         try:
+            # Log request details for debugging
+            logger.info(f"STREAM LLM query request - provider: {request.query.provider}")
+            if request.tools:
+                logger.info(f"STREAM Tools configuration - enable_tools: {request.tools.enable_tools}, tool_choice: {request.tools.tool_choice}")
+            else:
+                logger.info("STREAM No tools configuration provided in request")
+                
+            if request.document:
+                if request.document.repository_context:
+                    repo_ctx = request.document.repository_context
+                    logger.info(f"STREAM Repository context - service: {repo_ctx.service}, owner: {repo_ctx.owner}, repo: {repo_ctx.repo}")
+                else:
+                    logger.info("STREAM Document context provided but no repository context")
+            else:
+                logger.info("STREAM No document context provided in request")
+            
             # Validate request parameters
             validator.validate_request(request)
             

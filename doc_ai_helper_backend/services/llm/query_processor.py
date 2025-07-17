@@ -142,11 +142,19 @@ class QueryProcessor:
             Tuple[Optional[List[FunctionDefinition]], Optional[ToolChoice]]: 
                 Available tools and tool choice configuration
         """
-        if not tool_config or not tool_config.enable_tools:
+        if not tool_config:
+            logger.debug("No tool configuration provided")
             return None, None
+            
+        if not tool_config.enable_tools:
+            logger.debug(f"Tools disabled in configuration: enable_tools={tool_config.enable_tools}")
+            return None, None
+            
+        logger.info("Tools enabled, fetching available functions")
         
         # Get available tools from the LLM service
         available_tools = await llm_service.get_available_functions()
+        logger.info(f"Retrieved {len(available_tools)} available tools from LLM service")
         
         # Convert tool_choice string to ToolChoice object
         tool_choice = None
@@ -282,9 +290,26 @@ class QueryProcessor:
                     }
                 )
         
+        # Debug tool configuration
+        logger.info(f"Tool configuration check:")
+        logger.info(f"  request.tools exists: {request.tools is not None}")
+        if request.tools:
+            logger.info(f"  enable_tools: {request.tools.enable_tools}")
+            logger.info(f"  complete_tool_flow: {request.tools.complete_tool_flow}")
+        logger.info(f"  available_tools count: {len(available_tools) if available_tools else 0}")
+        
         if request.tools and request.tools.enable_tools and available_tools:
             # Tool-enabled query
+            logger.info("Entering tool-enabled query path")
             if request.tools.complete_tool_flow:
+                logger.info("Using complete tool flow")
+                # Debug repository context
+                repo_ctx = request.document.repository_context if request.document else None
+                if repo_ctx:
+                    logger.info(f"Query processor passing repository_context: {repo_ctx.service}/{repo_ctx.owner}/{repo_ctx.repo}")
+                else:
+                    logger.warning("Query processor: No repository_context to pass")
+                    
                 # Use new complete flow
                 response = await llm_service.query_with_tools_and_followup(
                     prompt=request.query.prompt,
@@ -292,7 +317,7 @@ class QueryProcessor:
                     conversation_history=conversation_history,
                     tool_choice=tool_choice,
                     options=options,
-                    repository_context=request.document.repository_context if request.document else None,
+                    repository_context=repo_ctx,
                     document_metadata=request.document.document_metadata if request.document else None,
                     document_content=None,  # Deprecated parameter
                     system_prompt_template="contextual_document_assistant_ja",
@@ -405,6 +430,8 @@ class QueryProcessor:
                         conversation_history=conversation_history,
                         tool_choice=tool_choice,
                         options=options,
+                        repository_context=request.document.repository_context if request.document else None,
+                        document_metadata=request.document.document_metadata if request.document else None,
                     )
                     
                     # Stream the final response content
