@@ -11,6 +11,7 @@ from doc_ai_helper_backend.api.api import router as api_router
 from doc_ai_helper_backend.api.error_handlers import setup_error_handlers
 from doc_ai_helper_backend.core.config import settings
 from doc_ai_helper_backend.core.logging import setup_logging
+from doc_ai_helper_backend.db.database import init_db, close_db
 
 # Set up logging
 setup_logging()
@@ -35,6 +36,37 @@ app.add_middleware(
 
 # Setup error handlers
 setup_error_handlers(app)
+
+
+# Application lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup."""
+    logger.info("Initializing application...")
+    
+    # Initialize database tables if they don't exist
+    if settings.enable_repository_management:
+        try:
+            await init_db()
+            logger.info("Database initialization completed")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+            raise
+    else:
+        logger.info("Repository management disabled - skipping database initialization")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up on application shutdown."""
+    logger.info("Shutting down application...")
+    
+    if settings.enable_repository_management:
+        try:
+            await close_db()
+            logger.info("Database connections closed")
+        except Exception as e:
+            logger.error(f"Error closing database connections: {e}")
 
 
 # Root endpoint

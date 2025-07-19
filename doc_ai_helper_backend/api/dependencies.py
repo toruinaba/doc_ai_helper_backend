@@ -5,11 +5,14 @@ API dependencies.
 from typing import Callable
 
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from doc_ai_helper_backend.services.document import DocumentService
 from doc_ai_helper_backend.services.llm import LLMServiceBase, LLMServiceFactory
 from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
 from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+from doc_ai_helper_backend.services.repository_service import RepositoryService
+from doc_ai_helper_backend.db.database import get_db
 from doc_ai_helper_backend.core.config import settings
 
 
@@ -69,3 +72,16 @@ def get_conversation_manager(
         ConversationManager: ConversationManager instance
     """
     return ConversationManager(git_service_factory)
+
+
+def get_repository_service(db: AsyncSession = Depends(get_db)) -> RepositoryService:
+    """
+    Get repository service instance.
+    
+    Args:
+        db: Database session dependency
+        
+    Returns:
+        RepositoryService: Repository service instance
+    """
+    return RepositoryService(db)
