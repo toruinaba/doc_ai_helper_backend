@@ -115,6 +115,16 @@ class GitHubService(GitServiceBase):
 
                 # Handle response status
                 if response.status_code == 404:
+                    # Extract repository name from URL for better error reporting
+                    if "/repos/" in url:
+                        repo_path = url.split('/repos/')[1].split('/')[0:2]
+                        if len(repo_path) >= 2:
+                            repo_name = f"{repo_path[0]}/{repo_path[1]}"
+                            # Check if response indicates repo not found
+                            response_text = response.text.lower()
+                            if "not found" in response_text or response.status_code == 404:
+                                raise GitHubRepositoryNotFoundError(repo_name)
+                    # Default to generic not found
                     raise NotFoundException("Resource not found on GitHub.")
                 elif response.status_code == 401:
                     raise UnauthorizedException("Unauthorized access to GitHub API.")
@@ -132,6 +142,11 @@ class GitHubService(GitServiceBase):
                 # Return response data and headers
                 return response.json(), response.headers
 
+            except (GitHubRepositoryNotFoundError, GitHubAPIError, GitHubAuthError, 
+                    GitHubRateLimitError, GitHubPermissionError, NotFoundException, 
+                    UnauthorizedException, RateLimitException) as e:
+                # Re-raise GitHub-specific exceptions without wrapping
+                raise
             except httpx.HTTPStatusError as e:
                 raise GitServiceException(f"HTTP error: {str(e)}")
             except httpx.RequestError as e:
@@ -215,6 +230,8 @@ class GitHubService(GitServiceBase):
                 metadata=metadata,
             )
 
+        except GitHubRepositoryNotFoundError as e:
+            raise e
         except NotFoundException as e:
             raise NotFoundException(f"Document not found: {path}")
         except (UnauthorizedException, RateLimitException) as e:
@@ -289,6 +306,8 @@ class GitHubService(GitServiceBase):
                 last_updated=datetime.utcnow(),
             )
 
+        except GitHubRepositoryNotFoundError as e:
+            raise e
         except NotFoundException as e:
             raise NotFoundException(f"Repository not found: {owner}/{repo}")
         except (UnauthorizedException, RateLimitException) as e:
@@ -636,12 +655,19 @@ class GitHubService(GitServiceBase):
             issue_data["assignees"] = assignees
 
         logger.info(f"Creating issue in {owner}/{repo}: {title}")
+        logger.debug(f"Issue data payload: {issue_data}")
+        logger.debug(f"GitHub API URL: {url}")
 
         try:
-            data, _ = await self._make_request("POST", url, json=issue_data)
+            data, headers = await self._make_request("POST", url, json=issue_data)
+            logger.info(f"GitHub API response status: SUCCESS")
+            logger.info(f"Created issue #{data.get('number', 'N/A')}: {data.get('html_url', 'N/A')}")
+            logger.debug(f"Full GitHub API response: {data}")
+            logger.debug(f"Response headers: {dict(headers)}")
             return data
         except Exception as e:
             logger.error(f"Failed to create issue in {owner}/{repo}: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
             raise
 
     async def create_pull_request(

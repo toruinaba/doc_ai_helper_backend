@@ -7,7 +7,7 @@ during end-to-end tests, focusing on core functionality needed for E2E scenarios
 
 import asyncio
 import json
-from typing import Dict, Any, Optional, AsyncGenerator
+from typing import Dict, Any, Optional, AsyncGenerator, List
 import httpx
 import logging
 
@@ -45,10 +45,16 @@ class BackendAPIClient:
 
         Returns:
             True if the server is healthy, False otherwise
+            
+        Raises:
+            Exception: Re-raises timeout and other critical exceptions for test validation
         """
         try:
             response = await self._client.get(f"{self.base_url}/api/v1/health/")
             return response.status_code == 200
+        except (httpx.TimeoutException, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+            # Re-raise timeout exceptions with descriptive message for test validation
+            raise Exception(f"Request timed out: {type(e).__name__} - {str(e)}")
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return False
@@ -102,9 +108,11 @@ class BackendAPIClient:
         provider: Optional[str] = None,
         model: Optional[str] = None,
         repository_context: Optional[Dict[str, Any]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        auto_include_document: bool = False,
     ) -> Dict[str, Any]:
         """
-        Send a query to the LLM via the backend API.
+        Send a query to the LLM via the backend API using structured parameters.
 
         Args:
             prompt: The prompt to send to the LLM
@@ -113,6 +121,8 @@ class BackendAPIClient:
             provider: LLM provider to use
             model: Specific model to use
             repository_context: Repository context for Git operations
+            conversation_history: Previous conversation history
+            auto_include_document: Whether to auto-include document from repository
 
         Returns:
             LLM response as dictionary
@@ -121,21 +131,43 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/query"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "enable_tools": tools_enabled,
+            "query": {
+                "prompt": prompt,
+                "provider": provider or "openai"
+            }
         }
-
-        if provider:
-            payload["provider"] = provider
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
-        if repository_context:
-            payload["repository_context"] = repository_context
+            payload["query"]["model"] = model
+        if conversation_history:
+            payload["query"]["conversation_history"] = conversation_history
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Document context
+        if repository_context or auto_include_document:
+            payload["document"] = {}
+            if repository_context:
+                payload["document"]["repository_context"] = repository_context
+            if auto_include_document:
+                payload["document"]["auto_include_document"] = auto_include_document
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
 
-        logger.info(f"Sending LLM query: {prompt[:100]}...")
+        logger.info(f"Sending structured LLM query: {prompt[:100]}...")
 
         response = await self._client.post(url, json=payload)
         response.raise_for_status()
@@ -150,7 +182,7 @@ class BackendAPIClient:
         model: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
-        Send a streaming query to the LLM via the backend API.
+        Send a streaming query to the LLM via the backend API using structured parameters.
 
         Args:
             prompt: The prompt to send to the LLM
@@ -166,19 +198,33 @@ class BackendAPIClient:
             httpx.HTTPStatusError: If the request fails
         """
         url = f"{self.base_url}/api/v1/llm/stream"
+        
+        # Build structured request payload
         payload = {
-            "prompt": prompt,
-            "enable_tools": tools_enabled,
+            "query": {
+                "prompt": prompt,
+                "provider": provider or "openai"
+            }
         }
-
-        if provider:
-            payload["provider"] = provider
-        if context:
-            payload["context"] = context
+        
         if model:
-            payload["model"] = model
+            payload["query"]["model"] = model
+        
+        # Tools configuration
+        if tools_enabled:
+            payload["tools"] = {
+                "enable_tools": True,
+                "tool_choice": "auto",
+                "complete_tool_flow": True
+            }
+        
+        # Processing options
+        if context:
+            payload["processing"] = {
+                "options": {"context": context}
+            }
 
-        logger.info(f"Starting streaming LLM query: {prompt[:100]}...")
+        logger.info(f"Starting structured streaming LLM query: {prompt[:100]}...")
 
         async with self._client.stream("POST", url, json=payload) as response:
             response.raise_for_status()

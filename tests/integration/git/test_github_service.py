@@ -80,7 +80,8 @@ class TestGitHubServiceRealAPI:
     async def test_get_document_not_found(self, github_service):
         """存在しないドキュメント取得のテスト"""
         # 存在しないパスを指定
-        with pytest.raises((NotFoundException, GitServiceException)):
+        from doc_ai_helper_backend.core.exceptions import GitHubRepositoryNotFoundError
+        with pytest.raises((NotFoundException, GitServiceException, GitHubRepositoryNotFoundError)):
             await github_service.get_document(
                 "microsoft", "vscode", "nonexistent-file.md", "main"
             )

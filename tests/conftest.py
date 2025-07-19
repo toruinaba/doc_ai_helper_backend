@@ -14,8 +14,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DEBUG"] = "True"
 os.environ["SECRET_KEY"] = "test-secret-key"
-# Force mock LLM service for unit tests
-os.environ["DEFAULT_LLM_PROVIDER"] = "mock"
+
+# Mock LLM provider setup is handled by individual test files
+# Unit tests will explicitly override dependencies
+# E2E tests will use real LLM providers from settings
 
 # Import main app
 from doc_ai_helper_backend.main import app

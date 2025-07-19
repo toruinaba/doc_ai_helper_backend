@@ -129,26 +129,50 @@ class HTMLProcessor(DocumentProcessorBase):
         return links
 
     def transform_links(
-        self, content: str, links: List[LinkInfo], base_url: str
+        self, 
+        content: str, 
+        path: str, 
+        base_url: str,
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
     ) -> str:
         """
         HTMLドキュメント内のリンクを変換する。
 
         Args:
             content: HTMLコンテンツ
-            links: リンク情報のリスト
+            path: ドキュメントのパス
             base_url: ベースURL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
 
         Returns:
             リンクが変換されたHTMLコンテンツ
         """
         soup = HTMLAnalyzer.parse_html_safely(content)
 
+        # ドキュメントのベースディレクトリを取得
+        base_dir = os.path.dirname(path)
+
         # aタグのhref属性を変換
         for link_tag in soup.find_all("a", href=True):
             href = link_tag.get("href")
             if not self._is_external_link(href) and not href.startswith("#"):
-                # 相対リンクを絶対URLに変換
+                # 相対パスを絶対パスに変換
+                abs_path = self._resolve_relative_path(base_dir, href)
+                
+                # 画像リンクの場合は外部Raw URLに変換
+                if self._is_image_link(href) and service and owner and repo and ref:
+                    raw_url = self._build_raw_url(service, owner, repo, ref, abs_path)
+                    if raw_url:
+                        link_tag["href"] = raw_url
+                        continue
+                
+                # 通常のリンクはAPI経由
                 new_href = self._convert_to_absolute_url(href, base_url)
                 link_tag["href"] = new_href
 
@@ -156,7 +180,17 @@ class HTMLProcessor(DocumentProcessorBase):
         for img_tag in soup.find_all("img", src=True):
             src = img_tag.get("src")
             if not self._is_external_link(src):
-                # 相対リンクを絶対URLに変換
+                # 相対パスを絶対パスに変換
+                abs_path = self._resolve_relative_path(base_dir, src)
+                
+                # 画像は外部Raw URLに変換
+                if service and owner and repo and ref:
+                    raw_url = self._build_raw_url(service, owner, repo, ref, abs_path)
+                    if raw_url:
+                        img_tag["src"] = raw_url
+                        continue
+                
+                # フォールバック: API経由
                 new_src = self._convert_to_absolute_url(src, base_url)
                 img_tag["src"] = new_src
 
@@ -174,6 +208,89 @@ class HTMLProcessor(DocumentProcessorBase):
                 script_tag["src"] = new_src
 
         return str(soup)
+
+    def _resolve_relative_path(self, base_dir: str, rel_path: str) -> str:
+        """
+        相対パスを解決する。
+        
+        Args:
+            base_dir: 基準ディレクトリ
+            rel_path: 相対パス
+            
+        Returns:
+            解決された絶対パス
+        """
+        import os
+        
+        # 絶対パスの場合はそのまま返す
+        if rel_path.startswith("/"):
+            return rel_path
+
+        # 相対パスを結合
+        abs_path = os.path.normpath(os.path.join(base_dir, rel_path))
+
+        # パス区切り文字をスラッシュに統一
+        abs_path = abs_path.replace("\\", "/")
+
+        # 先頭のスラッシュを付与
+        if not abs_path.startswith("/"):
+            abs_path = "/" + abs_path
+
+        return abs_path
+
+    def _is_image_link(self, url: str) -> bool:
+        """
+        URLが画像ファイルかどうかを判定する。
+        
+        Args:
+            url: チェックするURL
+            
+        Returns:
+            画像ファイルの場合True
+        """
+        if not url:
+            return False
+        
+        # 画像ファイル拡張子
+        image_extensions = {
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", 
+            ".ico", ".tiff", ".tif", ".avif", ".apng"
+        }
+        
+        # URLの最後のパスセグメントから拡張子を取得
+        from urllib.parse import urlparse
+        path = urlparse(url).path.lower()
+        return any(path.endswith(ext) for ext in image_extensions)
+
+    def _build_raw_url(self, service: str, owner: str, repo: str, ref: str, path: str) -> Optional[str]:
+        """
+        外部Raw URLを構築する。
+        
+        Args:
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
+            path: ファイルパス
+            
+        Returns:
+            構築されたRaw URL（失敗時はNone）
+        """
+        # パスの先頭スラッシュを削除
+        clean_path = path.lstrip("/")
+        
+        if service.lower() == "github":
+            return f"https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{clean_path}"
+        elif service.lower() == "forgejo":
+            # Forgejoの場合は設定からベースURLを取得
+            from doc_ai_helper_backend.core.config import settings
+            if settings.forgejo_base_url:
+                base_url = settings.forgejo_base_url.rstrip("/")
+                return f"{base_url}/{owner}/{repo}/raw/{ref}/{clean_path}"
+            return None
+        else:
+            # その他のサービスは未対応
+            return None
 
     def _extract_html_metadata(self, soup) -> HTMLMetadata:
         """

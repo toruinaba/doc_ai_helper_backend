@@ -225,6 +225,12 @@ class QueryManager:
         logger.info(
             f"Starting query with tools orchestration, tools count: {len(tools)}"
         )
+        
+        # Log repository context details
+        if repository_context:
+            logger.info(f"Repository context received - service: {repository_context.service}, owner: {repository_context.owner}, repo: {repository_context.repo}")
+        else:
+            logger.warning("No repository context passed to orchestrate_query_with_tools")
 
         try:
             # 1. Generate system prompt if needed
@@ -254,7 +260,87 @@ class QueryManager:
                 raw_response, provider_options
             )
 
-            # 5. Set conversation history optimization information
+            # 5. Handle tool execution and followup if tools were called
+            if llm_response.tool_calls and len(llm_response.tool_calls) > 0:
+                logger.info(f"Tool calls detected: {len(llm_response.tool_calls)}, executing tools and generating followup response")
+                
+                # Execute all tool calls
+                executed_results = []
+                for tool_call in llm_response.tool_calls:
+                    try:
+                        # Convert repository context to dict if available
+                        repo_context_dict = None
+                        if repository_context:
+                            repo_context_dict = {
+                                "service": repository_context.service.value if hasattr(repository_context.service, 'value') else repository_context.service,
+                                "owner": repository_context.owner,
+                                "repo": repository_context.repo,
+                                "ref": repository_context.ref,
+                                "current_path": repository_context.current_path,
+                                "base_url": repository_context.base_url,
+                            }
+                            logger.debug(f"Repository context converted to dict: {repo_context_dict}")
+                        else:
+                            logger.warning("No repository context available for tool execution")
+                        
+                        # Get available functions mapping
+                        available_functions = {func.name: func for func in tools}
+                        
+                        # Execute the tool call
+                        result = await service.execute_function_call(
+                            tool_call.function,
+                            available_functions,
+                            repository_context=repo_context_dict,
+                        )
+                        
+                        executed_results.append({
+                            "tool_call_id": tool_call.id,
+                            "function_name": tool_call.function.name,
+                            "result": result,
+                        })
+                        
+                        logger.info(f"Tool '{tool_call.function.name}' executed successfully")
+                        
+                    except Exception as e:
+                        executed_results.append({
+                            "tool_call_id": tool_call.id,  
+                            "function_name": tool_call.function.name,
+                            "error": str(e),
+                        })
+                        logger.error(f"Tool '{tool_call.function.name}' execution failed: {e}")
+
+                # Add execution results to response only if tools were actually called
+                llm_response.tool_execution_results = executed_results
+                
+                # Generate followup response based on tool execution results
+                followup_response = await self._generate_followup_response(
+                    service=service,
+                    original_prompt=prompt,
+                    tool_calls=llm_response.tool_calls,
+                    tool_results=executed_results,
+                    conversation_history=conversation_history,
+                    system_prompt=system_prompt,
+                    options=options or {},
+                )
+                
+                # Update the main response content with followup
+                if followup_response and followup_response.content:
+                    llm_response.content = followup_response.content
+                    # Update usage if available
+                    if followup_response.usage and llm_response.usage:
+                        llm_response.usage.prompt_tokens += followup_response.usage.prompt_tokens
+                        llm_response.usage.completion_tokens += followup_response.usage.completion_tokens
+                        llm_response.usage.total_tokens += followup_response.usage.total_tokens
+                    
+                    logger.info(f"Followup response generated: {len(llm_response.content)} characters")
+                else:
+                    logger.warning("Followup response generation failed or returned empty content")
+            else:
+                # No tool calls were made
+                logger.info("No tool calls detected in LLM response")
+                llm_response.tool_execution_results = []
+
+            # 6. Set conversation history optimization information
             if conversation_history:
                 optimized_history, optimization_info = optimize_conversation_history(
                     conversation_history, max_tokens=4000
@@ -325,11 +411,131 @@ class QueryManager:
                 document_metadata=document_metadata,
                 custom_instructions=None,
                 template_id=system_prompt_template,
+                enable_bilingual_tools=True,  # Enable bilingual tool execution
             )
         except Exception as e:
             logger.warning(
                 f"Failed to generate system prompt: {str(e)}, continuing without system prompt"
             )
+            return None
+
+    async def _generate_followup_response(
+        self,
+        service: "LLMServiceBase",
+        original_prompt: str,
+        tool_calls: List,
+        tool_results: List[Dict[str, Any]],
+        conversation_history: Optional[List[MessageItem]] = None,
+        system_prompt: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Optional[LLMResponse]:
+        """
+        Generate a followup response based on tool execution results.
+        
+        This method constructs a new conversation that includes the original prompt,
+        tool calls, and tool results, then asks the LLM to provide a comprehensive
+        final response based on all the information.
+        """
+        try:
+            logger.info("Generating followup response based on tool execution results")
+            
+            # Build the followup conversation history
+            followup_history = []
+            
+            # Add original conversation history if present
+            if conversation_history:
+                followup_history.extend(conversation_history)
+            
+            # Add the original user prompt
+            followup_history.append(MessageItem(
+                role=MessageRole.USER,
+                content=original_prompt
+            ))
+            
+            # Add assistant response with tool calls (simplified representation)
+            tool_call_summary = []
+            for i, tool_call in enumerate(tool_calls):
+                tool_call_summary.append(f"{i+1}. {tool_call.function.name}を実行しました")
+            
+            followup_history.append(MessageItem(
+                role=MessageRole.ASSISTANT,
+                content=f"以下のツールを実行しました：\n" + "\n".join(tool_call_summary)
+            ))
+            
+            # Add tool results as user messages (simulating tool response)
+            tool_results_summary = []
+            for result in tool_results:
+                function_name = result.get("function_name", "不明なツール")
+                if "error" in result:
+                    tool_results_summary.append(f"❌ {function_name}: エラーが発生しました - {result['error']}")
+                else:
+                    # Extract meaningful content from result
+                    result_data = result.get("result", {})
+                    if isinstance(result_data, dict):
+                        if result_data.get("success"):
+                            if "result" in result_data and isinstance(result_data["result"], str):
+                                # Try to parse JSON result
+                                try:
+                                    import json
+                                    parsed_result = json.loads(result_data["result"])
+                                    if isinstance(parsed_result, dict):
+                                        if "summary" in parsed_result:
+                                            tool_results_summary.append(f"✅ {function_name}: 要約が生成されました")
+                                        elif "recommendations" in parsed_result:
+                                            tool_results_summary.append(f"✅ {function_name}: 改善提案が生成されました")
+                                        else:
+                                            tool_results_summary.append(f"✅ {function_name}: 分析が完了しました")
+                                    else:
+                                        tool_results_summary.append(f"✅ {function_name}: 処理が完了しました")
+                                except json.JSONDecodeError:
+                                    tool_results_summary.append(f"✅ {function_name}: 結果を取得しました")
+                            else:
+                                tool_results_summary.append(f"✅ {function_name}: 実行完了")
+                        else:
+                            tool_results_summary.append(f"❌ {function_name}: {result_data.get('error', '実行に失敗しました')}")
+                    else:
+                        tool_results_summary.append(f"✅ {function_name}: 実行完了")
+            
+            # Create followup prompt asking for comprehensive response
+            followup_prompt = f"""上記のツール実行結果を踏まえて、以下の内容で包括的な回答を日本語で提供してください：
+
+ツール実行結果：
+{chr(10).join(tool_results_summary)}
+
+元のリクエストに対する完全な回答を、ツール実行結果を統合して作成してください。具体的で実用的な内容を含め、ユーザーに価値のある情報を提供してください。"""
+            
+            followup_history.append(MessageItem(
+                role=MessageRole.USER,
+                content=followup_prompt
+            ))
+            
+            # Prepare options for followup call (disable tools to avoid recursion)
+            followup_options = (options or {}).copy()
+            followup_options["temperature"] = 0.7  # Slightly more creative for synthesis
+            
+            # Generate followup response without tools
+            followup_provider_options = await service._prepare_provider_options(
+                prompt=followup_prompt,
+                conversation_history=followup_history[:-1],  # Exclude the followup prompt as it's added separately
+                options=followup_options,
+                system_prompt=system_prompt,
+                tools=None,  # No tools for followup to avoid recursion
+                tool_choice=None,
+            )
+            
+            # Call provider API for followup
+            followup_raw_response = await service._call_provider_api(followup_provider_options)
+            
+            # Convert followup response
+            followup_response = await service._convert_provider_response(
+                followup_raw_response, followup_provider_options
+            )
+            
+            logger.info(f"Followup response generated successfully: {len(followup_response.content) if followup_response.content else 0} characters")
+            return followup_response
+            
+        except Exception as e:
+            logger.error(f"Error generating followup response: {str(e)}")
             return None
 
     def _generate_cache_key(

@@ -55,7 +55,19 @@ def create_mcp_config_from_env() -> MCPConfig:
     Returns:
         MCPConfig instance with environment-based configuration
     """
-    return MCPConfig()
+    return MCPConfig(
+        server_name=os.getenv("MCP_SERVER_NAME", "doc-ai-helper"),
+        server_version=os.getenv("MCP_SERVER_VERSION", "1.0.0"),
+        description=os.getenv(
+            "MCP_SERVER_DESCRIPTION", 
+            "Document AI Helper MCP Server for document analysis and feedback generation"
+        ),
+        enable_document_tools=os.getenv("MCP_ENABLE_DOCUMENT_TOOLS", "true").lower() == "true",
+        enable_feedback_tools=os.getenv("MCP_ENABLE_FEEDBACK_TOOLS", "true").lower() == "true",
+        enable_analysis_tools=os.getenv("MCP_ENABLE_ANALYSIS_TOOLS", "true").lower() == "true",
+        max_content_length=int(os.getenv("MCP_MAX_CONTENT_LENGTH", "1048576")),  # 1MB
+        max_tools_per_request=int(os.getenv("MCP_MAX_TOOLS_PER_REQUEST", "10")),
+    )
 
 
 # Default configuration instance

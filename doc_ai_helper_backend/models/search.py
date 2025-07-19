@@ -13,15 +13,6 @@ class SearchQuery(BaseModel):
     query: str = Field(..., description="Search query")
     limit: int = Field(default=10, description="Maximum number of results")
     offset: int = Field(default=0, description="Results offset")
-    file_extensions: Optional[List[str]] = Field(
-        default=None, description="Filter by file extensions"
-    )
-    path_prefix: Optional[str] = Field(
-        default=None, description="Filter by path prefix"
-    )
-    metadata_filters: Optional[Dict[str, Any]] = Field(
-        default=None, description="Filter by metadata"
-    )
 
 
 class SearchResultItem(BaseModel):

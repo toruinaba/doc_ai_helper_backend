@@ -101,8 +101,8 @@ class OpenAIService(LLMServiceBase):
         self.set_service_property("base_url", base_url)
         self.set_service_property("default_options", kwargs)
 
-        # Initialize MCP adapter as None (can be set later)
-        self._mcp_adapter = None
+        # Initialize FastMCP server as None (can be set later)
+        self._mcp_server = None
 
         self._initialize_clients_and_encoder()
 
@@ -148,20 +148,21 @@ class OpenAIService(LLMServiceBase):
         """Access to function manager (backward compatibility alias)."""
         return self.function_manager
 
-    # === MCP adapter methods ===
+    # === FastMCP server methods ===
 
     @property
-    def mcp_adapter(self):
-        """Get the MCP adapter."""
-        return self._mcp_adapter
+    def mcp_server(self):
+        """Get the FastMCP server."""
+        return self._mcp_server
 
-    def set_mcp_adapter(self, adapter):
-        """Set the MCP adapter."""
-        self._mcp_adapter = adapter
+    def set_mcp_server(self, server):
+        """Set the FastMCP server."""
+        self._mcp_server = server
+        logger.info(f"MCP server set on OpenAI service: {server is not None}")
 
-    def get_mcp_adapter(self):
-        """Get the MCP adapter."""
-        return self._mcp_adapter
+    def get_mcp_server(self):
+        """Get the FastMCP server."""
+        return self._mcp_server
 
     # === Service initialization and client management ===
 
@@ -295,16 +296,38 @@ class OpenAIService(LLMServiceBase):
         self,
         function_call: FunctionCall,
         available_functions: Dict[str, Any],
+        repository_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Execute function call, trying MCP adapter first if available."""
-        # Try MCP adapter first if available
-        if self._mcp_adapter:
+        """Execute function call using FastMCP server directly."""
+        # Try FastMCP server first if available
+        if self._mcp_server:
             try:
-                result = await self._mcp_adapter.execute_function_call(function_call)
-                if result.get("success"):
-                    return result
+                tool_name = function_call.name
+                arguments = function_call.arguments
+                
+                # Parse arguments if they are in JSON string format
+                if isinstance(arguments, str):
+                    import json
+                    arguments = json.loads(arguments)
+                elif not isinstance(arguments, dict):
+                    arguments = {}
+                
+                # Add repository context to arguments if provided
+                if repository_context:
+                    arguments['repository_context'] = repository_context
+                elif tool_name in ['create_git_issue', 'create_git_pull_request', 'check_git_repository_permissions']:
+                    # Git tools require repository_context - fail if not available
+                    error_msg = f"Git tool '{tool_name}' requires repository context but none is available. Please ensure you are viewing a document from a repository."
+                    logger.error(error_msg)
+                    return {"success": False, "result": None, "error": error_msg}
+                
+                logger.info(f"Executing function via FastMCP: {tool_name}")
+                logger.debug(f"Function arguments: {arguments}")
+                result = await self._mcp_server.call_tool(tool_name, **arguments)
+                return {"success": True, "result": result, "error": None}
+                
             except Exception as e:
-                logger.warning(f"MCP adapter execution failed: {e}")
+                logger.warning(f"FastMCP execution failed: {e}, falling back to function manager")
         
         # Fall back to function manager
         return await self.function_manager.execute_function_call(
@@ -312,16 +335,42 @@ class OpenAIService(LLMServiceBase):
         )
 
     async def get_available_functions(self) -> List[FunctionDefinition]:
-        """Get available functions including MCP tools."""
+        """Get available functions including FastMCP tools."""
         # Get regular functions
         functions = self.function_manager.get_available_functions()
+        logger.debug(f"Regular functions available: {len(functions)}")
         
-        # Add MCP functions if adapter is available
-        if self._mcp_adapter:
-            mcp_functions = await self._mcp_adapter.get_available_functions()
-            functions.extend(mcp_functions)
+        # Add FastMCP functions if server is available
+        if self._mcp_server:
+            try:
+                mcp_tools = await self._mcp_server.app.get_tools()
+                logger.debug(f"FastMCP tools retrieved: {len(mcp_tools) if mcp_tools else 0}")
+                mcp_functions = self._convert_mcp_tools_to_function_definitions(mcp_tools)
+                logger.debug(f"FastMCP functions converted: {len(mcp_functions)}")
+                functions.extend(mcp_functions)
+            except Exception as e:
+                logger.warning(f"Failed to get FastMCP tools: {e}")
+        else:
+            logger.warning("No MCP server available for function calling")
         
+        logger.info(f"Total available functions: {len(functions)}")
         return functions
+    
+    def _convert_mcp_tools_to_function_definitions(self, mcp_tools: Dict) -> List[FunctionDefinition]:
+        """Convert FastMCP tools to function definitions."""
+        function_definitions = []
+        for tool_name, tool in mcp_tools.items():
+            try:
+                function_def = FunctionDefinition(
+                    name=tool_name,
+                    description=tool.description or f"FastMCP tool: {tool_name}",
+                    parameters=tool.parameters or {"type": "object", "properties": {}, "required": []}
+                )
+                function_definitions.append(function_def)
+            except Exception as e:
+                logger.warning(f"Failed to convert FastMCP tool {tool_name}: {e}")
+        
+        return function_definitions
 
     async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
         """Direct delegation to template manager."""
@@ -420,21 +469,38 @@ class OpenAIService(LLMServiceBase):
         provider_options = {
             "model": options.get("model", self.model),
             "messages": openai_messages,
-            "temperature": options.get("temperature", 0.7),
-            "max_tokens": options.get("max_tokens", 1000),
+            "temperature": options.get("temperature", 1.0),
+            "max_completion_tokens": options.get("max_completion_tokens", options.get("max_tokens", 1000)),
         }
 
         # Handle tools/functions
         if tools:
+            logger.info(f"Converting {len(tools)} tools to OpenAI format")
+            logger.debug(f"Tool names: {[tool.name for tool in tools]}")
+            
+            # Log detailed tool information
+            for i, tool in enumerate(tools):
+                logger.debug(f"Tool {i+1}: {tool.name} - {tool.description[:100]}...")
+            
             provider_options["tools"] = self._convert_tools_to_openai_format(tools)
-
+            logger.info(f"Converted {len(provider_options['tools'])} tools to OpenAI format")
+            
+            # Log the actual OpenAI format tools for debugging
+            for i, openai_tool in enumerate(provider_options["tools"]):
+                logger.debug(f"OpenAI tool {i+1}: {openai_tool['function']['name']}")
+            
             if tool_choice:
                 provider_options["tool_choice"] = (
                     self._convert_tool_choice_to_openai_format(tool_choice)
                 )
+                logger.info(f"Tool choice set: {provider_options.get('tool_choice', 'None')}")
+            else:
+                logger.info("No specific tool choice set, using OpenAI default (auto)")
+        else:
+            logger.warning("No tools provided to OpenAI API call")
 
         # Add any additional options (excluding processed ones)
-        excluded_keys = {"model", "tools", "tool_choice", "temperature", "max_tokens"}
+        excluded_keys = {"model", "tools", "tool_choice", "temperature", "max_tokens", "max_completion_tokens"}
         for key, value in options.items():
             if key not in excluded_keys:
                 provider_options[key] = value
@@ -447,8 +513,41 @@ class OpenAIService(LLMServiceBase):
         Call the OpenAI API with prepared options.
         """
         try:
+            logger.info(f"OpenAI API request parameters: tools={bool(options.get('tools'))}, tool_choice={options.get('tool_choice', 'None')}")
+            if options.get('tools'):
+                logger.debug(f"Tools being sent: {len(options['tools'])} tools")
+                logger.debug(f"First tool: {options['tools'][0] if options['tools'] else 'None'}")
+                # Log prompt to understand context
+                messages = options.get('messages', [])
+                user_messages = [msg for msg in messages if msg.get('role') == 'user']
+                if user_messages:
+                    last_user_msg = user_messages[-1].get('content', '')[:200]
+                    logger.debug(f"Last user message (first 200 chars): {last_user_msg}")
+            
             response = await self.async_client.chat.completions.create(**options)
             logger.info(f"OpenAI API call successful, model: {response.model}")
+            
+            # Log detailed response information
+            choice = response.choices[0] if response.choices else None
+            if choice:
+                logger.debug(f"Response finish reason: {choice.finish_reason}")
+                if hasattr(choice.message, 'content') and choice.message.content:
+                    content_preview = choice.message.content[:100]
+                    logger.debug(f"Response content preview: {content_preview}...")
+                
+                # Log if tools were used in response
+                if hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
+                    logger.info(f"OpenAI returned {len(choice.message.tool_calls)} tool calls")
+                    for i, tool_call in enumerate(choice.message.tool_calls):
+                        logger.info(f"Tool call {i+1}: {tool_call.function.name}")
+                        logger.debug(f"Tool call {i+1} arguments: {tool_call.function.arguments}")
+                else:
+                    if options.get('tools'):
+                        logger.warning("OpenAI did not return any tool calls despite tools being available")
+                        logger.debug(f"Model temperature: {options.get('temperature')}, max_completion_tokens: {options.get('max_completion_tokens', options.get('max_tokens'))}")
+                    else:
+                        logger.debug("No tools were provided, no tool calls expected")
+                
             return response
         except Exception as e:
             logger.error(f"OpenAI API call failed: {str(e)}")

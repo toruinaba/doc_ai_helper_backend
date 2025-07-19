@@ -127,7 +127,16 @@ class MarkdownProcessor(DocumentProcessorBase):
 
         return links
 
-    def transform_links(self, content: str, path: str, base_url: str) -> str:
+    def transform_links(
+        self, 
+        content: str, 
+        path: str, 
+        base_url: str, 
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
         """
         Markdown内のリンクを変換する。
 
@@ -135,11 +144,15 @@ class MarkdownProcessor(DocumentProcessorBase):
             content: 生のMarkdownコンテンツ
             path: ドキュメントのパス
             base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
 
         Returns:
             リンク変換済みのコンテンツ
         """
-        return LinkTransformer.transform_links(content, path, base_url)
+        return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref)
 
     def _extract_title_from_content(self, content: str) -> str:
         """

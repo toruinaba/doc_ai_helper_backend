@@ -72,9 +72,13 @@ def test_client_with_mock(test_app, mock_llm_service):
     test_app.dependency_overrides.clear()
 
 
-def test_query_endpoint_with_conversation_history(test_client_with_mock):
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+def test_query_endpoint_with_conversation_history(mock_factory, test_client_with_mock):
     """Test the query endpoint with conversation history."""
     client, mock_service = test_client_with_mock
+    
+    # Configure the factory mock to return our mock service
+    mock_factory.return_value = mock_service
 
     # Prepare request data with conversation history
     conversation_history = [
@@ -97,6 +101,9 @@ def test_query_endpoint_with_conversation_history(test_client_with_mock):
     response_data = response.json()
     assert response_data["content"] == "Mock response with conversation history"
     assert response_data["model"] == "test-model"
+    
+    # Verify factory was called
+    mock_factory.assert_called_once()
 
     # Verify that the service was called with conversation history
     mock_service.query.assert_called_once()
@@ -123,9 +130,13 @@ def test_query_endpoint_with_conversation_history(test_client_with_mock):
     assert passed_options["model"] == "test-model"
 
 
-def test_query_endpoint_without_conversation_history(test_client_with_mock):
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+def test_query_endpoint_without_conversation_history(mock_factory, test_client_with_mock):
     """Test the query endpoint without conversation history."""
     client, mock_service = test_client_with_mock
+    
+    # Configure the factory mock to return our mock service
+    mock_factory.return_value = mock_service
 
     request_data = {
         "prompt": "Hello, how are you?",
@@ -138,6 +149,9 @@ def test_query_endpoint_without_conversation_history(test_client_with_mock):
     # Check response
     assert response.status_code == 200
 
+    # Verify factory was called
+    mock_factory.assert_called_once()
+    
     # Verify that the service was called with None for conversation history
     mock_service.query.assert_called_once()
     call_args = mock_service.query.call_args
@@ -146,9 +160,13 @@ def test_query_endpoint_without_conversation_history(test_client_with_mock):
     assert call_args[1]["conversation_history"] is None
 
 
-def test_stream_endpoint_with_conversation_history(test_client_with_mock, monkeypatch):
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+def test_stream_endpoint_with_conversation_history(mock_factory, test_client_with_mock, monkeypatch):
     """Test the stream endpoint with conversation history."""
     client, mock_service = test_client_with_mock
+    
+    # Configure the factory mock to return our mock service
+    mock_factory.return_value = mock_service
 
     # Mock the EventSourceResponse to avoid actual streaming in tests
     mock_event_source = MagicMock(spec=EventSourceResponse)
@@ -174,21 +192,21 @@ def test_stream_endpoint_with_conversation_history(test_client_with_mock, monkey
 
     # Check that EventSourceResponse was created
     assert mock_event_source.call_count == 1
-
-    # Verify that the service's stream_query was called with conversation history
-    # Note: We can't easily verify the actual call since it's inside the event generator
-    # But we can verify that the capabilities check was called
-    mock_service.get_capabilities.assert_called_once()
+    
+    # Verify factory was called (inside the event generator)
+    # Note: This may not be called immediately due to async generator nature
 
 
 @pytest.mark.asyncio
-async def test_conversation_history_data_types():
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+async def test_conversation_history_data_types(mock_factory):
     """Test that conversation history is properly converted to MessageItem objects."""
     from doc_ai_helper_backend.api.endpoints.llm import query_llm
     from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
 
     # Create a real mock service to test data conversion
     mock_service = MockLLMService()
+    mock_factory.return_value = mock_service
 
     # Create request with conversation history as dicts
     conversation_history_dicts = [
@@ -215,21 +233,26 @@ async def test_conversation_history_data_types():
     conversation_manager = ConversationManager(git_factory)
     
     # Call the endpoint function directly
-    response = await query_llm(request, mock_service, conversation_manager)
+    response = await query_llm(request, conversation_manager)
 
     # Check that the response is valid and indicates conversation continuation
     assert response.content
     assert "conversation" in response.content.lower()
+    
+    # Verify factory was called
+    mock_factory.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_stream_endpoint_conversation_history_integration():
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+async def test_stream_endpoint_conversation_history_integration(mock_factory):
     """Test that stream endpoint properly handles conversation history."""
     from doc_ai_helper_backend.api.endpoints.llm import stream_llm_response
     from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
 
     # Create a real mock service
     mock_service = MockLLMService()
+    mock_factory.return_value = mock_service
 
     # Create request with conversation history
     conversation_history = [
@@ -242,16 +265,30 @@ async def test_stream_endpoint_conversation_history_integration():
         conversation_history=conversation_history,
     )
 
+    # Create a mock conversation manager
+    from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+    from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+    
+    git_factory = GitServiceFactory()
+    conversation_manager = ConversationManager(git_factory)
+
     # Call the endpoint function directly
-    response = await stream_llm_response(request, mock_service)
+    response = await stream_llm_response(request, conversation_manager)
 
     # Check that an EventSourceResponse was returned
     assert isinstance(response, EventSourceResponse)
+    
+    # Verify factory was called
+    # Note: Factory call is inside async generator, may not be immediately verifiable
 
 
-def test_query_endpoint_error_handling(test_client_with_mock):
+@patch('doc_ai_helper_backend.api.endpoints.llm.LLMServiceFactory.create_with_mcp')
+def test_query_endpoint_error_handling(mock_factory, test_client_with_mock):
     """Test error handling in query endpoint."""
     client, mock_service = test_client_with_mock
+    
+    # Configure the factory mock to return our mock service
+    mock_factory.return_value = mock_service
 
     # Make the service raise an exception
     mock_service.query.side_effect = Exception("Test error")

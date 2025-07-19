@@ -4,7 +4,7 @@ LLM models.
 This module contains Pydantic models for LLM services.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any, List, Optional, Union, Literal, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
@@ -37,67 +37,7 @@ class MessageItem(BaseModel):
     )
 
 
-class LLMQueryRequest(BaseModel):
-    """
-    Request model for LLM query.
-    """
-
-    prompt: str = Field(..., description="The prompt to send to the LLM")
-    context_documents: Optional[List[str]] = Field(
-        default=None, description="List of document paths to include in context"
-    )
-    provider: str = Field(
-        default="openai", description="LLM provider to use (e.g., openai, anthropic)"
-    )
-    model: Optional[str] = Field(
-        default=None,
-        description="Specific model to use (if None, default for provider is used)",
-    )
-    options: Dict[str, Any] = Field(
-        default_factory=dict, description="Additional options for the LLM provider"
-    )
-    disable_cache: bool = Field(
-        default=False,
-        description="If True, bypass cache and always make a fresh API call",
-    )
-    conversation_history: Optional[List[MessageItem]] = Field(
-        default=None, description="Previous messages in the conversation for context"
-    )
-    enable_tools: bool = Field(
-        default=False, description="Enable automatic function calling/tool execution"
-    )
-    tool_choice: Optional[str] = Field(
-        default="auto",
-        description="Tool selection strategy: auto, none, required, or specific function name",
-    )
-    complete_tool_flow: bool = Field(
-        default=True,
-        description="If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)",
-    )
-
-    # Repository context fields - New functionality for document-aware LLM queries
-    repository_context: Optional["RepositoryContext"] = Field(
-        default=None, description="Repository context from current document view"
-    )
-    document_metadata: Optional["DocumentMetadata"] = Field(
-        default=None, description="Metadata of currently displayed document"
-    )
-    document_content: Optional[str] = Field(
-        default=None, description="Current document content for system prompt inclusion (DEPRECATED - will be removed)"
-    )
-    include_document_in_system_prompt: bool = Field(
-        default=True, description="Whether to include document content in system prompt (DEPRECATED - will be removed)"
-    )
-    system_prompt_template: Optional[str] = Field(
-        default="contextual_document_assistant_ja",
-        description="Template ID for system prompt generation (DEPRECATED - will be removed)",
-    )
-    
-    # New document integration approach via conversation history
-    auto_include_document: bool = Field(
-        default=True,
-        description="Whether to automatically fetch document content from repository_context and include in conversation history for initial requests"
-    )
+# Legacy monolithic LLMQueryRequest removed - now using structured LLMQueryRequest as the main interface
 
 
 class LLMUsage(BaseModel):
@@ -279,20 +219,6 @@ class LLMStreamChunk(BaseModel):
     )
 
 
-class LLMStreamResponse(BaseModel):
-    """
-    Response model for streaming LLM query.
-    """
-
-    model: str = Field(..., description="The model used for generation")
-    provider: str = Field(..., description="The provider of the LLM")
-    chunks: List[str] = Field(
-        default_factory=list, description="Chunks of response received so far"
-    )
-    done: bool = Field(default=False, description="Whether the stream is complete")
-    error: Optional[str] = Field(
-        default=None, description="Error message if something went wrong"
-    )
 
 
 class ToolParameter(BaseModel):
@@ -336,6 +262,116 @@ class MCPToolsResponse(BaseModel):
     )
 
 
+# === New Refactored Request Models ===
+
+class CoreQueryRequest(BaseModel):
+    """
+    Essential query parameters for LLM requests.
+    
+    This model contains only the fundamental parameters needed for any LLM query.
+    """
+    
+    prompt: str = Field(..., min_length=1, description="The prompt to send to the LLM")
+    provider: str = Field(
+        default="openai", description="LLM provider to use (e.g., openai, anthropic)"
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Specific model to use (if None, default for provider is used)",
+    )
+    conversation_history: Optional[List[MessageItem]] = Field(
+        default=None, description="Previous messages in the conversation for context"
+    )
+
+    @field_validator('prompt')
+    @classmethod
+    def validate_prompt(cls, v):
+        """Validate prompt is not empty or whitespace only."""
+        if not v or not v.strip():
+            raise ValueError("Prompt cannot be empty or contain only whitespace")
+        return v.strip()
+
+
+class ToolConfiguration(BaseModel):
+    """
+    Configuration for tool/function calling capabilities.
+    
+    This model groups all parameters related to LLM tool execution and function calling.
+    """
+    
+    enable_tools: bool = Field(
+        default=False, description="Enable automatic function calling/tool execution"
+    )
+    tool_choice: Optional[str] = Field(
+        default="auto",
+        description="Tool selection strategy: auto, none, required, or specific function name",
+    )
+    complete_tool_flow: bool = Field(
+        default=True,
+        description="If True, use complete Function Calling flow (tool execution + LLM followup). If False, use legacy flow (direct tool results)",
+    )
+
+
+class DocumentContext(BaseModel):
+    """
+    Document integration context for repository-aware queries.
+    
+    This model groups all parameters related to document and repository context.
+    """
+    
+    repository_context: Optional["RepositoryContext"] = Field(
+        default=None, description="Repository context from current document view"
+    )
+    document_metadata: Optional["DocumentMetadata"] = Field(
+        default=None, description="Metadata of currently displayed document"
+    )
+    auto_include_document: bool = Field(
+        default=True,
+        description="Whether to automatically fetch document content from repository_context and include in conversation history for initial requests"
+    )
+    context_documents: Optional[List[str]] = Field(
+        default=None, description="List of document paths to include in context"
+    )
+
+
+class ProcessingOptions(BaseModel):
+    """
+    Processing and caching options for LLM requests.
+    
+    This model groups parameters that control how the request is processed and cached.
+    """
+    
+    disable_cache: bool = Field(
+        default=False,
+        description="If True, bypass cache and always make a fresh API call",
+    )
+    options: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional options for the LLM provider"
+    )
+
+
+class LLMQueryRequest(BaseModel):
+    """
+    LLM query request with structured, grouped parameters.
+    
+    This model provides a cleaner, more maintainable structure by grouping
+    related parameters into focused sub-models for better organization
+    and easier maintenance.
+    """
+    
+    query: CoreQueryRequest = Field(..., description="Core query parameters")
+    tools: Optional[ToolConfiguration] = Field(
+        default=None, description="Tool/function calling configuration"
+    )
+    document: Optional[DocumentContext] = Field(
+        default=None, description="Document integration context"
+    )
+    processing: Optional[ProcessingOptions] = Field(
+        default=None, description="Processing and caching options"
+    )
+
+
+
 # Update forward references for repository context models
 def update_forward_refs():
     """Update forward references after all models are imported."""
@@ -343,6 +379,7 @@ def update_forward_refs():
         from .repository_context import RepositoryContext, DocumentMetadata
 
         LLMQueryRequest.model_rebuild()
+        DocumentContext.model_rebuild()
     except ImportError:
         # Repository context models not yet available
         pass

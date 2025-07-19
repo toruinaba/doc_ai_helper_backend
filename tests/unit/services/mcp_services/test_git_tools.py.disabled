@@ -4,11 +4,9 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from doc_ai_helper_backend.services.mcp.tools.git_tools import (
-    configure_git_service,
     create_git_issue,
     create_git_pull_request,
     check_git_repository_permissions,
-    get_unified_git_tools,
 )
 
 

@@ -28,18 +28,8 @@ def get_llm_service() -> LLMServiceBase:
     Returns:
         LLMServiceBase: LLM service instance
     """
-    # Use the default provider from settings
+    # Use the default provider from settings - no automatic mock fallback
     provider = settings.default_llm_provider
-
-    # In development/testing mode, use mock service if no API keys are provided
-    if settings.environment.lower() in ["development", "testing"]:
-        # Still use the configured provider if API keys are available
-        if provider == "openai" and not settings.openai_api_key:
-            provider = "mock"
-        elif provider == "anthropic" and not settings.anthropic_api_key:
-            provider = "mock"
-        elif provider == "gemini" and not settings.gemini_api_key:
-            provider = "mock"
 
     # Configure provider-specific settings
     config = {}
@@ -48,8 +38,13 @@ def get_llm_service() -> LLMServiceBase:
         config["default_model"] = settings.default_openai_model
         if settings.openai_base_url:
             config["base_url"] = settings.openai_base_url
+    elif provider == "anthropic":
+        config["api_key"] = settings.anthropic_api_key
+    elif provider == "gemini":
+        config["api_key"] = settings.gemini_api_key
 
     # Create service instance with MCP integration
+    # If API keys are missing, the factory will raise an appropriate error
     return LLMServiceFactory.create_with_mcp(provider, **config)
 
 

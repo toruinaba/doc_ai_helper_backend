@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 from doc_ai_helper_backend.core.exceptions import (
     DocumentParsingException,
     GitServiceException,
+    GitHubRepositoryNotFoundError,
     NotFoundException,
 )
 from doc_ai_helper_backend.models.document import (
@@ -117,14 +118,14 @@ class DocumentService:
 
                 # Transform links if requested
                 if transform_links:
-                    # Construct base URL if not provided
-                    if not base_url:
-                        base_url = (
-                            f"/api/v1/documents/contents/{service}/{owner}/{repo}/{ref}"
-                        )
+                    # Always construct base URL from request parameters (ignore provided base_url)
+                    # Note: ref is handled as query parameter, not in the path
+                    base_url = (
+                        f"/api/v1/documents/contents/{service}/{owner}/{repo}"
+                    )
 
                     transformed_content = processor.transform_links(
-                        raw_content, path, base_url
+                        raw_content, path, base_url, service, owner, repo, ref
                     )
                     # Store transformed content
                     document.transformed_content = transformed_content
@@ -144,6 +145,9 @@ class DocumentService:
 
             return document
 
+        except GitHubRepositoryNotFoundError as e:
+            logger.warning(f"Repository not found: {service}/{owner}/{repo}")
+            raise
         except NotFoundException as e:
             logger.warning(f"Document not found: {service}/{owner}/{repo}/{path}")
             raise
@@ -208,6 +212,9 @@ class DocumentService:
 
             return structure
 
+        except GitHubRepositoryNotFoundError as e:
+            logger.warning(f"Repository not found: {service}/{owner}/{repo}")
+            raise
         except NotFoundException as e:
             logger.warning(f"Repository not found: {service}/{owner}/{repo}")
             raise
