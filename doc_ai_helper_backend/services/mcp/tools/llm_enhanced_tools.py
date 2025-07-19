@@ -162,19 +162,23 @@ async def create_improvement_recommendations_with_llm(
     summary_context: str = "",
     improvement_type: str = "comprehensive",
     target_audience: str = "general",
+    feedback_data: str = "",
     repository_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     専門レベルのLLM分析による日本語文書の詳細な改善提案を作成します。
     
-    文書分析に基づいて、優先度別に分類された改善提案と
+    文書分析やフィードバックデータに基づいて、優先度別に分類された改善提案と
     実装ガイダンスを含む包括的な推奨事項を生成します。
+    従来の create_improvement_proposal 機能も統合。
     
     Args:
         document_content: 分析対象の日本語文書内容
         summary_context: 事前分析の要約コンテキスト (オプション)
         improvement_type: 改善タイプ ("structure"=構造, "content"=内容, "readability"=読みやすさ, "comprehensive"=包括的)
         target_audience: 対象読者 ("general"=一般, "technical"=技術者, "beginner"=初心者, "expert"=専門家)
+        feedback_data: フィードバック分析データ（JSON文字列、オプション）
+        repository_context: リポジトリコンテキスト（自動注入）
         
     Returns:
         分類された推奨事項、優先度レベル、実装ガイダンスを含むJSON文字列

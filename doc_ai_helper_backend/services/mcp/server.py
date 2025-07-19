@@ -37,14 +37,8 @@ class DocumentAIHelperMCPServer:
         # Git tools use GitServiceFactory directly, no setup needed
 
         # Register tools based on configuration
-        if self.config.enable_document_tools:
-            self._register_document_tools()
-
-        if self.config.enable_feedback_tools:
-            self._register_feedback_tools()
-
-        if self.config.enable_analysis_tools:
-            self._register_analysis_tools()
+        # Register comprehensive document analysis tool (replaces document, feedback, and analysis tools)
+        self._register_comprehensive_tools()
 
         # Always register git tools (GitHub/Forgejo integration is enabled by default)
         self._register_git_tools()
@@ -54,151 +48,43 @@ class DocumentAIHelperMCPServer:
 
         logger.info("MCP Server setup completed")
 
-    def _register_document_tools(self):
-        """Register document analysis tools using FastMCP decorators."""
-        from .tools.document_tools import (
-            extract_document_context,
-            analyze_document_structure,
-            optimize_document_content,
-        )
+    def _register_comprehensive_tools(self):
+        """Register comprehensive document analysis tool using FastMCP decorators."""
+        from .tools.comprehensive_tools import analyze_document_comprehensive
 
-        @self.app.tool("extract_document_context")
-        async def extract_context_tool(
-            document_content: str, context_type: str = "summary"
+        @self.app.tool("analyze_document_comprehensive")
+        async def analyze_comprehensive_tool(
+            document_content: str, 
+            analysis_type: str = "full", 
+            focus_area: str = "general"
         ) -> Dict[str, Any]:
-            """Extract structured context from documents. Analyzes headings, paragraph structure, metadata to provide detailed document information."""
-            return await extract_document_context(
-                document_content=document_content, context_type=context_type
-            )
-
-        @self.app.tool("analyze_document_structure")
-        async def analyze_structure_tool(
-            document_content: str, analysis_depth: str = "basic"
-        ) -> Dict[str, Any]:
-            """Analyze document structure and composition. Detailed analysis of heading hierarchy, section division, logical flow."""
-            return await analyze_document_structure(
-                document_content=document_content, analysis_depth=analysis_depth
-            )
-
-        @self.app.tool("optimize_document_content")
-        async def optimize_content_tool(
-            document_content: str, optimization_type: str = "readability"
-        ) -> Dict[str, Any]:
-            """Optimize document content for readability and structural improvement. Paragraph composition, expression improvement, overall quality enhancement."""
-            return await optimize_document_content(
-                document_content=document_content, optimization_type=optimization_type
-            )
-
-        logger.info("Document tools registered with FastMCP")
-
-    def _register_feedback_tools(self):
-        """Register feedback generation tools using FastMCP decorators."""
-        from .tools.feedback_tools import (
-            generate_feedback_from_conversation,
-            create_improvement_proposal,
-            analyze_conversation_patterns,
-        )
-
-        @self.app.tool("generate_feedback_from_conversation")
-        async def generate_feedback_tool(
-            conversation_history: List[Dict[str, Any]], feedback_type: str = "general"
-        ) -> str:
             """
-            Analyze conversation history and generate structured feedback about user interactions.
+            Comprehensive document analysis combining structure, quality, topics, and completeness analysis.
             
-            This tool examines conversation patterns, identifies areas for improvement, and provides
-            actionable insights about user engagement, question patterns, and response effectiveness.
-            Use this to understand how well conversations are meeting user needs.
+            This consolidated tool provides complete document insights including structure analysis, 
+            quality metrics, topic extraction, completeness checks, and contextual information.
+            Replaces multiple separate analysis tools for better efficiency and selection accuracy.
             
             Args:
-            - conversation_history: List of conversation messages with role and content
-            - feedback_type: Type of analysis (general, comprehension, gaps, suggestions)
+            - document_content: The document content to analyze
+            - analysis_type: Type of analysis - "full", "structure", "quality", "topics", "completeness"
+            - focus_area: Focus area - "general", "technical", "readability", "completeness"
             
-            Returns: JSON string with comprehensive feedback analysis including suggestions and metrics
+            Returns: Comprehensive analysis results with structure, quality, topics, and recommendations
             """
-            return await generate_feedback_from_conversation(
-                conversation_history=conversation_history, feedback_type=feedback_type
-            )
-
-        @self.app.tool("create_improvement_proposal")
-        async def create_proposal_tool(
-            current_content: str, feedback_data: str, improvement_type: str = "general"
-        ) -> str:
-            """
-            Create structured improvement proposals for documents based on analysis and feedback.
-            
-            This tool analyzes the current document content and generates actionable improvement 
-            suggestions including readability enhancements, structural optimizations, and content gaps.
-            Use this when you need to provide specific, practical recommendations for document improvement.
-            
-            Args:
-            - current_content: The document content to analyze and improve
-            - feedback_data: Feedback analysis data as JSON string  
-            - improvement_type: Type of improvement focus (general, structure, content, readability)
-            
-            Returns: JSON string with structured improvement proposal including specific suggestions and implementation guidance
-            """
-            return await create_improvement_proposal(
-                current_content=current_content, 
-                feedback_data=feedback_data,
-                improvement_type=improvement_type
-            )
-
-        @self.app.tool("analyze_conversation_patterns")
-        async def analyze_patterns_tool(
-            conversation_history: List[Dict[str, Any]], analysis_depth: str = "basic"
-        ) -> Dict[str, Any]:
-            """Analyze patterns and themes in conversation history. Detailed analysis of dialogue trends, frequent topics, communication characteristics."""
-            return await analyze_conversation_patterns(
-                conversation_history=conversation_history, analysis_depth=analysis_depth
-            )
-
-        logger.info("Feedback tools registered with FastMCP")
-
-    def _register_analysis_tools(self):
-        """Register text analysis tools using FastMCP decorators."""
-        from .tools.analysis_tools import (
-            analyze_document_quality,
-            extract_document_topics,
-            check_document_completeness,
-        )
-
-        @self.app.tool("analyze_document_quality")
-        async def analyze_quality_tool(
-            document_content: str, quality_criteria: str = "general"
-        ) -> Dict[str, Any]:
-            """Analyze document quality against various criteria. Evaluate readability, structure, content completeness, technical accuracy."""
-            return await analyze_document_quality(
-                document_content=document_content, quality_criteria=quality_criteria
-            )
-
-        @self.app.tool("extract_document_topics")
-        async def extract_topics_tool(
-            document_content: str, topic_count: int = 5
-        ) -> Dict[str, Any]:
-            """Extract main topics and themes from document content. Identify important topics through keyword analysis and semantic grouping."""
-            return await extract_document_topics(
-                document_content=document_content, topic_count=topic_count
-            )
-
-        @self.app.tool("check_document_completeness")
-        async def check_completeness_tool(
-            document_content: str, completeness_criteria: str = "general"
-        ) -> Dict[str, Any]:
-            """Check document completeness against specified criteria. Evaluate missing necessary information, structural problems, content coverage."""
-            return await check_document_completeness(
+            return await analyze_document_comprehensive(
                 document_content=document_content,
-                completeness_criteria=completeness_criteria,
+                analysis_type=analysis_type,
+                focus_area=focus_area
             )
 
-        logger.info("Analysis tools registered with FastMCP")
+        logger.info("Comprehensive tools registered with FastMCP")
 
 
     def _register_git_tools(self):
         """Register Git tools using FastMCP decorators."""
         from .tools.git_tools import (
             create_git_issue,
-            create_git_pull_request,
             check_git_repository_permissions,
         )
 
@@ -221,24 +107,6 @@ class DocumentAIHelperMCPServer:
                 repository_context=repository_context,
             )
 
-        @self.app.tool("create_git_pull_request")
-        async def create_pr_tool(
-            title: str,
-            description: str,
-            head_branch: str,
-            base_branch: str = "main",
-            repository_context: Optional[Dict[str, Any]] = None,
-        ) -> str:
-            """Create new pull request in the Git repository. Repository context is automatically injected by the LLM service."""
-            logger.info(f"Creating Git PR with repository_context: {repository_context}")
-
-            return await create_git_pull_request(
-                title=title,
-                description=description,
-                head_branch=head_branch,
-                base_branch=base_branch,
-                repository_context=repository_context,
-            )
 
         @self.app.tool("check_git_repository_permissions")
         async def check_permissions_tool(
@@ -319,10 +187,23 @@ class DocumentAIHelperMCPServer:
             summary_context: str = "",
             improvement_type: str = "comprehensive",
             target_audience: str = "general",
+            feedback_data: str = "",
         ) -> str:
-            """Create detailed improvement recommendations for Japanese documents through professional LLM analysis.
+            """
+            Create detailed improvement recommendations for Japanese documents through professional LLM analysis.
             
+            Consolidates document analysis and feedback data to provide comprehensive improvement suggestions.
+            Replaces the previous create_improvement_proposal tool with enhanced LLM-powered analysis.
             When called without document_content, automatically uses the current document being viewed in the repository context.
+            
+            Args:
+            - document_content: Document content to analyze (auto-retrieved if empty)
+            - summary_context: Summary context for additional insights
+            - improvement_type: Type of improvement focus (comprehensive, structure, content, readability)
+            - target_audience: Target audience (general, technical, business)
+            - feedback_data: Additional feedback data as JSON string
+            
+            Returns: Comprehensive improvement recommendations with implementation guidance
             """
             # If document_content is empty, try to get it from repository context
             if not document_content.strip():
@@ -364,6 +245,7 @@ class DocumentAIHelperMCPServer:
                 summary_context=summary_context,
                 improvement_type=improvement_type,
                 target_audience=target_audience,
+                feedback_data=feedback_data,
             )
 
         logger.info("LLM-enhanced tools registered with FastMCP")
