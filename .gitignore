@@ -139,6 +139,12 @@ cython_debug/
 *.swp
 *.swo
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+app.db
+
 # Project specific
 logs/
 temp/
