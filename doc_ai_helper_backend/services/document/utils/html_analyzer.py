@@ -28,17 +28,33 @@ class HTMLAnalyzer:
         Returns:
             BeautifulSoupオブジェクト
         """
+        if not content:
+            return BeautifulSoup("", "html.parser")
+            
+        # Unicode エラーを事前に処理
+        try:
+            # 問題のあるUnicode文字を除去/置換
+            clean_content = content.encode('utf-8', errors='ignore').decode('utf-8')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            # フォールバック：ASCII文字のみを保持
+            clean_content = ''.join(char for char in content if ord(char) < 128)
+        
         try:
             # XMLパーサーを優先的に使用（高速で正確）
-            soup = BeautifulSoup(content, "lxml")
+            soup = BeautifulSoup(clean_content, "lxml")
         except Exception:
             try:
                 # XMLパーサーが失敗した場合はhtml.parserを使用
-                soup = BeautifulSoup(content, "html.parser")
+                soup = BeautifulSoup(clean_content, "html.parser")
             except Exception as e:
                 logger.warning(f"HTML parsing failed: {e}")
-                # フォールバック：基本的なHTMLパーサー
-                soup = BeautifulSoup(content, "html.parser")
+                try:
+                    # 最後のフォールバック：より安全な処理
+                    safe_content = clean_content.replace('\x00', '').replace('\x01', '').replace('\x02', '').replace('\x03', '')
+                    soup = BeautifulSoup(safe_content, "html.parser")
+                except Exception:
+                    # 完全にフォールバック：空のHTMLを返す
+                    soup = BeautifulSoup("<html><body></body></html>", "html.parser")
 
         return soup
 
