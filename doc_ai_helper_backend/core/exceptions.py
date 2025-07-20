@@ -255,3 +255,12 @@ class FunctionExecutionError(BaseAPIException):
         """Initialize function execution error."""
         message = f"Error executing function '{function_name}': {error_detail}"
         super().__init__(status_code=500, message=message, detail=detail)
+
+
+class RepositoryServiceException(BaseAPIException):
+    """Exception for repository service related errors."""
+
+    def __init__(
+        self, message: str = "Repository service error", detail: Optional[Any] = None
+    ):
+        super().__init__(status_code=500, message=message, detail=detail)

@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     default_llm_provider: str = Field(default="openai", alias="DEFAULT_LLM_PROVIDER")
     llm_cache_ttl: int = Field(default=3600, alias="LLM_CACHE_TTL")  # 1 hour in seconds
 
+    # Database settings
+    database_url: str = Field(default="sqlite:///./app.db", alias="DATABASE_URL")
+    database_echo: bool = Field(default=False, alias="DATABASE_ECHO")  # SQL ログ出力
+    
+    # Repository management feature flags
+    enable_repository_management: bool = Field(default=False, alias="ENABLE_REPOSITORY_MANAGEMENT")
+    enable_repository_context_integration: bool = Field(default=False, alias="ENABLE_REPO_CONTEXT_INTEGRATION")
+
     # E2E Test settings - minimal additions for test target repositories
     e2e_github_owner: str = Field(default="octocat", alias="E2E_GITHUB_OWNER")
     e2e_github_repo: str = Field(default="Hello-World", alias="E2E_GITHUB_REPO")
