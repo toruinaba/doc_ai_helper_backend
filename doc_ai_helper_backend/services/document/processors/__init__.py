@@ -10,6 +10,12 @@ from doc_ai_helper_backend.services.document.processors.base import (
 from doc_ai_helper_backend.services.document.processors.markdown import (
     MarkdownProcessor,
 )
+from doc_ai_helper_backend.services.document.processors.html import (
+    HTMLProcessor,
+)
+from doc_ai_helper_backend.services.document.processors.quarto import (
+    QuartoProcessor,
+)
 from doc_ai_helper_backend.services.document.processors.factory import (
     DocumentProcessorFactory,
 )
@@ -17,5 +23,7 @@ from doc_ai_helper_backend.services.document.processors.factory import (
 __all__ = [
     "DocumentProcessorBase",
     "MarkdownProcessor",
+    "HTMLProcessor",
+    "QuartoProcessor",
     "DocumentProcessorFactory",
 ]

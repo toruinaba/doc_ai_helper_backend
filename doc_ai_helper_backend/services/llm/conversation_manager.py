@@ -12,6 +12,7 @@ from doc_ai_helper_backend.models.repository_context import RepositoryContext
 from doc_ai_helper_backend.models.document import DocumentMetadata
 from doc_ai_helper_backend.models.llm import MessageItem
 from doc_ai_helper_backend.services.git.factory import GitServiceFactory
+from doc_ai_helper_backend.services.document.utils.quarto_resolver import QuartoPathResolver
 from doc_ai_helper_backend.core.exceptions import GitServiceException
 
 logger = logging.getLogger(__name__)
@@ -58,12 +59,23 @@ class ConversationManager:
             # Generate system prompt with repository context
             system_message = self._create_system_message(repository_context, document_metadata)
             
-            # Fetch document content
+            # Fetch document content and get optimal path
+            optimal_path = await self._resolve_optimal_document_path(repository_context)
             document_content = await self._fetch_document_content(repository_context)
             
-            # Create assistant message with document content
+            # Create updated repository context with optimal path for assistant message
+            display_context = RepositoryContext(
+                service=repository_context.service,
+                owner=repository_context.owner,
+                repo=repository_context.repo,
+                current_path=optimal_path,
+                ref=repository_context.ref,
+                access_token=getattr(repository_context, 'access_token', None)
+            )
+            
+            # Create assistant message with document content using optimal path
             assistant_message = self._create_document_message(
-                repository_context, document_content, document_metadata
+                display_context, document_content, document_metadata
             )
             
             # Create user message
@@ -120,9 +132,119 @@ class ConversationManager:
         
         return True
     
+    async def _resolve_optimal_document_path(self, repository_context: RepositoryContext) -> str:
+        """
+        LLM用に最適なドキュメントパスを解決する（HTML→QMD変換対応）。
+        
+        Args:
+            repository_context: Repository context
+        
+        Returns:
+            str: 最適化されたドキュメントパス
+        """
+        current_path = repository_context.current_path
+        
+        # HTMLファイルでない場合はそのまま返す
+        if not current_path.endswith('.html'):
+            return current_path
+        
+        try:
+            # Create Git service using factory
+            git_service = self.git_service_factory.create(
+                repository_context.service,
+                access_token=getattr(repository_context, 'access_token', None)
+            )
+            
+            # Stage 1: HTMLコンテンツを取得してQuartoかどうか判定
+            try:
+                html_content = await git_service.get_file_content(
+                    owner=repository_context.owner,
+                    repo=repository_context.repo,
+                    path=current_path,
+                    ref=repository_context.ref or "main"
+                )
+                
+                # QuartoHTMLかどうかチェック
+                is_quarto = QuartoPathResolver.is_quarto_html(html_content)
+                if not is_quarto:
+                    logger.debug(f"HTML file is not Quarto-generated: {current_path}")
+                    return current_path  # Quartoでない場合は元のパスを返す
+                
+                logger.info(f"Detected Quarto HTML: {current_path}")
+                
+                # HTMLメタデータからソースファイル検出
+                if qmd_path := QuartoPathResolver.extract_source_from_html(html_content):
+                    # ソースファイルが存在するかチェック
+                    if await self._file_exists(git_service, repository_context, qmd_path):
+                        logger.info(f"Resolved HTML->QMD: {current_path} -> {qmd_path}")
+                        return qmd_path
+                
+                # Stage 2: _quarto.yml設定ファイルベースの解決
+                try:
+                    config_content = await git_service.get_file_content(
+                        owner=repository_context.owner,
+                        repo=repository_context.repo,
+                        path="_quarto.yml",
+                        ref=repository_context.ref or "main"
+                    )
+                    
+                    if qmd_path := QuartoPathResolver.resolve_from_quarto_config(current_path, config_content):
+                        if await self._file_exists(git_service, repository_context, qmd_path):
+                            logger.info(f"Resolved via _quarto.yml: {current_path} -> {qmd_path}")
+                            return qmd_path
+                            
+                except Exception as e:
+                    logger.debug(f"_quarto.yml not found or unreadable: {e}")
+                
+                # Stage 3: 標準Quartoパターンマッチング
+                if qmd_path := QuartoPathResolver.apply_standard_patterns(current_path):
+                    if await self._file_exists(git_service, repository_context, qmd_path):
+                        logger.info(f"Resolved via standard patterns: {current_path} -> {qmd_path}")
+                        return qmd_path
+                
+            except Exception as e:
+                logger.warning(f"Failed to fetch HTML content for analysis: {e}")
+                # HTMLが取得できない場合は元のパスを返す
+                return current_path
+            
+        except Exception as e:
+            logger.warning(f"Failed to resolve optimal document path: {e}")
+        
+        # Fallback: 元のHTMLパスを返す
+        logger.debug(f"Using original path (no QMD source found): {current_path}")
+        return current_path
+    
+    async def _file_exists(
+        self, 
+        git_service, 
+        repository_context: RepositoryContext, 
+        file_path: str
+    ) -> bool:
+        """
+        ファイルの存在を確認する。
+        
+        Args:
+            git_service: Git service instance
+            repository_context: Repository context
+            file_path: 確認するファイルパス
+        
+        Returns:
+            bool: ファイルが存在する場合True
+        """
+        try:
+            await git_service.get_file_content(
+                owner=repository_context.owner,
+                repo=repository_context.repo,
+                path=file_path,
+                ref=repository_context.ref or "main"
+            )
+            return True
+        except Exception:
+            return False
+    
     async def _fetch_document_content(self, repository_context: RepositoryContext) -> str:
         """
-        Fetch document content using GitService.
+        Fetch document content using GitService with Quarto HTML->QMD resolution.
         
         Args:
             repository_context: Repository context
@@ -134,21 +256,40 @@ class ConversationManager:
             GitServiceException: If document fetch fails
         """
         try:
-            # Create Git service using factory
-            git_service = self.git_service_factory.create(
-                repository_context.service,
+            # Resolve optimal document path (HTML->QMD for LLM if applicable)
+            optimal_path = await self._resolve_optimal_document_path(repository_context)
+            
+            # Create updated repository context with optimal path
+            updated_context = RepositoryContext(
+                service=repository_context.service,
+                owner=repository_context.owner,
+                repo=repository_context.repo,
+                current_path=optimal_path,
+                ref=repository_context.ref,
                 access_token=getattr(repository_context, 'access_token', None)
             )
             
-            # Get document from repository
+            # Create Git service using factory
+            git_service = self.git_service_factory.create(
+                updated_context.service,
+                access_token=getattr(updated_context, 'access_token', None)
+            )
+            
+            # Get document from repository using optimal path
             document_response = await git_service.get_document(
-                owner=repository_context.owner,
-                repo=repository_context.repo,
-                path=repository_context.current_path,
-                ref=repository_context.ref or "main"
+                owner=updated_context.owner,
+                repo=updated_context.repo,
+                path=updated_context.current_path,
+                ref=updated_context.ref or "main"
             )
             
             content = document_response.content.content
+            
+            # Log path resolution for debugging
+            if optimal_path != repository_context.current_path:
+                logger.info(f"Document path resolved for LLM: {repository_context.current_path} -> {optimal_path}")
+            else:
+                logger.debug(f"Using original document path: {optimal_path}")
             
             # Truncate if content is too long
             if len(content) > self.MAX_DOCUMENT_LENGTH:

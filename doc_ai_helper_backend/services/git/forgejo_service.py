@@ -247,7 +247,7 @@ class ForgejoService(GitServiceBase):
                     path=path,
                     name=file_data.get("name", path.split("/")[-1]),
                     type=document_type,
-                    content=DocumentContent(content=content),
+                    content=document_content,
                     metadata=metadata,
                     repository=repo,
                     owner=owner,

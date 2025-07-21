@@ -9,7 +9,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, Comment
 
 logger = logging.getLogger("doc_ai_helper")
 
@@ -184,24 +184,31 @@ class HTMLAnalyzer:
         Returns:
             ソースファイルのパス（見つかった場合）
         """
-        # Quartoの場合、通常はdata-source属性に記録される
+        # Method 1: HTMLコメント（Quarto 1.3+で最も確実）
+        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+            comment_text = str(comment).strip()
+            if 'source:' in comment_text:
+                source_match = re.search(r'source:\s*([^\s]+)', comment_text)
+                if source_match:
+                    return source_match.group(1)
+
+        # Method 2: data-source属性（Quarto標準）
         html_tag = soup.find("html")
         if html_tag and html_tag.get("data-source"):
             return html_tag.get("data-source")
 
-        # commentから検索
-        for comment in soup.find_all(
-            string=lambda text: isinstance(text, str) and "source:" in text.lower()
-        ):
-            # "<!-- source: path/to/file.qmd -->" のようなコメントを検索
-            source_match = re.search(r"source:\s*([^\s]+)", comment.strip())
-            if source_match:
-                return source_match.group(1)
-
-        # metaタグから検索
+        # Method 3: metaタグ（レガシー対応）
         meta_tags = HTMLAnalyzer.extract_meta_tags(soup)
         if "source-file" in meta_tags:
             return meta_tags["source-file"]
+
+        # Method 4: より広範囲のコメント検索（フォールバック）
+        for comment in soup.find_all(
+            string=lambda text: isinstance(text, str) and "source:" in text.lower()
+        ):
+            source_match = re.search(r"source:\s*([^\s]+)", comment.strip())
+            if source_match:
+                return source_match.group(1)
 
         return None
 

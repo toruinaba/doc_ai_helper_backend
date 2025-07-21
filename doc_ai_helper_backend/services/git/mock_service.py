@@ -393,6 +393,7 @@ class MockGitService(GitServiceBase):
 
         # Process document
         processor = DocumentProcessorFactory.create(document_type)
+        document_content = processor.process_content(content, path)
 
         # Convert metadata to DocumentMetadata
         document_metadata = DocumentMetadata(
@@ -417,7 +418,7 @@ class MockGitService(GitServiceBase):
             path=path,
             name=path.split("/")[-1],
             type=document_type,
-            content=DocumentContent(content=content),
+            content=document_content,
             metadata=document_metadata,
             repository=repo,
             owner=owner,

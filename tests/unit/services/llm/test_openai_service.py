@@ -405,8 +405,8 @@ class TestOpenAIServiceExtended:
 
         assert options["model"] == service.model
         assert options["messages"] == [{"role": "user", "content": "Hello"}]
-        assert options["temperature"] == 0.7
-        assert options["max_tokens"] == 1000
+        assert options["temperature"] == 1.0  # Updated default temperature
+        assert options["max_completion_tokens"] == 1000  # Updated to max_completion_tokens
 
     async def test_prepare_provider_options_with_tools(self, service):
         """Test provider options preparation with tools."""
@@ -471,7 +471,7 @@ class TestOpenAIServiceExtended:
 
         assert options["model"] == "gpt-3.5-turbo"
         assert options["temperature"] == 0.9
-        assert options["max_tokens"] == 2000
+        assert options["max_completion_tokens"] == 2000  # Updated to max_completion_tokens
         assert options["top_p"] == 0.95
         assert options["frequency_penalty"] == 0.1
         assert options["presence_penalty"] == 0.2

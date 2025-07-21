@@ -15,6 +15,9 @@ from doc_ai_helper_backend.services.document.processors.html import (
 from doc_ai_helper_backend.services.document.processors.markdown import (
     MarkdownProcessor,
 )
+from doc_ai_helper_backend.services.document.processors.quarto import (
+    QuartoProcessor,
+)
 
 
 class DocumentProcessorFactory:
@@ -24,8 +27,7 @@ class DocumentProcessorFactory:
     _processors: Dict[DocumentType, Type[DocumentProcessorBase]] = {
         DocumentType.MARKDOWN: MarkdownProcessor,
         DocumentType.HTML: HTMLProcessor,
-        # 将来的にQuartoを追加
-        # DocumentType.QUARTO: QuartoProcessor,
+        DocumentType.QUARTO: QuartoProcessor,
     }
 
     @classmethod

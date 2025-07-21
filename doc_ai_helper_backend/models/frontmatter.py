@@ -37,3 +37,6 @@ class ExtendedDocumentMetadata(BaseModel):
     frontmatter: Dict[str, Any] = Field(
         default_factory=dict, description="フロントマター全体"
     )
+    extra: Dict[str, Any] = Field(
+        default_factory=dict, description="その他のメタデータ情報"
+    )
