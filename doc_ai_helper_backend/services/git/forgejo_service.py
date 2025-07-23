@@ -358,6 +358,94 @@ class ForgejoService(GitServiceBase):
         headers = self._get_default_headers()
         return httpx.AsyncClient(headers=headers, timeout=30.0)
 
+    async def get_repository_labels(self, owner: str, repo: str) -> List[Dict[str, Any]]:
+        """Get all labels for a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            List of label dictionaries containing id, name, color, etc.
+
+        Raises:
+            GitServiceException: If getting labels fails
+            UnauthorizedException: If access is unauthorized
+            NotFoundException: If repository is not found
+        """
+        try:
+            headers = self._get_default_headers()
+            async with httpx.AsyncClient() as client:
+                url = f"{self.api_base_url}/repos/{owner}/{repo}/labels"
+                response = await self._make_request(
+                    client, "GET", url, headers=headers
+                )
+
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 404:
+                    raise NotFoundException(f"Repository {owner}/{repo} not found")
+                elif response.status_code == 401:
+                    raise UnauthorizedException("Authentication failed")
+                else:
+                    raise GitServiceException(
+                        f"Failed to get labels: HTTP {response.status_code} - {response.text}"
+                    )
+
+        except (NotFoundException, UnauthorizedException, GitServiceException):
+            raise
+        except Exception as e:
+            raise GitServiceException(f"Error getting repository labels: {str(e)}")
+
+    async def _resolve_label_names_to_ids(
+        self, owner: str, repo: str, label_names: List[str]
+    ) -> List[int]:
+        """Resolve label names to their corresponding IDs.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            label_names: List of label names to resolve
+
+        Returns:
+            List of label IDs
+
+        Raises:
+            GitServiceException: If label resolution fails
+        """
+        if not label_names:
+            return []
+
+        try:
+            # Get all repository labels
+            repo_labels = await self.get_repository_labels(owner, repo)
+            
+            # Create a mapping from label name to ID
+            label_name_to_id = {label["name"]: label["id"] for label in repo_labels}
+            
+            # Resolve the provided label names to IDs
+            resolved_ids = []
+            missing_labels = []
+            
+            for label_name in label_names:
+                if label_name in label_name_to_id:
+                    resolved_ids.append(label_name_to_id[label_name])
+                else:
+                    missing_labels.append(label_name)
+            
+            # Log warnings for missing labels but don't fail
+            if missing_labels:
+                logger.warning(
+                    f"Labels not found in repository {owner}/{repo}: {missing_labels}. "
+                    f"Available labels: {list(label_name_to_id.keys())}"
+                )
+            
+            return resolved_ids
+            
+        except Exception as e:
+            logger.error(f"Error resolving label names to IDs: {str(e)}")
+            raise GitServiceException(f"Failed to resolve label names: {str(e)}")
+
     async def create_issue(
         self,
         owner: str,
@@ -374,7 +462,7 @@ class ForgejoService(GitServiceBase):
             repo: Repository name
             title: Issue title
             body: Issue description/body
-            labels: List of label names (optional)
+            labels: List of label names (optional) - will be converted to IDs
             assignees: List of usernames to assign (optional)
 
         Returns:
@@ -391,8 +479,15 @@ class ForgejoService(GitServiceBase):
             "body": body,
         }
 
+        # Convert label names to IDs if provided
         if labels:
-            issue_data["labels"] = labels
+            try:
+                label_ids = await self._resolve_label_names_to_ids(owner, repo, labels)
+                if label_ids:
+                    issue_data["labels"] = label_ids
+                logger.info(f"Resolved labels {labels} to IDs: {label_ids}")
+            except Exception as e:
+                logger.warning(f"Failed to resolve labels {labels}: {str(e)}. Creating issue without labels.")
 
         if assignees:
             issue_data["assignees"] = assignees
