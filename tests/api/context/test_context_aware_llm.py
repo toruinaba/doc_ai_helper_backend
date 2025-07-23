@@ -20,8 +20,8 @@ from doc_ai_helper_backend.models.repository_context import (
     DocumentType,
 )
 from doc_ai_helper_backend.models.llm import LLMQueryRequest, MessageItem, MessageRole
-from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+from doc_ai_helper_backend.services.llm.providers.openai_service import OpenAIService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
 
 
 async def test_context_aware_query_mock():

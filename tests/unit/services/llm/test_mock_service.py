@@ -26,7 +26,7 @@ from doc_ai_helper_backend.models.repository_context import (
     GitService,
     DocumentType,
 )
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
 from doc_ai_helper_backend.core.exceptions import LLMServiceException
 
 

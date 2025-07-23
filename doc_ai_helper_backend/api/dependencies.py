@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from doc_ai_helper_backend.services.document import DocumentService
 from doc_ai_helper_backend.services.llm import LLMServiceBase, LLMServiceFactory
-from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+from doc_ai_helper_backend.services.llm.orchestrator import LLMOrchestrator
 from doc_ai_helper_backend.services.git.factory import GitServiceFactory
 from doc_ai_helper_backend.services.repository_service import RepositoryService
 from doc_ai_helper_backend.db.database import get_db
@@ -48,7 +48,7 @@ def get_llm_service() -> LLMServiceBase:
 
     # Create service instance with MCP integration
     # If API keys are missing, the factory will raise an appropriate error
-    return LLMServiceFactory.create_with_mcp(provider, **config)
+    return LLMServiceFactory.create(provider, **config)
 
 
 def get_git_service_factory() -> GitServiceFactory:
@@ -60,18 +60,18 @@ def get_git_service_factory() -> GitServiceFactory:
     return GitServiceFactory()
 
 
-def get_conversation_manager(
+def get_llm_orchestrator(
     git_service_factory: GitServiceFactory = Depends(get_git_service_factory)
-) -> ConversationManager:
-    """Get ConversationManager instance.
+) -> LLMOrchestrator:
+    """Get LLMOrchestrator instance.
 
     Args:
         git_service_factory: Git service factory dependency
 
     Returns:
-        ConversationManager: ConversationManager instance
+        LLMOrchestrator: LLMOrchestrator instance
     """
-    return ConversationManager(git_service_factory)
+    return LLMOrchestrator(git_service_factory)
 
 
 def get_repository_service(db: AsyncSession = Depends(get_db)) -> RepositoryService:

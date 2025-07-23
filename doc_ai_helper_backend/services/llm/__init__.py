@@ -1,41 +1,46 @@
+# -*- coding: utf-8 -*-
 """
-LLM service package.
+LLM service package (refactored version).
 
-This package provides LLM service implementations and utilities.
+This package provides refactored LLM service implementations and utilities.
+
+Key components:
+- orchestrator: Unified query processing orchestrator
+- factory: Service factory with orchestrator integration
+- providers: Provider implementations (OpenAI, Mock)
+- base: Common base class
 """
 
-# New composition-based architecture (now main implementation)
+# Core architecture components
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
-from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
-
-# Legacy classes (for backward compatibility during transition)
-# from doc_ai_helper_backend.services.llm.legacy.base_legacy import LLMServiceBase as LegacyLLMServiceBase
-# from doc_ai_helper_backend.services.llm.legacy.openai_service_legacy import OpenAIService as LegacyOpenAIService
-
-# Factory and utilities
+from doc_ai_helper_backend.services.llm.orchestrator import LLMOrchestrator
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
-from doc_ai_helper_backend.services.llm.utils import (
-    PromptTemplateManager,
-    LLMCacheService,
-)
+
+# Provider implementations
+from doc_ai_helper_backend.services.llm.providers.openai_service import OpenAIService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
+
+# Backward compatibility aliases
+QueryManager = LLMOrchestrator
+QueryOrchestrator = LLMOrchestrator
 
 # MCP integration
-from doc_ai_helper_backend.services.mcp import mcp_server
-
-# Register available LLM services with new composition-based implementation
-LLMServiceFactory.register("mock", MockLLMService)
-LLMServiceFactory.register("openai", OpenAIService)
+try:
+    from doc_ai_helper_backend.services.mcp import mcp_server
+except ImportError:
+    mcp_server = None
 
 __all__ = [
-    # New composition-based architecture
+    # Core architecture
     "LLMServiceBase",
-    "OpenAIService",
-    # Factory and utilities
+    "LLMOrchestrator", 
     "LLMServiceFactory",
+    # Providers
+    "OpenAIService",
     "MockLLMService",
-    "PromptTemplateManager",
-    "LLMCacheService",
+    # Backward compatibility
+    "QueryManager",
+    "QueryOrchestrator",
     # MCP integration
     "mcp_server",
 ]

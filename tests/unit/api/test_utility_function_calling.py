@@ -8,7 +8,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
 from doc_ai_helper_backend.services.llm.utils import get_utility_functions
 from doc_ai_helper_backend.models.llm import FunctionCall
 from doc_ai_helper_backend.core.exceptions import LLMServiceException

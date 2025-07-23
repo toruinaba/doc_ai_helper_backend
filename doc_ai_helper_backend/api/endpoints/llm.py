@@ -21,17 +21,15 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+from doc_ai_helper_backend.services.llm.orchestrator import LLMOrchestrator
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
     ServiceNotFoundError,
     TemplateNotFoundError,
     TemplateSyntaxError,
 )
-from doc_ai_helper_backend.api.dependencies import get_llm_service, get_conversation_manager
-from doc_ai_helper_backend.services.llm.query_processor import QueryProcessor
-from doc_ai_helper_backend.services.llm.parameter_validator import ParameterValidator, ParameterValidationError
-from doc_ai_helper_backend.services.llm.provider_configuration import provider_config_service
+from doc_ai_helper_backend.api.dependencies import get_llm_service, get_llm_orchestrator
+# Legacy imports - functionality now integrated into orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -41,16 +39,14 @@ router = APIRouter()
 
 # === Helper Dependencies ===
 
-def get_query_processor(
-    conversation_manager: ConversationManager = Depends(get_conversation_manager)
-) -> QueryProcessor:
-    """Dependency to get QueryProcessor instance."""
-    return QueryProcessor(conversation_manager)
+def get_llm_orchestrator_dep(
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator)
+) -> LLMOrchestrator:
+    """Dependency to get LLMOrchestrator instance."""
+    return orchestrator
 
 
-def get_parameter_validator() -> ParameterValidator:
-    """Dependency to get ParameterValidator instance."""
-    return ParameterValidator()
+# Parameter validation is now handled by the orchestrator
 
 
 @router.post(
@@ -61,8 +57,8 @@ def get_parameter_validator() -> ParameterValidator:
 )
 async def query_llm(
     request: LLMQueryRequest,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_dep),
+    # Parameter validation handled by orchestrator
 ):
     """
     Send a query to an LLM using the structured parameter format.
@@ -93,10 +89,10 @@ async def query_llm(
             logger.info("No document context provided in request")
         
         # Validate request parameters
-        validator.validate_request(request)
+        # Request validation handled by orchestrator
         
         # Process query using new infrastructure
-        response = await query_processor.execute_query(request, streaming=False)
+        response = await orchestrator.execute_query(request)
         return response
 
     except ParameterValidationError as e:
@@ -279,8 +275,8 @@ async def format_prompt(
 )
 async def stream_llm_response(
     request: LLMQueryRequest,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_dep),
+    # Parameter validation handled by orchestrator
 ):
     """
     Stream a response from an LLM using the structured parameter format.
@@ -312,10 +308,10 @@ async def stream_llm_response(
                 logger.info("STREAM No document context provided in request")
             
             # Validate request parameters
-            validator.validate_request(request)
+            # Request validation handled by orchestrator
             
             # Execute streaming query using new infrastructure
-            stream_generator = await query_processor.execute_query(request, streaming=True)
+            stream_generator = await orchestrator.execute_streaming_query(request)
             async for chunk in stream_generator:
                 yield json.dumps(chunk)
 
