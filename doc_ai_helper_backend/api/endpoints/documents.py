@@ -40,6 +40,9 @@ async def get_document(
     base_url: Optional[str] = Query(
         default=None, description="Base URL for link transformation"
     ),
+    root_path: Optional[str] = Query(
+        default=None, description="Root directory path for link resolution"
+    ),
     document_service: DocumentService = Depends(get_document_service),
 ):
     """
@@ -53,6 +56,7 @@ async def get_document(
         ref: Branch or tag name. Default is "main"
         transform_links: Whether to transform relative links to absolute. Default is True
         base_url: Base URL for link transformation. If None, will be constructed from request parameters
+        root_path: Root directory path for link resolution. If specified, relative links are resolved from this directory
         document_service: Document service instance
 
     Returns:
@@ -74,6 +78,7 @@ async def get_document(
         ref,
         transform_links=transform_links,
         base_url=base_url,
+        root_path=root_path,
     )
 
 
