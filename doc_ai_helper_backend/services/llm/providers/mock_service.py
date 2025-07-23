@@ -142,7 +142,7 @@ class MockLLMService(LLMServiceBase):
             "usage": {
                 "prompt_tokens": len(prompt) // 4,
                 "completion_tokens": len(content) // 4,
-                "total_tokens": (len(prompt) + len(content)) // 4,
+                "total_tokens": len(prompt) // 4 + len(content) // 4,
             },
             "tool_calls": tool_calls,
             "finish_reason": "stop",
@@ -325,3 +325,119 @@ class MockLLMService(LLMServiceBase):
                 "arguments": '{"mock": "arguments"}',
             },
         }]
+
+    # === 公開メソッド ===
+
+    async def query(
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
+    ) -> LLMResponse:
+        """モックLLMクエリを実行"""
+        # 遅延をシミュレート
+        await asyncio.sleep(self.response_delay)
+        
+        # オプションを準備
+        prepared_options = await self._prepare_provider_options(
+            prompt=prompt,
+            conversation_history=conversation_history,
+            options=options,
+            system_prompt=None,  # 簡素化
+        )
+        
+        # プロバイダーAPIを呼び出し
+        raw_response = await self._call_provider_api(prepared_options)
+        
+        # レスポンスを変換
+        return await self._convert_provider_response(raw_response, prepared_options)
+
+    async def stream_query(
+        self,
+        prompt: str,
+        conversation_history: Optional[List[MessageItem]] = None,
+        options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
+    ) -> AsyncGenerator[str, None]:
+        """モックLLMストリーミングクエリを実行"""
+        # オプションを準備
+        prepared_options = await self._prepare_provider_options(
+            prompt=prompt,
+            conversation_history=conversation_history,
+            options=options,
+            system_prompt=None,  # 簡素化
+        )
+        
+        # ストリーミングAPIを呼び出し
+        async for chunk in self._stream_provider_api(prepared_options):
+            yield chunk
+
+    async def query_with_tools(
+        self,
+        prompt: str,
+        tools: List[FunctionDefinition],
+        conversation_history: Optional[List[MessageItem]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+        options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
+    ) -> LLMResponse:
+        """ツールありモックLLMクエリを実行"""
+        # 遅延をシミュレート
+        await asyncio.sleep(self.response_delay)
+        
+        # オプションを準備
+        prepared_options = await self._prepare_provider_options(
+            prompt=prompt,
+            conversation_history=conversation_history,
+            options=options,
+            system_prompt=None,  # 簡素化
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+        
+        # プロバイダーAPIを呼び出し
+        raw_response = await self._call_provider_api(prepared_options)
+        
+        # レスポンスを変換
+        return await self._convert_provider_response(raw_response, prepared_options)
+
+    async def query_with_tools_and_followup(
+        self,
+        prompt: str,
+        tools: List[FunctionDefinition],
+        conversation_history: Optional[List[MessageItem]] = None,
+        tool_choice: Optional[ToolChoice] = None,
+        options: Optional[Dict[str, Any]] = None,
+        repository_context: Optional["RepositoryContext"] = None,
+        document_metadata: Optional["DocumentMetadata"] = None,
+        document_content: Optional[str] = None,
+        system_prompt_template: str = "contextual_document_assistant_ja",
+        include_document_in_system_prompt: bool = True,
+    ) -> LLMResponse:
+        """ツールありフォローアップモックLLMクエリを実行"""
+        # 基本的にはquery_with_toolsと同じ（簡素化）
+        return await self.query_with_tools(
+            prompt=prompt,
+            tools=tools,
+            conversation_history=conversation_history,
+            tool_choice=tool_choice,
+            options=options,
+            repository_context=repository_context,
+            document_metadata=document_metadata,
+            document_content=document_content,
+            system_prompt_template=system_prompt_template,
+            include_document_in_system_prompt=include_document_in_system_prompt,
+        )
