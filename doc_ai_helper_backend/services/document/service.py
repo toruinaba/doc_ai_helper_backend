@@ -49,6 +49,7 @@ class DocumentService:
         use_cache: bool = True,
         transform_links: bool = True,
         base_url: Optional[str] = None,
+        root_path: Optional[str] = None,
     ) -> DocumentResponse:
         """Get document from a Git repository.
 
@@ -61,6 +62,7 @@ class DocumentService:
             use_cache: Whether to use cache. Default is True
             transform_links: Whether to transform relative links to absolute. Default is True
             base_url: Base URL for link transformation. If None, will be constructed from request parameters
+            root_path: Root directory path for link resolution. If specified, relative links are resolved from this directory
 
         Returns:
             DocumentResponse: Document data
@@ -125,7 +127,7 @@ class DocumentService:
                     )
 
                     transformed_content = processor.transform_links(
-                        raw_content, path, base_url, service, owner, repo, ref
+                        raw_content, path, base_url, service, owner, repo, ref, root_path
                     )
                     # Store transformed content
                     document.transformed_content = transformed_content

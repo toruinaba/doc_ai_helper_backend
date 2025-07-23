@@ -169,8 +169,11 @@ class TestForgejoService:
 
         with patch.object(
             service, "_make_request", new_callable=AsyncMock
-        ) as mock_make_request:
+        ) as mock_make_request, patch.object(
+            service, "_resolve_label_names_to_ids", new_callable=AsyncMock
+        ) as mock_resolve_labels:
             mock_make_request.return_value = mock_response
+            mock_resolve_labels.return_value = [1]  # Mock label ID resolution
 
             result = await service.create_issue(
                 "owner", "repo", "Test Issue", "Test description", labels=["bug"]
@@ -178,6 +181,97 @@ class TestForgejoService:
 
             assert result["id"] == 123
             assert result["title"] == "Test Issue"
+            # Verify that label resolution was called
+            mock_resolve_labels.assert_called_once_with("owner", "repo", ["bug"])
+
+    @pytest.mark.asyncio
+    async def test_create_issue_without_labels(self):
+        """Test issue creation without labels."""
+        service = ForgejoService(base_url=self.base_url, access_token=self.access_token)
+
+        # モックレスポンス
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "id": 124,
+            "number": 124,
+            "title": "Test Issue No Labels",
+            "body": "Test description",
+            "state": "open",
+            "html_url": f"{self.base_url}/owner/repo/issues/124",
+        }
+
+        with patch.object(
+            service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = mock_response
+
+            result = await service.create_issue(
+                "owner", "repo", "Test Issue No Labels", "Test description"
+            )
+
+            assert result["id"] == 124
+            assert result["title"] == "Test Issue No Labels"
+
+    @pytest.mark.asyncio
+    async def test_get_repository_labels(self):
+        """Test getting repository labels."""
+        service = ForgejoService(base_url=self.base_url, access_token=self.access_token)
+
+        # モックレスポンス
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"id": 1, "name": "bug", "color": "d73a4a"},
+            {"id": 2, "name": "enhancement", "color": "a2eeef"},
+            {"id": 3, "name": "documentation", "color": "0075ca"},
+        ]
+
+        with patch.object(
+            service, "_make_request", new_callable=AsyncMock
+        ) as mock_make_request:
+            mock_make_request.return_value = mock_response
+
+            result = await service.get_repository_labels("owner", "repo")
+
+            assert len(result) == 3
+            assert result[0]["name"] == "bug"
+            assert result[0]["id"] == 1
+            assert result[1]["name"] == "enhancement"
+            assert result[1]["id"] == 2
+
+    @pytest.mark.asyncio
+    async def test_resolve_label_names_to_ids(self):
+        """Test resolving label names to IDs."""
+        service = ForgejoService(base_url=self.base_url, access_token=self.access_token)
+
+        # Mock repository labels
+        mock_labels = [
+            {"id": 1, "name": "bug", "color": "d73a4a"},
+            {"id": 2, "name": "enhancement", "color": "a2eeef"},
+            {"id": 3, "name": "documentation", "color": "0075ca"},
+        ]
+
+        with patch.object(
+            service, "get_repository_labels", new_callable=AsyncMock
+        ) as mock_get_labels:
+            mock_get_labels.return_value = mock_labels
+
+            # Test resolving existing labels
+            result = await service._resolve_label_names_to_ids(
+                "owner", "repo", ["bug", "enhancement"]
+            )
+            assert result == [1, 2]
+
+            # Test with some non-existent labels
+            result = await service._resolve_label_names_to_ids(
+                "owner", "repo", ["bug", "nonexistent", "documentation"]
+            )
+            assert result == [1, 3]  # Should skip non-existent labels
+
+            # Test with empty labels
+            result = await service._resolve_label_names_to_ids("owner", "repo", [])
+            assert result == []
 
     @pytest.mark.asyncio
     async def test_create_pull_request(self):

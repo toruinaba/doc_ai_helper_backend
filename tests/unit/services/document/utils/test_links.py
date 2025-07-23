@@ -229,3 +229,103 @@ class TestLinkTransformer:
             'src="https://raw.githubusercontent.com/owner/repo/main/docs/dir/icons/check.png"'
             in transformed
         )
+
+    def test_transform_links_with_root_path(self):
+        """root_pathを使用したリンク変換のテスト"""
+        content = """
+# Root Path Test
+
+- [相対リンク](./file.md)
+- [親ディレクトリリンク](../parent.md)
+- [サブディレクトリリンク](subdir/file.md)
+- [画像リンク](../images/test.png)
+
+![相対画像](./local.png)
+![親ディレクトリ画像](../assets/icon.svg)
+"""
+
+        path = "docs/guide/setup.md"
+        base_url = "/api/v1/documents/contents/github/owner/repo"
+        service = "github"
+        owner = "owner"
+        repo = "repo"
+        ref = "main"
+
+        # root_pathなしの場合（従来の動作）
+        transformed_without_root = LinkTransformer.transform_links(
+            content, path, base_url, service, owner, repo, ref
+        )
+
+        # root_pathありの場合（新しい動作）
+        transformed_with_root = LinkTransformer.transform_links(
+            content, path, base_url, service, owner, repo, ref, root_path="docs"
+        )
+
+        print(f"\nWithout root_path:\n{transformed_without_root}")
+        print(f"\nWith root_path:\n{transformed_with_root}")
+
+        # root_pathなしの場合は、docs/guide/をベースにリンクが解決される
+        assert (
+            "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md?ref=main"
+            in transformed_without_root
+        )
+        assert (
+            "/api/v1/documents/contents/github/owner/repo/docs/parent.md?ref=main"
+            in transformed_without_root
+        )
+        assert (
+            "https://raw.githubusercontent.com/owner/repo/main/docs/images/test.png"
+            in transformed_without_root
+        )
+
+        # root_pathありの場合は、docs/をベースにリンクが解決される
+        assert (
+            "/api/v1/documents/contents/github/owner/repo/docs/file.md?ref=main"
+            in transformed_with_root
+        )
+        assert (
+            "/api/v1/documents/contents/github/owner/repo/parent.md?ref=main"
+            in transformed_with_root
+        )
+        assert (
+            "https://raw.githubusercontent.com/owner/repo/main/images/test.png"
+            in transformed_with_root
+        )
+
+        # 画像の変換も確認
+        assert (
+            "https://raw.githubusercontent.com/owner/repo/main/docs/guide/local.png"
+            in transformed_without_root
+        )
+        assert (
+            "https://raw.githubusercontent.com/owner/repo/main/docs/local.png"
+            in transformed_with_root
+        )
+
+    def test_transform_links_with_root_path_edge_cases(self):
+        """root_pathのエッジケースのテスト"""
+        content = """
+- [リンク](./file.md)
+- [親リンク](../parent.md)
+"""
+
+        path = "docs/guide/setup.md"
+        base_url = "/api/v1/documents/contents/github/owner/repo"
+
+        # root_pathが空文字列の場合（従来の動作と同じ）
+        transformed_empty = LinkTransformer.transform_links(
+            content, path, base_url, root_path=""
+        )
+        assert "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md" in transformed_empty
+
+        # root_pathが"/"で終わっている場合
+        transformed_slash = LinkTransformer.transform_links(
+            content, path, base_url, root_path="docs/"
+        )
+        assert "/api/v1/documents/contents/github/owner/repo/docs/file.md" in transformed_slash
+
+        # root_pathがNoneの場合（従来の動作）
+        transformed_none = LinkTransformer.transform_links(
+            content, path, base_url, root_path=None
+        )
+        assert "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md" in transformed_none

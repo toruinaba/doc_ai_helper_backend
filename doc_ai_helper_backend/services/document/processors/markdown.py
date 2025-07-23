@@ -135,7 +135,8 @@ class MarkdownProcessor(DocumentProcessorBase):
         service: Optional[str] = None,
         owner: Optional[str] = None,
         repo: Optional[str] = None,
-        ref: Optional[str] = None
+        ref: Optional[str] = None,
+        root_path: Optional[str] = None
     ) -> str:
         """
         Markdown内のリンクを変換する。
@@ -148,11 +149,12 @@ class MarkdownProcessor(DocumentProcessorBase):
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
+            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
 
         Returns:
             リンク変換済みのコンテンツ
         """
-        return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref)
+        return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref, root_path)
 
     def _extract_title_from_content(self, content: str) -> str:
         """
