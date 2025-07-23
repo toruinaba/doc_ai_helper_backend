@@ -84,17 +84,11 @@ def _validate_repository_context(repository_context: Dict[str, Any]) -> None:
 async def create_git_issue(
     title: str,
     description: str,
-<<<<<<< Updated upstream
     repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
-    labels: Optional[List[str]] = None,
-    assignees: Optional[List[str]] = None,
-=======
-    repository_context: Dict[str, Any],
     labels: Optional[List[str]] = None,
     assignees: Optional[List[str]] = None,
     service_type: Optional[str] = None,
     **service_kwargs,
->>>>>>> Stashed changes
 ) -> str:
     """
     Create a new issue in the Git repository.
@@ -102,52 +96,22 @@ async def create_git_issue(
     Args:
         title: Issue title
         description: Issue description/body
-<<<<<<< Updated upstream
         repository_context: Repository context with owner/repo/service info (injected by LLM)
-        labels: List of labels to apply
-        assignees: List of usernames to assign
-=======
-        repository_context: Repository context (owner/repo info) - REQUIRED
         labels: List of labels to apply
         assignees: List of usernames to assign
         service_type: Specific Git service to use (overrides repository_context.service)
         **service_kwargs: Additional service-specific arguments
->>>>>>> Stashed changes
 
     Returns:
         Result message with issue URL
         
-<<<<<<< Updated upstream
     Note:
         repository_context is automatically injected by the LLM service and contains:
         - owner: Repository owner
         - repo: Repository name  
         - service: Git service type (github, forgejo, etc.)
         - Authentication info (tokens, etc.)
-    """
-    try:
-        # Validate repository context
-        if not repository_context:
-            raise ValueError(
-                "Repository context is required but not provided. "
-                "This context should be automatically injected by the LLM service."
-            )
-
-        # Extract repository info from context
-        owner = repository_context.get("owner")
-        repo = repository_context.get("repo")
         
-        if not owner or not repo:
-            raise ValueError(
-                f"Repository owner and name must be provided in repository_context. "
-                f"Got: owner='{owner}', repo='{repo}'"
-            )
-
-        # Determine service type from repository context
-        service_type = _extract_service_type_from_context(repository_context)
-        
-        logger.info(f"Creating issue in {owner}/{repo} using service: {service_type}")
-=======
     Raises:
         ValueError: If repository_context is invalid or missing required fields
     """
@@ -163,15 +127,11 @@ async def create_git_issue(
         # Use explicit service_type if provided, otherwise use from context
         final_service_type = service_type or context_service_type
         
-        # Get the appropriate service
-        service = get_configured_service(final_service_type)
-        logger.info(f"Using Git service: {service.__class__.__name__} for {final_service_type}")
-        logger.info(f"Creating issue in {owner}/{repo} using {service.__class__.__name__}")
->>>>>>> Stashed changes
+        logger.info(f"Creating issue in {owner}/{repo} using service: {final_service_type}")
         logger.debug(f"Issue parameters: title='{title}', labels={labels}, assignees={assignees}")
 
         # Create service instance directly via factory
-        service = GitServiceFactory.create(service_type)
+        service = GitServiceFactory.create(final_service_type)
         
         # Create the issue using the service
         result = await service.create_issue(
@@ -199,15 +159,10 @@ async def create_git_pull_request(
     title: str,
     description: str,
     head_branch: str,
-<<<<<<< Updated upstream
     repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
-    base_branch: str = "main",
-=======
-    repository_context: Dict[str, Any],
     base_branch: str = "main",
     service_type: Optional[str] = None,
     **service_kwargs,
->>>>>>> Stashed changes
 ) -> str:
     """
     Create a new pull request in the Git repository.
@@ -216,53 +171,21 @@ async def create_git_pull_request(
         title: PR title
         description: PR description/body
         head_branch: Source branch for the PR
-<<<<<<< Updated upstream
         repository_context: Repository context with owner/repo/service info (injected by LLM)
-        base_branch: Target branch for the PR
-=======
-        repository_context: Repository context (owner/repo info) - REQUIRED
         base_branch: Target branch for the PR
         service_type: Specific Git service to use (overrides repository_context.service)
         **service_kwargs: Additional service-specific arguments
->>>>>>> Stashed changes
 
     Returns:
         Result message with PR URL
         
-<<<<<<< Updated upstream
     Note:
         repository_context is automatically injected by the LLM service and contains:
         - owner: Repository owner
         - repo: Repository name  
         - service: Git service type (github, forgejo, etc.)
         - Authentication info (tokens, etc.)
-    """
-    try:
-        # Validate repository context
-        if not repository_context:
-            raise ValueError(
-                "Repository context is required but not provided. "
-                "This context should be automatically injected by the LLM service."
-            )
-
-        # Extract repository info from context
-        owner = repository_context.get("owner")
-        repo = repository_context.get("repo")
         
-        if not owner or not repo:
-            raise ValueError(
-                f"Repository owner and name must be provided in repository_context. "
-                f"Got: owner='{owner}', repo='{repo}'"
-            )
-
-        # Determine service type from repository context
-        service_type = _extract_service_type_from_context(repository_context)
-        
-        logger.info(f"Creating PR in {owner}/{repo} using service: {service_type}")
-
-        # Create service instance directly via factory
-        service = GitServiceFactory.create(service_type)
-=======
     Raises:
         ValueError: If repository_context is invalid or missing required fields
     """
@@ -278,12 +201,11 @@ async def create_git_pull_request(
         # Use explicit service_type if provided, otherwise use from context
         final_service_type = service_type or context_service_type
         
-        # Get the appropriate service
-        service = get_configured_service(final_service_type)
-        logger.info(f"Using Git service: {service.__class__.__name__} for {final_service_type}")
-        logger.info(f"Creating PR in {owner}/{repo} using {service.__class__.__name__}")
+        logger.info(f"Creating PR in {owner}/{repo} using service: {final_service_type}")
         logger.debug(f"PR parameters: title='{title}', head='{head_branch}', base='{base_branch}'")
->>>>>>> Stashed changes
+
+        # Create service instance directly via factory
+        service = GitServiceFactory.create(final_service_type)
 
         # Create the PR using the service
         result = await service.create_pull_request(
@@ -297,10 +219,7 @@ async def create_git_pull_request(
 
         success_msg = f"Pull request created successfully: {result.get('html_url', 'N/A')}"
         logger.info(f"Git PR creation result: {success_msg}")
-<<<<<<< Updated upstream
-=======
         logger.debug(f"Full service response: {result}")
->>>>>>> Stashed changes
         return success_msg
 
     except ValueError as e:

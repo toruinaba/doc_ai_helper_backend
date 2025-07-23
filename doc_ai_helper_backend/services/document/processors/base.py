@@ -72,7 +72,8 @@ class DocumentProcessorBase(ABC):
         service: Optional[str] = None,
         owner: Optional[str] = None,
         repo: Optional[str] = None,
-        ref: Optional[str] = None
+        ref: Optional[str] = None,
+        root_path: Optional[str] = None
     ) -> str:
         """
         ドキュメント内のリンクを変換する。
@@ -85,6 +86,7 @@ class DocumentProcessorBase(ABC):
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
+            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
             
         Returns:
             リンク変換済みのコンテンツ

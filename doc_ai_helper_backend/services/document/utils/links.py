@@ -100,7 +100,8 @@ class LinkTransformer:
         service: Optional[str] = None,
         owner: Optional[str] = None,
         repo: Optional[str] = None,
-        ref: Optional[str] = None
+        ref: Optional[str] = None,
+        root_path: Optional[str] = None
     ) -> str:
         """
         Markdown内のリンクを変換する。
@@ -113,6 +114,7 @@ class LinkTransformer:
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
+            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
 
         Returns:
             リンク変換済みのコンテンツ
@@ -120,7 +122,11 @@ class LinkTransformer:
         transformed_content = content
 
         # ドキュメントのベースディレクトリを取得
-        base_dir = os.path.dirname(path)
+        # root_pathが指定されている場合はそれを使用、そうでなければファイルのディレクトリを使用
+        if root_path is not None and root_path.strip():
+            base_dir = root_path.rstrip('/')
+        else:
+            base_dir = os.path.dirname(path)
 
         # 通常のリンクを変換
         transformed_content = re.sub(
