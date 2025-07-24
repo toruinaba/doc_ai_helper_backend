@@ -441,3 +441,30 @@ class MockLLMService(LLMServiceBase):
             system_prompt_template=system_prompt_template,
             include_document_in_system_prompt=include_document_in_system_prompt,
         )
+
+    async def format_prompt(self, template_id: str, variables: Dict[str, Any]) -> str:
+        """プロンプトテンプレートを変数でフォーマットするモック実装"""
+        # 簡単なモックテンプレート処理
+        if template_id == "contextual_document_assistant_ja":
+            template = "あなたは{role}です。{context}に関する質問に答えてください。"
+        elif template_id == "basic":
+            template = "{prompt}について答えてください。"
+        else:
+            template = "Template {template_id}: {prompt}"
+            
+        # 変数置換
+        try:
+            return template.format(**variables, template_id=template_id)
+        except KeyError as e:
+            return f"Error formatting template {template_id}: Missing variable {e}"
+        except Exception as e:
+            return f"Error formatting template {template_id}: {e}"
+
+    async def get_available_templates(self) -> List[str]:
+        """利用可能なプロンプトテンプレートIDのリストを取得"""
+        return [
+            "contextual_document_assistant_ja",
+            "basic",
+            "function_calling",
+            "system_prompts_ja",
+        ]
