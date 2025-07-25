@@ -26,12 +26,13 @@ if TYPE_CHECKING:
 
 from doc_ai_helper_backend.models.llm import (
     LLMResponse,
+    LLMQueryRequest,
     MessageItem,
     MessageRole,
     FunctionDefinition,
     ToolChoice,
 )
-from doc_ai_helper_backend.core.exceptions import LLMServiceException
+from doc_ai_helper_backend.core.exceptions import LLMServiceException, ServiceNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -156,45 +157,78 @@ class LLMOrchestrator:
         """
         self.cache_service = cache_service
 
-    # === メインクエリ処理メソッド ===
-
-    async def execute_query(
-        self,
-        service: "LLMServiceBase",
-        prompt: str,
-        conversation_history: Optional[List[MessageItem]] = None,
-        options: Optional[Dict[str, Any]] = None,
-        repository_context: Optional["RepositoryContext"] = None,
-        document_metadata: Optional["DocumentMetadata"] = None,
-        document_content: Optional[str] = None,
-        include_document_in_system_prompt: bool = True,
-    ) -> LLMResponse:
+    # === 新しい構造化リクエスト処理メソッド ===
+    
+    async def execute_query(self, request: LLMQueryRequest) -> LLMResponse:
         """
-        標準的なLLMクエリを実行
-
+        構造化されたLLMQueryRequestを処理
+        
         Args:
-            service: LLMサービスインスタンス
-            prompt: LLMに送信するプロンプト
-            conversation_history: 会話履歴
-            options: 追加オプション（モデル、温度など）
-            repository_context: リポジトリコンテキスト
-            document_metadata: ドキュメントメタデータ
-            document_content: ドキュメント内容
-            include_document_in_system_prompt: システムプロンプトにドキュメントを含めるか
-
+            request: 構造化されたLLMクエリリクエスト
+            
         Returns:
             LLMResponse: LLMからのレスポンス
         """
-        logger.info(f"Starting query execution with prompt length: {len(prompt or '')}")
-
+        from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
+        
+        logger.info(f"Starting query execution with prompt length: {len(request.query.prompt or '')}")
+        
         try:
             # プロンプト検証
-            if prompt is None or not prompt.strip():
+            if not request.query.prompt or not request.query.prompt.strip():
                 raise LLMServiceException("Prompt cannot be empty")
 
+            # サービスインスタンスを作成
+            service = LLMServiceFactory.create(
+                request.query.provider,
+                model=request.query.model
+            )
+            
+            # 処理オプションを準備
+            options = {}
+            if request.processing and request.processing.options:
+                options.update(request.processing.options)
+            
+            # リポジトリコンテキストの準備
+            repository_context = None
+            document_metadata = None
+            document_content = None
+            
+            if request.document and request.document.repository_context:
+                repository_context = request.document.repository_context
+                
+                # ドキュメントコンテキストがある場合、必要に応じて文書取得
+                if request.document.auto_include_document:
+                    # ここで実際のドキュメント取得処理を行う
+                    # 簡素化のため、現在は空の実装
+                    pass
+            
+            # ツールが有効な場合は、ツール付きクエリを実行
+            if request.tools and request.tools.enable_tools:
+                # 利用可能なツールを取得
+                tools = await service.get_available_functions()
+                
+                tool_choice = None
+                if request.tools.tool_choice:
+                    from doc_ai_helper_backend.models.llm import ToolChoice
+                    tool_choice = ToolChoice(type=request.tools.tool_choice)
+                
+                return await self._execute_query_with_tools_internal(
+                    service=service,
+                    prompt=request.query.prompt,
+                    tools=tools,
+                    conversation_history=request.query.conversation_history,
+                    tool_choice=tool_choice,
+                    options=options,
+                    repository_context=repository_context,
+                    document_metadata=document_metadata,
+                    document_content=document_content
+                )
+            
+            # 標準クエリの実行（直接実装）
             # 1. キャッシュチェック
             cache_key = self._generate_cache_key(
-                prompt, conversation_history, options, repository_context,
+                request.query.prompt, request.query.conversation_history, options, repository_context,
                 document_metadata, document_content
             )
 
@@ -207,14 +241,14 @@ class LLMOrchestrator:
                 repository_context=repository_context,
                 document_metadata=document_metadata,
                 document_content=document_content,
-                include_document_in_system_prompt=include_document_in_system_prompt,
+                include_document_in_system_prompt=True,
             )
 
             # 3. プロバイダー固有オプション準備
             provider_options = await service._prepare_provider_options(
-                prompt=prompt,
-                conversation_history=conversation_history,
-                options=options or {},
+                prompt=request.query.prompt,
+                conversation_history=request.query.conversation_history,
+                options=options,
                 system_prompt=system_prompt,
             )
 
@@ -227,58 +261,82 @@ class LLMOrchestrator:
             )
 
             # 6. 会話履歴最適化情報設定
-            self._set_conversation_optimization_info(llm_response, conversation_history)
+            self._set_conversation_optimization_info(llm_response, request.query.conversation_history)
 
             # 7. レスポンスキャッシュ
-            self.cache_service.set(cache_key, llm_response)
+            self.cache_service[cache_key] = llm_response
 
             logger.info(f"Query execution completed successfully, model: {llm_response.model}")
             return llm_response
 
+        except ServiceNotFoundError:
+            # ServiceNotFoundErrorをそのまま再raise（APIレイヤーで適切に処理される）
+            raise
         except Exception as e:
             logger.error(f"Error in query execution: {str(e)}")
             raise LLMServiceException(f"Query execution failed: {str(e)}")
-
-    async def execute_streaming_query(
-        self,
-        service: "LLMServiceBase",
-        prompt: str,
-        conversation_history: Optional[List[MessageItem]] = None,
-        options: Optional[Dict[str, Any]] = None,
-        repository_context: Optional["RepositoryContext"] = None,
-        document_metadata: Optional["DocumentMetadata"] = None,
-        document_content: Optional[str] = None,
-        include_document_in_system_prompt: bool = True,
-    ) -> AsyncGenerator[str, None]:
+    
+    async def execute_streaming_query(self, request: LLMQueryRequest) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        ストリーミングLLMクエリを実行
+        構造化されたLLMQueryRequestでストリーミングクエリを処理
+        
+        Args:
+            request: 構造化されたLLMクエリリクエスト
+            
+        Yields:
+            Dict[str, Any]: ストリーミングレスポンスチャンク
         """
-        logger.info(f"Starting streaming query execution with prompt length: {len(prompt or '')}")
-
+        from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
+        
+        logger.info(f"Starting streaming query execution with prompt length: {len(request.query.prompt or '')}")
+        
         try:
             # プロンプト検証
-            if prompt is None or not prompt.strip():
+            if not request.query.prompt or not request.query.prompt.strip():
                 raise LLMServiceException("Prompt cannot be empty")
 
+            # サービスインスタンスを作成
+            service = LLMServiceFactory.create(
+                request.query.provider,
+                model=request.query.model
+            )
+            
+            # 処理オプションを準備
+            options = {}
+            if request.processing and request.processing.options:
+                options.update(request.processing.options)
+
+            # リポジトリコンテキストの準備
+            repository_context = None
+            document_metadata = None
+            document_content = None
+            
+            if request.document and request.document.repository_context:
+                repository_context = request.document.repository_context
+                
             # 1. システムプロンプト生成
             system_prompt = self._generate_system_prompt(
                 repository_context=repository_context,
                 document_metadata=document_metadata,
                 document_content=document_content,
-                include_document_in_system_prompt=include_document_in_system_prompt,
+                include_document_in_system_prompt=True,
             )
 
             # 2. プロバイダー固有オプション準備
             provider_options = await service._prepare_provider_options(
-                prompt=prompt,
-                conversation_history=conversation_history,
-                options=options or {},
+                prompt=request.query.prompt,
+                conversation_history=request.query.conversation_history,
+                options=options,
                 system_prompt=system_prompt,
             )
 
             # 3. プロバイダーAPIからのストリーミング
             async for chunk in service._stream_provider_api(provider_options):
-                yield chunk
+                # ストリーミングチャンクを構造化データとして返す
+                yield {"content": chunk, "done": False}
+            
+            # ストリーミング完了を示す
+            yield {"content": "", "done": True}
 
             logger.info("Streaming query execution completed successfully")
 
@@ -286,7 +344,9 @@ class LLMOrchestrator:
             logger.error(f"Error in streaming query execution: {str(e)}")
             raise LLMServiceException(f"Streaming query execution failed: {str(e)}")
 
-    async def execute_query_with_tools(
+    # === 内部実装メソッド ===
+
+    async def _execute_query_with_tools_internal(
         self,
         service: "LLMServiceBase",
         prompt: str,

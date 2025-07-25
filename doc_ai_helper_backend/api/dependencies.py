@@ -60,18 +60,16 @@ def get_git_service_factory() -> GitServiceFactory:
     return GitServiceFactory()
 
 
-def get_llm_orchestrator(
-    git_service_factory: GitServiceFactory = Depends(get_git_service_factory)
-) -> LLMOrchestrator:
+def get_llm_orchestrator() -> LLMOrchestrator:
     """Get LLMOrchestrator instance.
-
-    Args:
-        git_service_factory: Git service factory dependency
 
     Returns:
         LLMOrchestrator: LLMOrchestrator instance
     """
-    return LLMOrchestrator(git_service_factory)
+    # 簡単なdictベースのキャッシュサービスを提供
+    # 本格的なキャッシュが必要な場合は、Redis等を使用
+    cache_service = {}
+    return LLMOrchestrator(cache_service)
 
 
 def get_repository_service(db: AsyncSession = Depends(get_db)) -> RepositoryService:

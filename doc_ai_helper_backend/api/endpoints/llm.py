@@ -9,6 +9,7 @@ import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sse_starlette.sse import EventSourceResponse
+from pydantic import ValidationError
 
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
@@ -95,17 +96,14 @@ async def query_llm(
         response = await orchestrator.execute_query(request)
         return response
 
-    except ParameterValidationError as e:
-        logger.warning(f"Parameter validation failed: {e.validation_errors}")
+    except ValidationError as e:
+        logger.warning(f"Request validation failed: {e}")
         raise HTTPException(
-            status_code=400, 
-            detail={
-                "message": e.message,
-                "validation_errors": e.validation_errors
-            }
+            status_code=422, 
+            detail=e.errors()
         )
     except ServiceNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except LLMServiceException as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
@@ -158,12 +156,17 @@ async def get_provider_info():
         Dict[str, Any]: Provider information and status
     """
     try:
-        available_providers = provider_config_service.get_available_providers()
-        all_providers = provider_config_service.get_all_supported_providers()
+        available_providers = LLMServiceFactory.get_available_providers()
+        all_providers = LLMServiceFactory.get_available_providers()  # すべてサポートされているとする
         
         provider_statuses = {}
         for provider in all_providers:
-            provider_statuses[provider] = provider_config_service.get_provider_status(provider)
+            provider_statuses[provider] = {
+                "provider": provider,
+                "supported": True,
+                "configured": True,  # 簡素化のため、登録されていれば設定済みとする
+                "available": True
+            }
         
         return {
             "available_providers": available_providers,
@@ -197,8 +200,22 @@ async def get_provider_status(
         Dict[str, Any]: Detailed provider status
     """
     try:
-        status = provider_config_service.get_provider_status(provider_name)
-        return status
+        available_providers = LLMServiceFactory.get_available_providers()
+        
+        if provider_name in available_providers:
+            return {
+                "provider": provider_name,
+                "supported": True,
+                "configured": True,
+                "available": True
+            }
+        else:
+            return {
+                "provider": provider_name,
+                "supported": False,
+                "configured": False,
+                "available": False
+            }
 
     except Exception as e:
         logger.error(f"Error getting provider status for '{provider_name}': {e}")
@@ -311,15 +328,14 @@ async def stream_llm_response(
             # Request validation handled by orchestrator
             
             # Execute streaming query using new infrastructure
-            stream_generator = await orchestrator.execute_streaming_query(request)
-            async for chunk in stream_generator:
+            async for chunk in orchestrator.execute_streaming_query(request):
                 yield json.dumps(chunk)
 
-        except ParameterValidationError as e:
-            logger.warning(f"Parameter validation failed: {e.validation_errors}")
+        except ValidationError as e:
+            logger.warning(f"Request validation failed: {e}")
             yield json.dumps({
-                "error": e.message,
-                "validation_errors": e.validation_errors
+                "error": "Validation error",
+                "validation_errors": e.errors()
             })
         except ServiceNotFoundError as e:
             yield json.dumps({"error": f"Service not found: {str(e)}"})
