@@ -10,7 +10,7 @@ import asyncio
 from typing import Dict, Any, List
 
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.utils import FunctionRegistry
+from doc_ai_helper_backend.services.llm.legacy.functions.function_registry import FunctionRegistry
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 
 

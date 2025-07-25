@@ -45,12 +45,19 @@ def sample_document_metadata():
 def llm_request_payload(sample_repository_context, sample_document_metadata):
     """Base LLM request payload for testing."""
     return {
-        "prompt": "Please summarize this document",
-        "repository_context": sample_repository_context,
-        "document_metadata": sample_document_metadata,
-        "auto_include_document": True,
-        "enable_tools": True,
-        "provider": "mock"  # Use mock provider for testing
+        "query": {
+            "prompt": "Please summarize this document",
+            "provider": "mock"
+        },
+        "document": {
+            "repository_context": sample_repository_context,
+            "auto_include_document": True
+        },
+        "tools": {
+            "enable_tools": True,
+            "tool_choice": "auto",
+            "complete_tool_flow": True
+        }
     }
 
 
@@ -107,10 +114,14 @@ async def test_query_endpoint_document_integration_disabled(sample_repository_co
     """Test /llm/query endpoint when document integration is disabled."""
     
     request_payload = {
-        "prompt": "Hello, world!",
-        "repository_context": sample_repository_context,
-        "auto_include_document": False,  # Disabled
-        "provider": "mock"
+        "query": {
+            "prompt": "Hello, world!",
+            "provider": "mock"
+        },
+        "document": {
+            "repository_context": sample_repository_context,
+            "auto_include_document": False
+        }
     }
     
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as ac:
@@ -126,7 +137,7 @@ async def test_query_endpoint_continuation_request(llm_request_payload):
     """Test /llm/query endpoint with existing conversation history (continuation request)."""
     
     # Add existing conversation history to simulate continuation
-    llm_request_payload["conversation_history"] = [
+    llm_request_payload["query"]["conversation_history"] = [
         {"role": "system", "content": "System message"},
         {"role": "assistant", "content": "Document content: # Sample\nContent here"},
         {"role": "user", "content": "Previous question"},
@@ -227,9 +238,13 @@ async def test_query_endpoint_no_repository_context():
     """Test /llm/query endpoint without repository context."""
     
     request_payload = {
-        "prompt": "What is the weather today?",
-        "auto_include_document": True,  # Enabled but no repository context
-        "provider": "mock"
+        "query": {
+            "prompt": "What is the weather today?",
+            "provider": "mock"
+        },
+        "document": {
+            "auto_include_document": True  # Enabled but no repository context
+        }
     }
     
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as ac:

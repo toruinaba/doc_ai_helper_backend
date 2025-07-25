@@ -33,6 +33,7 @@ from doc_ai_helper_backend.models.llm import (
     ToolChoice,
 )
 from doc_ai_helper_backend.core.exceptions import LLMServiceException, ServiceNotFoundError
+from doc_ai_helper_backend.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -179,9 +180,20 @@ class LLMOrchestrator:
                 raise LLMServiceException("Prompt cannot be empty")
 
             # サービスインスタンスを作成
-            service = LLMServiceFactory.create(
+            service_config = {"model": request.query.model}
+            
+            # プロバイダー固有の設定を追加
+            if request.query.provider.lower() == "openai":
+                service_config.update({
+                    "api_key": settings.openai_api_key,
+                    "base_url": settings.openai_base_url,
+                    "default_model": request.query.model or settings.default_openai_model
+                })
+            
+            service = LLMServiceFactory.create_with_mcp(
                 request.query.provider,
-                model=request.query.model
+                enable_mcp=True,
+                **service_config
             )
             
             # 処理オプションを準備
@@ -196,6 +208,7 @@ class LLMOrchestrator:
             
             if request.document and request.document.repository_context:
                 repository_context = request.document.repository_context
+                logger.info(f"Repository context received: service={repository_context.service}, owner={repository_context.owner}, repo={repository_context.repo}, current_path={repository_context.current_path}")
                 
                 # ドキュメントコンテキストがある場合、必要に応じて文書取得
                 if request.document.auto_include_document:
@@ -207,6 +220,9 @@ class LLMOrchestrator:
             if request.tools and request.tools.enable_tools:
                 # 利用可能なツールを取得
                 tools = await service.get_available_functions()
+                logger.info(f"Available MCP tools count: {len(tools)}")
+                for tool in tools:
+                    logger.debug(f"Available tool: {tool.name} - {tool.description[:100]}...")
                 
                 tool_choice = None
                 if request.tools.tool_choice:
@@ -296,9 +312,20 @@ class LLMOrchestrator:
                 raise LLMServiceException("Prompt cannot be empty")
 
             # サービスインスタンスを作成
-            service = LLMServiceFactory.create(
+            service_config = {"model": request.query.model}
+            
+            # プロバイダー固有の設定を追加
+            if request.query.provider.lower() == "openai":
+                service_config.update({
+                    "api_key": settings.openai_api_key,
+                    "base_url": settings.openai_base_url,
+                    "default_model": request.query.model or settings.default_openai_model
+                })
+            
+            service = LLMServiceFactory.create_with_mcp(
                 request.query.provider,
-                model=request.query.model
+                enable_mcp=True,
+                **service_config
             )
             
             # 処理オプションを準備
@@ -313,6 +340,7 @@ class LLMOrchestrator:
             
             if request.document and request.document.repository_context:
                 repository_context = request.document.repository_context
+                logger.info(f"Repository context received: service={repository_context.service}, owner={repository_context.owner}, repo={repository_context.repo}, current_path={repository_context.current_path}")
                 
             # 1. システムプロンプト生成
             system_prompt = self._generate_system_prompt(

@@ -73,6 +73,11 @@ async def query_llm(
         LLMResponse: The response from the LLM
     """
     try:
+        # Log raw request for debugging
+        logger.info("=== RAW REQUEST DEBUG ===")
+        logger.info(f"Full request: {request.model_dump()}")
+        logger.info("========================")
+        
         # Log request details for debugging
         logger.info(f"LLM query request - provider: {request.query.provider}")
         if request.tools:
