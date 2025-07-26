@@ -29,7 +29,7 @@ from doc_ai_helper_backend.core.exceptions import (
     TemplateNotFoundError,
     TemplateSyntaxError,
 )
-from doc_ai_helper_backend.api.dependencies import get_llm_service, get_llm_orchestrator
+from doc_ai_helper_backend.api.dependencies import get_llm_service, get_llm_orchestrator, get_llm_orchestrator_with_document_service
 # Legacy imports - functionality now integrated into orchestrator
 
 logger = logging.getLogger(__name__)
@@ -41,9 +41,9 @@ router = APIRouter()
 # === Helper Dependencies ===
 
 def get_llm_orchestrator_dep(
-    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator)
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_with_document_service)
 ) -> LLMOrchestrator:
-    """Dependency to get LLMOrchestrator instance."""
+    """Dependency to get LLMOrchestrator instance with DocumentService integration."""
     return orchestrator
 
 

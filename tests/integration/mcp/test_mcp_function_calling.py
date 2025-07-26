@@ -10,7 +10,7 @@ import asyncio
 from typing import Dict, Any, List
 
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.legacy.functions.function_registry import FunctionRegistry
+# FunctionRegistry は現在使用されていません - MCPツールを直接使用
 from doc_ai_helper_backend.services.mcp.server import DocumentAIHelperMCPServer
 
 
@@ -62,42 +62,20 @@ class TestMCPFunctionCallingIntegration:
         assert response.content
         # 基本的なLLM応答が返されることを確認
 
-    async def test_function_registry_mcp_integration(
+    async def test_mcp_server_tool_availability(
         self, mcp_server: DocumentAIHelperMCPServer
     ):
-        """FunctionRegistryとMCPツールの統合をテスト。"""
-        function_registry = FunctionRegistry()
-
-        # MCPツール関数をインポート
-        from doc_ai_helper_backend.services.mcp.tools.document_tools import (
-            extract_document_context,
-        )
-
-        # MCPツールを実際の関数として登録
-        function_registry.register_function(
-            name="extract_document_context",
-            function=extract_document_context,
-            description="Extract structured context from a document",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "document_content": {"type": "string"},
-                    "repository": {"type": "string"},
-                    "path": {"type": "string"},
-                },
-                "required": ["document_content"],
-            },
-        )
-
-        # 登録確認
-        registered_functions = function_registry.get_all_functions()
-        assert len(registered_functions) > 0
-
-        # 特定の関数が登録されていることを確認
-        assert "extract_document_context" in registered_functions
-        assert (
-            registered_functions["extract_document_context"] == extract_document_context
-        )
+        """MCPサーバーでツールが利用可能かテスト。"""
+        # MCPサーバー経由でツール取得
+        available_tools = await mcp_server.app.get_tools()
+        
+        # 基本的なツールが利用可能であることを確認
+        assert len(available_tools) > 0
+        
+        # ドキュメント関連ツールの存在確認
+        tool_names = list(available_tools.keys())
+        document_tools = [name for name in tool_names if 'document' in name.lower()]
+        assert len(document_tools) > 0
 
     async def test_mcp_tool_chain_execution(
         self,

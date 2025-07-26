@@ -72,6 +72,24 @@ def get_llm_orchestrator() -> LLMOrchestrator:
     return LLMOrchestrator(cache_service)
 
 
+def get_llm_orchestrator_with_document_service(
+    document_service: DocumentService = Depends(get_document_service)
+) -> LLMOrchestrator:
+    """Get LLMOrchestrator instance with DocumentService integration.
+
+    Args:
+        document_service: DocumentService dependency
+        
+    Returns:
+        LLMOrchestrator: LLMOrchestrator instance with DocumentService
+    """
+    # 簡単なdictベースのキャッシュサービスを提供
+    cache_service = {}
+    orchestrator = LLMOrchestrator(cache_service)
+    orchestrator.document_service = document_service
+    return orchestrator
+
+
 def get_repository_service(db: AsyncSession = Depends(get_db)) -> RepositoryService:
     """
     Get repository service instance.

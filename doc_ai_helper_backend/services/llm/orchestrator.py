@@ -157,6 +157,7 @@ class LLMOrchestrator:
             cache_service: レスポンスキャッシュサービス
         """
         self.cache_service = cache_service
+        self.document_service = None  # DocumentServiceは依存関係注入で設定される
 
     # === 新しい構造化リクエスト処理メソッド ===
     
@@ -212,9 +213,7 @@ class LLMOrchestrator:
                 
                 # ドキュメントコンテキストがある場合、必要に応じて文書取得
                 if request.document.auto_include_document:
-                    # ここで実際のドキュメント取得処理を行う
-                    # 簡素化のため、現在は空の実装
-                    pass
+                    document_content, document_metadata = await self._retrieve_document_content(repository_context)
             
             # ツールが有効な場合は、ツール付きクエリを実行
             if request.tools and request.tools.enable_tools:
@@ -341,6 +340,10 @@ class LLMOrchestrator:
             if request.document and request.document.repository_context:
                 repository_context = request.document.repository_context
                 logger.info(f"Repository context received: service={repository_context.service}, owner={repository_context.owner}, repo={repository_context.repo}, current_path={repository_context.current_path}")
+                
+                # ドキュメントコンテキストがある場合、必要に応じて文書取得
+                if request.document.auto_include_document:
+                    document_content, document_metadata = await self._retrieve_document_content(repository_context)
                 
             # 1. システムプロンプト生成
             system_prompt = self._generate_system_prompt(
@@ -502,10 +505,35 @@ IMPORTANT: You have access to tools for document analysis and repository managem
 
             # ドキュメントメタデータ情報
             if document_metadata:
-                if document_metadata.is_documentation:
+                # content_typeを使用してファイルタイプを判定
+                content_type = getattr(document_metadata, 'content_type', '').lower()
+                if 'markdown' in content_type or 'text' in content_type or 'html' in content_type:
                     prompt_parts.append("このファイルはドキュメントファイルです。")
-                elif document_metadata.is_code_file:
+                elif any(code_type in content_type for code_type in ['python', 'javascript', 'json', 'yaml']):
                     prompt_parts.append("このファイルはコードファイルです。")
+                elif content_type:
+                    prompt_parts.append(f"ファイルタイプ: {content_type}")
+                    
+                # ファイルサイズ情報も追加
+                if hasattr(document_metadata, 'size') and document_metadata.size:
+                    prompt_parts.append(f"ファイルサイズ: {document_metadata.size} bytes")
+
+            # ドキュメント内容埋め込み（新機能）
+            if document_content:
+                prompt_parts.append("=== 現在のドキュメント内容 ===")
+                
+                # 長すぎる場合は切り詰め（トークン制限を考慮）
+                max_content_length = 8000  # 約2000トークンに相当
+                if len(document_content) > max_content_length:
+                    truncated_content = document_content[:max_content_length] + "\n...(内容が長いため省略されました)"
+                    prompt_parts.append(truncated_content)
+                    logger.info(f"Document content truncated from {len(document_content)} to {max_content_length} characters")
+                else:
+                    prompt_parts.append(document_content)
+                    logger.info(f"Full document content included: {len(document_content)} characters")
+                
+                prompt_parts.append("=== ドキュメント内容ここまで ===")
+                prompt_parts.append("上記のドキュメント内容を参考にして、コンテキストに基づいた回答を提供してください。")
 
             return "\n".join(prompt_parts)
 
@@ -803,6 +831,47 @@ IMPORTANT: You have access to tools for document analysis and repository managem
 
         key_string = str(sorted(key_data.items()))
         return hashlib.md5(key_string.encode()).hexdigest()
+
+    async def _retrieve_document_content(
+        self, 
+        repository_context: "RepositoryContext"
+    ) -> tuple[Optional[str], Optional["DocumentMetadata"]]:
+        """
+        DocumentServiceを使用してドキュメント内容を取得
+        
+        Args:
+            repository_context: リポジトリコンテキスト
+            
+        Returns:
+            tuple: (document_content, document_metadata)
+        """
+        if not repository_context or not repository_context.current_path:
+            logger.warning("Repository context or current_path is missing for document retrieval")
+            return None, None
+            
+        try:
+            # DocumentServiceが設定されていない場合は初期化
+            if not self.document_service:
+                from doc_ai_helper_backend.services.document import DocumentService
+                self.document_service = DocumentService()
+                logger.info("DocumentService initialized for document retrieval")
+            
+            # ドキュメント取得
+            document_response = await self.document_service.get_document(
+                service=repository_context.service,
+                owner=repository_context.owner,
+                repo=repository_context.repo,
+                path=repository_context.current_path,
+                ref=repository_context.ref or "main",
+                transform_links=True,
+            )
+            
+            logger.info(f"Document content retrieved: {len(document_response.content.content)} characters")
+            return document_response.content.content, document_response.metadata
+            
+        except Exception as e:
+            logger.warning(f"Failed to retrieve document content: {e}")
+            return None, None
 
 
 # 後方互換性のためのエイリアス
