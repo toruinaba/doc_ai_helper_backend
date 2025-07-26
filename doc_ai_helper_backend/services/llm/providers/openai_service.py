@@ -450,25 +450,59 @@ class OpenAIService(LLMServiceBase):
         Query method - normally delegated to orchestrator.
         Basic implementation for testing purposes.
         """
+        # Extract known parameters for _prepare_provider_options
+        conversation_history = kwargs.get("conversation_history")
+        system_prompt = kwargs.get("system_prompt")
+        tools = kwargs.get("tools")
+        tool_choice = kwargs.get("tool_choice")
+        
+        # Create options dict from remaining kwargs
+        options = {k: v for k, v in kwargs.items() 
+                  if k not in ["conversation_history", "system_prompt", "tools", "tool_choice"]}
+        
         # Prepare options
-        options = await self._prepare_provider_options(prompt, **kwargs)
+        provider_options = await self._prepare_provider_options(
+            prompt, 
+            conversation_history=conversation_history,
+            options=options,
+            system_prompt=system_prompt,
+            tools=tools,
+            tool_choice=tool_choice
+        )
         
         # Call API
-        raw_response = await self._call_provider_api(options)
+        raw_response = await self._call_provider_api(provider_options)
         
         # Convert response
-        return await self._convert_provider_response(raw_response, options)
+        return await self._convert_provider_response(raw_response, provider_options)
 
     async def stream_query(self, prompt: str, **kwargs):
         """
         Stream query method - normally delegated to orchestrator.
         Basic implementation for testing purposes.
         """
+        # Extract known parameters for _prepare_provider_options
+        conversation_history = kwargs.get("conversation_history")
+        system_prompt = kwargs.get("system_prompt")
+        tools = kwargs.get("tools")
+        tool_choice = kwargs.get("tool_choice")
+        
+        # Create options dict from remaining kwargs
+        options = {k: v for k, v in kwargs.items() 
+                  if k not in ["conversation_history", "system_prompt", "tools", "tool_choice"]}
+        
         # Prepare options
-        options = await self._prepare_provider_options(prompt, **kwargs)
+        provider_options = await self._prepare_provider_options(
+            prompt, 
+            conversation_history=conversation_history,
+            options=options,
+            system_prompt=system_prompt,
+            tools=tools,
+            tool_choice=tool_choice
+        )
         
         # Stream from API
-        async for chunk in self._stream_provider_api(options):
+        async for chunk in self._stream_provider_api(provider_options):
             yield chunk
 
     async def query_with_tools(self, prompt: str, tools: List[FunctionDefinition], **kwargs) -> LLMResponse:
