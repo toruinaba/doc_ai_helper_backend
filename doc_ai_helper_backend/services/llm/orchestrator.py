@@ -507,10 +507,12 @@ IMPORTANT: You have access to tools for document analysis and repository managem
             if document_metadata:
                 # content_typeを使用してファイルタイプを判定
                 content_type = getattr(document_metadata, 'content_type', '').lower()
-                if 'markdown' in content_type or 'text' in content_type or 'html' in content_type:
-                    prompt_parts.append("このファイルはドキュメントファイルです。")
-                elif any(code_type in content_type for code_type in ['python', 'javascript', 'json', 'yaml']):
+                if any(code_type in content_type for code_type in ['python', 'javascript', 'json', 'yaml']):
                     prompt_parts.append("このファイルはコードファイルです。")
+                elif 'markdown' in content_type or 'html' in content_type or (
+                    'text' in content_type and not any(x in content_type for x in ['python', 'javascript', 'json', 'yaml'])
+                ):
+                    prompt_parts.append("このファイルはドキュメントファイルです。")
                 elif content_type:
                     prompt_parts.append(f"ファイルタイプ: {content_type}")
                     

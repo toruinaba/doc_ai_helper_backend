@@ -564,8 +564,8 @@ class TestOrchestratorUtilities:
         
         # Mock document metadata
         mock_doc_metadata = Mock()
-        mock_doc_metadata.is_documentation = True
-        mock_doc_metadata.is_code_file = False
+        mock_doc_metadata.content_type = "text/markdown"
+        mock_doc_metadata.size = 1024
         
         result = orchestrator._generate_system_prompt(
             repository_context=None,
@@ -583,8 +583,8 @@ class TestOrchestratorUtilities:
         
         # Mock code file metadata  
         mock_doc_metadata = Mock()
-        mock_doc_metadata.is_documentation = False
-        mock_doc_metadata.is_code_file = True
+        mock_doc_metadata.content_type = "text/x-python"
+        mock_doc_metadata.size = 2048
         
         result = orchestrator._generate_system_prompt(
             repository_context=None,
@@ -659,8 +659,8 @@ class TestOrchestratorUtilities:
         mock_repo_context.current_path = "src/main.py"
         
         mock_doc_metadata = Mock()
-        mock_doc_metadata.is_documentation = True
-        mock_doc_metadata.is_code_file = False
+        mock_doc_metadata.content_type = "text/markdown"
+        mock_doc_metadata.size = 1500
         
         result = orchestrator._generate_system_prompt(
             repository_context=mock_repo_context,
