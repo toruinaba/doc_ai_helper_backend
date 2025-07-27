@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     enable_repository_management: bool = Field(default=False, alias="ENABLE_REPOSITORY_MANAGEMENT")
     enable_repository_context_integration: bool = Field(default=False, alias="ENABLE_REPO_CONTEXT_INTEGRATION")
 
+    # Server settings
+    server_host: str = Field(default="0.0.0.0", alias="HOST")
+    server_port: int = Field(default=8000, alias="PORT")
+
     # E2E Test settings - minimal additions for test target repositories
     e2e_github_owner: str = Field(default="octocat", alias="E2E_GITHUB_OWNER")
     e2e_github_repo: str = Field(default="Hello-World", alias="E2E_GITHUB_REPO")

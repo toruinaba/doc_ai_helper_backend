@@ -90,7 +90,7 @@ if __name__ == "__main__":
     logger.info(f"Starting {settings.app_name} application")
     uvicorn.run(
         "doc_ai_helper_backend.main:app",
-        host="0.0.0.0",
-        port=8000,
+        host=settings.server_host,
+        port=settings.server_port,
         reload=settings.debug,
     )
