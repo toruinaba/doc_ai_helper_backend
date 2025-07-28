@@ -157,7 +157,7 @@ class LLMOrchestrator:
                 repository_context=repository_context,
                 document_metadata=document_metadata,
                 document_content=document_content,
-                include_document_in_system_prompt=True,
+                include_document_in_system_prompt=request.document.auto_include_document,
             )
 
             # 3. プロバイダー固有オプション準備
@@ -176,8 +176,13 @@ class LLMOrchestrator:
                 raw_response, provider_options
             )
 
-            # 6. 会話履歴最適化情報設定
-            self._set_conversation_optimization_info(llm_response, request.query.conversation_history)
+            # 6. 会話履歴最適化情報設定（現在のやり取りを含む）
+            updated_history = self._build_updated_conversation_history(
+                request.query.conversation_history, 
+                request.query.prompt, 
+                llm_response.content
+            )
+            self._set_conversation_optimization_info(llm_response, updated_history)
 
             # 7. レスポンスキャッシュ
             self.cache_service[cache_key] = llm_response
@@ -251,7 +256,7 @@ class LLMOrchestrator:
                 repository_context=repository_context,
                 document_metadata=document_metadata,
                 document_content=document_content,
-                include_document_in_system_prompt=True,
+                include_document_in_system_prompt=request.document.auto_include_document,
             )
 
             # 2. プロバイダー固有オプション準備
@@ -339,8 +344,13 @@ class LLMOrchestrator:
                 logger.info("No tool calls detected in LLM response")
                 llm_response.tool_execution_results = []
 
-            # 6. 会話履歴最適化情報設定
-            self._set_conversation_optimization_info(llm_response, conversation_history)
+            # 6. 会話履歴最適化情報設定（現在のやり取りを含む）
+            updated_history = self._build_updated_conversation_history(
+                conversation_history, 
+                prompt, 
+                llm_response.content
+            )
+            self._set_conversation_optimization_info(llm_response, updated_history)
 
             logger.info(f"Query with tools execution completed successfully, model: {llm_response.model}")
             return llm_response
@@ -516,7 +526,8 @@ IMPORTANT: You have access to tools for document analysis and repository managem
                 llm_response.usage.completion_tokens += followup_response.usage.completion_tokens
                 llm_response.usage.total_tokens += followup_response.usage.total_tokens
             
-            logger.info(f"Followup response generated: {len(llm_response.content)} characters")
+            content_len = len(llm_response.content) if llm_response.content is not None else 0
+            logger.info(f"Followup response generated: {content_len} characters")
         else:
             logger.warning("Followup response generation failed or returned empty content")
 
@@ -687,6 +698,33 @@ IMPORTANT: You have access to tools for document analysis and repository managem
             messages.append(MessageItem(role=MessageRole.USER, content=prompt))
 
         return messages
+
+    def _build_updated_conversation_history(
+        self, 
+        original_history: Optional[List[MessageItem]], 
+        user_prompt: str, 
+        assistant_response: Optional[str]
+    ) -> List[MessageItem]:
+        """Build updated conversation history including current exchange"""
+        from doc_ai_helper_backend.models.llm import MessageItem, MessageRole
+        
+        # Start with original history or empty list
+        updated_history = original_history.copy() if original_history else []
+        
+        # Add current user message
+        updated_history.append(MessageItem(
+            role=MessageRole.USER,
+            content=user_prompt
+        ))
+        
+        # Add current assistant response if available
+        if assistant_response:
+            updated_history.append(MessageItem(
+                role=MessageRole.ASSISTANT,
+                content=assistant_response
+            ))
+        
+        return updated_history
 
     def _set_conversation_optimization_info(
         self, llm_response: LLMResponse, conversation_history: Optional[List[MessageItem]]

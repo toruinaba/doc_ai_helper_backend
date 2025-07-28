@@ -9,16 +9,11 @@ import pytest
 import os
 
 from doc_ai_helper_backend.services.mcp.tools.llm_enhanced_tools import (
-    _build_japanese_summarization_prompt,
     _build_japanese_improvement_prompt,
-    _extract_japanese_key_points,
     _parse_japanese_improvement_recommendations,
     _generate_japanese_overall_assessment,
-    _translate_focus_area,
-    _translate_length_type,
     _translate_improvement_type,
     _translate_target_audience,
-    _get_max_tokens_for_length,
 )
 
 

@@ -86,13 +86,26 @@ async def handle_tool_execution_and_followup(
     # フォローアップでメインレスポンス内容を更新
     if followup_response and followup_response.content:
         llm_response.content = followup_response.content
+        
         # 使用量統計を更新
         if followup_response.usage and llm_response.usage:
             llm_response.usage.prompt_tokens += followup_response.usage.prompt_tokens
             llm_response.usage.completion_tokens += followup_response.usage.completion_tokens
             llm_response.usage.total_tokens += followup_response.usage.total_tokens
         
-        logger.info(f"Followup response generated: {len(llm_response.content)} characters")
+        # 会話履歴の最適化情報も転送（重要：これが抜けていた）
+        if hasattr(followup_response, 'optimized_conversation_history'):
+            llm_response.optimized_conversation_history = followup_response.optimized_conversation_history
+        if hasattr(followup_response, 'history_optimization_info'):
+            llm_response.history_optimization_info = followup_response.history_optimization_info
+        
+        content_len = len(llm_response.content) if llm_response.content is not None else 0
+        logger.info(f"Followup response generated: {content_len} characters")
+        
+        # 会話履歴の転送状況をログ出力（安全にチェック）
+        history = getattr(llm_response, 'optimized_conversation_history', None)
+        history_count = len(history) if history is not None else 0
+        logger.info(f"Conversation history transferred: {history_count} messages")
     else:
         logger.warning("Followup response generation failed or returned empty content")
 
@@ -192,6 +205,10 @@ async def generate_followup_response(
         followup_response = await service._convert_provider_response(
             followup_raw_response, followup_provider_options
         )
+        
+        # フォローアップレスポンスに会話履歴最適化情報を設定
+        if hasattr(service, '_set_conversation_optimization_info'):
+            service._set_conversation_optimization_info(followup_response, followup_history)
         
         logger.info(f"Followup response generated successfully: {len(followup_response.content) if followup_response.content else 0} characters")
         return followup_response

@@ -55,16 +55,17 @@ def generate_system_prompt(
 
         # ドキュメントメタデータ情報
         if document_metadata:
-            # DocumentTypeを使用してファイルタイプを判定
-            doc_type = document_metadata.type
-            doc_type_value = doc_type.value if hasattr(doc_type, 'value') else str(doc_type)
-            
-            if doc_type_value in ['python', 'javascript', 'typescript', 'json', 'yaml']:
-                prompt_parts.append("このファイルはコードファイルです。")
-            elif doc_type_value in ['markdown', 'html', 'text']:
-                prompt_parts.append("このファイルはドキュメントファイルです。")
-            else:
-                prompt_parts.append(f"ファイルタイプ: {doc_type_value}")
+            # DocumentTypeを使用してファイルタイプを判定（安全にアクセス）
+            if hasattr(document_metadata, 'type') and document_metadata.type:
+                doc_type = document_metadata.type
+                doc_type_value = doc_type.value if hasattr(doc_type, 'value') else str(doc_type)
+                
+                if doc_type_value in ['python', 'javascript', 'typescript', 'json', 'yaml']:
+                    prompt_parts.append("このファイルはコードファイルです。")
+                elif doc_type_value in ['markdown', 'html', 'text']:
+                    prompt_parts.append("このファイルはドキュメントファイルです。")
+                else:
+                    prompt_parts.append(f"ファイルタイプ: {doc_type_value}")
                 
             # ファイルサイズ情報も追加
             if hasattr(document_metadata, 'file_size') and document_metadata.file_size:
@@ -101,28 +102,28 @@ def _build_bilingual_tool_system_prompt() -> str:
     Returns:
         バイリンガルツールプロンプト文字列
     """
-    return """=== インタラクティブ改善要望システム ===
+    return """=== 文書改善支援システム ===
 
-## 基本情報
-現在参照中の文書内容は、このプロンプトの後に「=== 現在のドキュメント内容 ===」として提供されています。
-この内容を踏まえて、自然な対話を通じてユーザーの質問に答え、改善要望を発見・具体化してください。
+後に「=== 現在のドキュメント内容 ===」で文書内容を提供します。
+この内容を参考にユーザーの質問に答え、改善要望があれば即座に対応してください。
 
-## 対話アプローチ
-1. **質問への丁寧な回答** - 現在の文書内容を活用した具体的で有用な回答
-2. **改善要望の発見** - 対話の中で以下を察知
-   - 情報不足・分かりにくさ・手順の問題・機能不足・矛盾/古い情報
-3. **要望の具体化** - 背景確認→解決案検討→優先度整理
-4. **自然な改善提案の記録** - 具体化できた改善要望を「改善提案」として記録することを提案
+## 基本動作
+1. 質問回答：文書内容を活用して具体的に回答
+2. 改善察知：困りごと・要望を察知したら即座にcreate_improvement_recommendations_with_llm実行
+3. 共同修正：提案内容をユーザーと一緒にブラッシュアップ
+4. 正式提出：ユーザー同意後、会話で確定した内容でcreate_git_issue実行
 
-## ツール使用
-- **自動実行**: summarize_document_with_llm（概要必要時）、create_improvement_recommendations_with_llm（改善提案時）
-- **提案後実行**: create_git_issue（ユーザー同意後のみ）
+## 重要原則
+- 改善要望を1つでも発見したら深掘りより先に提案作成
+- 提案後は必ず「修正しますか？」「このまま提出しますか？」と確認
+- 提出時は必ず会話で確定した内容を使用（ツール出力は使わない）
 
-## 言葉遣いの配慮
-- **開発用語の回避**: git、issue、リポジトリ、コード、API等の専門用語は使わない
-- **分かりやすい表現**: 「改善提案の記録」「文書の更新」「システムへの要望」等を使用
-- **一般的な言葉**: 「ファイル」「文書」「手順書」「マニュアル」「システム」等を優先
+## 提出時の注意
+ユーザーが「提出」「OK」「はい」「進めて」と言ったら：
+1. 「以下の内容で提出します」と改善提案の要約を表示
+2. create_git_issueを実行：
+   - title: 簡潔な要約（20文字以内）
+   - problem_description: 特定された課題・問題点
+   - improvement_proposals: 会話で確定した具体的な改善提案
 
-## 応答特徴
-技術に詳しくないユーザーにも理解しやすい言葉で、共感的かつ建設的に対応。
-一緒に文書やシステムをより使いやすくしていく協力者として振る舞ってください。"""
+専門用語（git、issue等）は使わず、「改善提案の記録」「文書更新要望」等で説明してください。"""
