@@ -83,7 +83,8 @@ def _validate_repository_context(repository_context: Dict[str, Any]) -> None:
 
 async def create_git_issue(
     title: str,
-    description: str,
+    problem_description: str,
+    improvement_proposals: str,
     repository_context: Dict[str, Any],  # Required: automatically injected by LLM service
     labels: Optional[List[str]] = None,
     assignees: Optional[List[str]] = None,
@@ -91,11 +92,12 @@ async def create_git_issue(
     **service_kwargs,
 ) -> str:
     """
-    Create a new issue in the Git repository.
+    Create a new issue in the Git repository with clear separation of problem and solution.
 
     Args:
-        title: Issue title
-        description: Issue description/body
+        title: Issue title (concise summary)
+        problem_description: Description of the identified problem/issue
+        improvement_proposals: Detailed improvement proposals and recommendations
         repository_context: Repository context with owner/repo/service info (injected by LLM)
         labels: List of labels to apply
         assignees: List of usernames to assign
@@ -130,6 +132,13 @@ async def create_git_issue(
         logger.info(f"Creating issue in {owner}/{repo} using service: {final_service_type}")
         logger.debug(f"Issue parameters: title='{title}', labels={labels}, assignees={assignees}")
 
+        # Combine problem description and improvement proposals into structured body
+        issue_body = f"""## 課題・問題点
+{problem_description}
+
+## 改善提案
+{improvement_proposals}"""
+
         # Create service instance directly via factory
         service = GitServiceFactory.create(final_service_type)
         
@@ -138,7 +147,7 @@ async def create_git_issue(
             owner=owner,
             repo=repo,
             title=title,
-            body=description,
+            body=issue_body,
             labels=labels,
             assignees=assignees,
         )

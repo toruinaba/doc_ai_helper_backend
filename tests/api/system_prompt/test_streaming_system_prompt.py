@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 
 

@@ -1,7 +1,9 @@
 """
 LLM service factory.
 
-This module provides a factory for creating LLM service instances.
+このモジュールはLLMサービスインスタンスを作成するためのファクトリーを提供します。
+オーケストレータとの統合により、キャッシュサービスも含めて
+完全に構成されたLLMサービスを提供します。
 """
 
 from typing import Dict, Type, Optional
@@ -58,35 +60,77 @@ class LLMServiceFactory:
         return service_class(**config)
 
     @classmethod
+    def create_with_orchestrator(
+        cls, provider: str, cache_service=None, enable_mcp: bool = True, **config
+    ) -> tuple[LLMServiceBase, 'LLMOrchestrator']:
+        """
+        オーケストレータと共にLLMサービスインスタンスを作成
+        
+        Args:
+            provider: LLMプロバイダーの名前
+            cache_service: キャッシュサービス（指定されない場合はデフォルトを使用）
+            enable_mcp: FastMCP統合を有効にするか
+            **config: サービスの設定オプション
+
+        Returns:
+            tuple: (LLMサービスインスタンス, LLMオーケストレータ)
+
+        Raises:
+            ServiceNotFoundError: 要求されたプロバイダーが登録されていない場合
+        """
+        # LLMサービス作成
+        service = cls.create(provider, **config)
+
+        # MCP統合
+        if enable_mcp:
+            try:
+                from doc_ai_helper_backend.services.mcp.server import mcp_server
+                if hasattr(service, "set_mcp_server"):
+                    service.set_mcp_server(mcp_server)
+            except ImportError:
+                pass
+
+        # キャッシュサービスの取得またはデフォルト作成
+        if cache_service is None:
+            try:
+                from doc_ai_helper_backend.services.llm.caching import MemoryLLMCache
+                cache_service = MemoryLLMCache()
+            except ImportError:
+                # キャッシュサービスが利用できない場合、簡単なメモリキャッシュを使用
+                cache_service = {}
+
+        # オーケストレータ作成
+        from doc_ai_helper_backend.services.llm.orchestrator import LLMOrchestrator
+        orchestrator = LLMOrchestrator(cache_service)
+
+        return service, orchestrator
+
+    @classmethod
     def create_with_mcp(
         cls, provider: str, enable_mcp: bool = True, **config
     ) -> LLMServiceBase:
         """
-        Create an LLM service instance with FastMCP integration.
+        FastMCP統合でLLMサービスインスタンスを作成（後方互換性のため）
 
         Args:
-            provider: The name of the LLM provider
-            enable_mcp: Whether to enable FastMCP integration
-            **config: Configuration options for the service
+            provider: LLMプロバイダーの名前
+            enable_mcp: FastMCP統合を有効にするか
+            **config: サービスの設定オプション
 
         Returns:
-            LLMServiceBase: An instance of the requested LLM service with FastMCP integration
+            LLMServiceBase: FastMCP統合付きの要求されたLLMサービスのインスタンス
 
         Raises:
-            ServiceNotFoundError: If the requested provider is not registered
+            ServiceNotFoundError: 要求されたプロバイダーが登録されていない場合
         """
         service = cls.create(provider, **config)
 
         if enable_mcp:
             try:
                 from doc_ai_helper_backend.services.mcp.server import mcp_server
-
-                # Set FastMCP server directly on the service (no adapter layer)
                 if hasattr(service, "set_mcp_server"):
                     service.set_mcp_server(mcp_server)
-
-            except ImportError as e:
-                # FastMCP not available, continue without it
+            except ImportError:
                 pass
 
         return service
@@ -102,23 +146,19 @@ class LLMServiceFactory:
         return list(cls._services.keys())
 
 
-# Register default LLM services
+# デフォルトLLMサービスの登録
 def _register_default_services():
-    """Register default LLM service implementations."""
+    """デフォルトLLMサービス実装を登録"""
     try:
-        from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
-
+        from doc_ai_helper_backend.services.llm.providers.openai_service import OpenAIService
         LLMServiceFactory.register("openai", OpenAIService)
     except ImportError:
-        # OpenAI not available
         pass
 
     try:
-        from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
-
+        from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
         LLMServiceFactory.register("mock", MockLLMService)
     except ImportError:
-        # Mock service not available
         pass
 
 

@@ -6,7 +6,7 @@
 import asyncio
 import json
 import os
-from doc_ai_helper_backend.services.llm.openai_service import OpenAIService
+from doc_ai_helper_backend.services.llm.providers.openai_service import OpenAIService
 
 
 async def test_japanese_github_function_calling():

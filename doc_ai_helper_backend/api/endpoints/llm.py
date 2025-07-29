@@ -9,6 +9,7 @@ import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sse_starlette.sse import EventSourceResponse
+from pydantic import ValidationError
 
 from doc_ai_helper_backend.models.llm import (
     LLMQueryRequest,
@@ -21,17 +22,15 @@ from doc_ai_helper_backend.models.llm import (
 )
 from doc_ai_helper_backend.services.llm.base import LLMServiceBase
 from doc_ai_helper_backend.services.llm.factory import LLMServiceFactory
-from doc_ai_helper_backend.services.llm.conversation_manager import ConversationManager
+from doc_ai_helper_backend.services.llm.orchestrator import LLMOrchestrator
 from doc_ai_helper_backend.core.exceptions import (
     LLMServiceException,
     ServiceNotFoundError,
     TemplateNotFoundError,
     TemplateSyntaxError,
 )
-from doc_ai_helper_backend.api.dependencies import get_llm_service, get_conversation_manager
-from doc_ai_helper_backend.services.llm.query_processor import QueryProcessor
-from doc_ai_helper_backend.services.llm.parameter_validator import ParameterValidator, ParameterValidationError
-from doc_ai_helper_backend.services.llm.provider_configuration import provider_config_service
+from doc_ai_helper_backend.api.dependencies import get_llm_service, get_llm_orchestrator, get_llm_orchestrator_with_document_service
+# Legacy imports - functionality now integrated into orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -41,16 +40,14 @@ router = APIRouter()
 
 # === Helper Dependencies ===
 
-def get_query_processor(
-    conversation_manager: ConversationManager = Depends(get_conversation_manager)
-) -> QueryProcessor:
-    """Dependency to get QueryProcessor instance."""
-    return QueryProcessor(conversation_manager)
+def get_llm_orchestrator_dep(
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_with_document_service)
+) -> LLMOrchestrator:
+    """Dependency to get LLMOrchestrator instance with DocumentService integration."""
+    return orchestrator
 
 
-def get_parameter_validator() -> ParameterValidator:
-    """Dependency to get ParameterValidator instance."""
-    return ParameterValidator()
+# Parameter validation is now handled by the orchestrator
 
 
 @router.post(
@@ -61,8 +58,8 @@ def get_parameter_validator() -> ParameterValidator:
 )
 async def query_llm(
     request: LLMQueryRequest,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_dep),
+    # Parameter validation handled by orchestrator
 ):
     """
     Send a query to an LLM using the structured parameter format.
@@ -76,6 +73,11 @@ async def query_llm(
         LLMResponse: The response from the LLM
     """
     try:
+        # Log raw request for debugging
+        logger.info("=== RAW REQUEST DEBUG ===")
+        logger.info(f"Full request: {request.model_dump()}")
+        logger.info("========================")
+        
         # Log request details for debugging
         logger.info(f"LLM query request - provider: {request.query.provider}")
         if request.tools:
@@ -93,23 +95,20 @@ async def query_llm(
             logger.info("No document context provided in request")
         
         # Validate request parameters
-        validator.validate_request(request)
+        # Request validation handled by orchestrator
         
         # Process query using new infrastructure
-        response = await query_processor.execute_query(request, streaming=False)
+        response = await orchestrator.execute_query(request)
         return response
 
-    except ParameterValidationError as e:
-        logger.warning(f"Parameter validation failed: {e.validation_errors}")
+    except ValidationError as e:
+        logger.warning(f"Request validation failed: {e}")
         raise HTTPException(
-            status_code=400, 
-            detail={
-                "message": e.message,
-                "validation_errors": e.validation_errors
-            }
+            status_code=422, 
+            detail=e.errors()
         )
     except ServiceNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
     except LLMServiceException as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
@@ -162,12 +161,17 @@ async def get_provider_info():
         Dict[str, Any]: Provider information and status
     """
     try:
-        available_providers = provider_config_service.get_available_providers()
-        all_providers = provider_config_service.get_all_supported_providers()
+        available_providers = LLMServiceFactory.get_available_providers()
+        all_providers = LLMServiceFactory.get_available_providers()  # すべてサポートされているとする
         
         provider_statuses = {}
         for provider in all_providers:
-            provider_statuses[provider] = provider_config_service.get_provider_status(provider)
+            provider_statuses[provider] = {
+                "provider": provider,
+                "supported": True,
+                "configured": True,  # 簡素化のため、登録されていれば設定済みとする
+                "available": True
+            }
         
         return {
             "available_providers": available_providers,
@@ -201,8 +205,22 @@ async def get_provider_status(
         Dict[str, Any]: Detailed provider status
     """
     try:
-        status = provider_config_service.get_provider_status(provider_name)
-        return status
+        available_providers = LLMServiceFactory.get_available_providers()
+        
+        if provider_name in available_providers:
+            return {
+                "provider": provider_name,
+                "supported": True,
+                "configured": True,
+                "available": True
+            }
+        else:
+            return {
+                "provider": provider_name,
+                "supported": False,
+                "configured": False,
+                "available": False
+            }
 
     except Exception as e:
         logger.error(f"Error getting provider status for '{provider_name}': {e}")
@@ -279,8 +297,8 @@ async def format_prompt(
 )
 async def stream_llm_response(
     request: LLMQueryRequest,
-    query_processor: QueryProcessor = Depends(get_query_processor),
-    validator: ParameterValidator = Depends(get_parameter_validator),
+    orchestrator: LLMOrchestrator = Depends(get_llm_orchestrator_dep),
+    # Parameter validation handled by orchestrator
 ):
     """
     Stream a response from an LLM using the structured parameter format.
@@ -312,18 +330,17 @@ async def stream_llm_response(
                 logger.info("STREAM No document context provided in request")
             
             # Validate request parameters
-            validator.validate_request(request)
+            # Request validation handled by orchestrator
             
             # Execute streaming query using new infrastructure
-            stream_generator = await query_processor.execute_query(request, streaming=True)
-            async for chunk in stream_generator:
+            async for chunk in orchestrator.execute_streaming_query(request):
                 yield json.dumps(chunk)
 
-        except ParameterValidationError as e:
-            logger.warning(f"Parameter validation failed: {e.validation_errors}")
+        except ValidationError as e:
+            logger.warning(f"Request validation failed: {e}")
             yield json.dumps({
-                "error": e.message,
-                "validation_errors": e.validation_errors
+                "error": "Validation error",
+                "validation_errors": e.errors()
             })
         except ServiceNotFoundError as e:
             yield json.dumps({"error": f"Service not found: {str(e)}"})

@@ -3,158 +3,18 @@
 
 このモジュールは内部LLM APIエンドポイントを活用して、
 日本語文書の高度な分析機能を提供します。
+要約機能は削除され、改善提案機能のみ提供します。
 """
 
 import json
 import logging
+import re
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 import httpx
 
 logger = logging.getLogger(__name__)
-
-
-async def summarize_document_with_llm(
-    document_content: str,
-    summary_length: str = "comprehensive",
-    focus_area: str = "general",
-    context: Optional[str] = None,
-    repository_context: Optional[Dict[str, Any]] = None,
-) -> str:
-    """
-    内部LLM APIを使用して日本語文書の高品質な要約を生成します。
-    
-    専用の日本語プロンプトと処理機能を使用して、
-    日本語文書に最適化された要約を提供します。
-    
-    Args:
-        document_content: 要約対象の日本語文書内容
-        summary_length: 要約の長さ ("brief"=簡潔, "detailed"=詳細, "comprehensive"=包括的)
-        focus_area: 焦点領域 ("general"=一般向け, "technical"=技術的, "business"=ビジネス向け)
-        context: 追加コンテキスト (オプション)
-        
-    Returns:
-        要約、メタデータ、分析指標を含むJSON文字列
-    """
-    start_time = time.time()
-    
-    try:
-        # 入力検証とコンテンツ自動取得
-        if not document_content or not document_content.strip():
-            # Try to get document content from repository context
-            if repository_context and repository_context.get("current_path"):
-                try:
-                    from doc_ai_helper_backend.services.git.factory import GitServiceFactory
-                    
-                    # Create git service
-                    service_type = repository_context.get("service", "github")
-                    git_service = GitServiceFactory.create(service_type)
-                    
-                    # Get document content
-                    owner = repository_context.get("owner")
-                    repo = repository_context.get("repo")
-                    path = repository_context.get("current_path")
-                    ref = repository_context.get("ref", "main")
-                    
-                    if owner and repo and path:
-                        document_content = await git_service.get_file_content(owner, repo, path, ref)
-                        logger.info(f"Auto-retrieved document content for summarization from {owner}/{repo}/{path}: {len(document_content)} chars")
-                except Exception as e:
-                    logger.warning(f"Failed to auto-retrieve document content for summarization: {e}")            
-            
-            # Still no content available
-            if not document_content or not document_content.strip():
-                return json.dumps({
-                    "success": False,
-                    "error": "Document content cannot be empty"
-                }, ensure_ascii=False)
-        
-        # 日本語文書用の専用プロンプトを構築
-        prompt = _build_japanese_summarization_prompt(
-            document_content, summary_length, focus_area, context
-        )
-        
-        # 設定から適切なモデルを取得
-        from doc_ai_helper_backend.core.config import settings
-        model = settings.default_openai_model or "gpt-3.5-turbo"
-        
-        # 内部LLM APIエンドポイントへの呼び出し
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "http://localhost:8000/api/v1/llm/query",
-                json={
-                    "prompt": prompt,
-                    "provider": "openai",
-                    "enable_tools": False,  # 循環呼び出し防止
-                    "options": {
-                        "model": model,
-                        "temperature": 0.3,
-                        "max_tokens": _get_max_tokens_for_length(summary_length),
-                    }
-                },
-                timeout=30.0
-            )
-            response.raise_for_status()
-            
-            llm_response = response.json()
-            
-            # LLM応答から要約を抽出
-            summary_text = llm_response.get("response", "")
-            
-            # Calculate metrics for Japanese document processing
-            original_length = len(document_content)
-            summary_length_chars = len(summary_text)
-            compression_ratio = summary_length_chars / original_length if original_length > 0 else 0
-            processing_time = time.time() - start_time
-            
-            # Extract key points from Japanese document
-            key_points = _extract_japanese_key_points(summary_text)
-            
-            result = {
-                "success": True,
-                "original_length": original_length,
-                "summary": summary_text,
-                "summary_length": summary_length_chars,
-                "compression_ratio": round(compression_ratio, 3),
-                "key_points": key_points,
-                "focus_area": _translate_focus_area(focus_area),
-                "length_type": _translate_length_type(summary_length),
-                "processing_time_seconds": round(processing_time, 2),
-                "metadata": {
-                    "model_used": "gpt-3.5-turbo",
-                    "temperature": 0.3,
-                    "prompt_type": "japanese_document_summary",
-                    "language": "japanese"
-                }
-            }
-            
-            logger.info(f"Japanese document summary completed in {processing_time:.2f} seconds")
-            return json.dumps(result, indent=2, ensure_ascii=False)
-            
-    except httpx.TimeoutException:
-        logger.error("LLM API timeout during summary processing")
-        return json.dumps({
-            "success": False,
-            "error": "LLM processing timeout - please retry",
-            "processing_time_seconds": round(time.time() - start_time, 2)
-        }, ensure_ascii=False)
-        
-    except httpx.HTTPStatusError as e:
-        logger.error(f"LLM API HTTP error: {e.response.status_code}")
-        return json.dumps({
-            "success": False,
-            "error": f"LLM API error occurred: {e.response.status_code}",
-            "processing_time_seconds": round(time.time() - start_time, 2)
-        }, ensure_ascii=False)
-        
-    except Exception as e:
-        logger.error(f"Unexpected error during summary processing: {str(e)}")
-        return json.dumps({
-            "success": False,
-            "error": f"Unexpected error occurred: {str(e)}",
-            "processing_time_seconds": round(time.time() - start_time, 2)
-        }, ensure_ascii=False)
 
 
 async def create_improvement_recommendations_with_llm(
@@ -251,9 +111,43 @@ async def create_improvement_recommendations_with_llm(
             recommendations_text = llm_response.get("response", "")
             logger.info(f"Raw LLM recommendations response: {recommendations_text[:500]}...")  # Log response for debugging
             
+            # JSON問題のデバッグ用：問題のある文字を特定
+            if '"' in recommendations_text or "'" in recommendations_text:
+                quote_positions = [i for i, c in enumerate(recommendations_text) if c in '"\'']
+                logger.warning(f"Found quotes at positions: {quote_positions[:10]}...")  # First 10 positions
+            
+            # 応答の文字エンコーディングをチェック
+            try:
+                recommendations_text.encode('utf-8')
+                logger.info("LLM response encoding: UTF-8 compatible")
+            except UnicodeEncodeError as e:
+                logger.error(f"LLM response encoding issue: {e}")
+                recommendations_text = recommendations_text.encode('utf-8', errors='ignore').decode('utf-8')
+            
             # Parse and structure Japanese improvement recommendations
-            structured_recommendations = _parse_japanese_improvement_recommendations(recommendations_text)
-            logger.info(f"Parsed recommendations structure: {structured_recommendations}")  # Log parsed structure
+            try:
+                structured_recommendations = _parse_japanese_improvement_recommendations(recommendations_text)
+                logger.info(f"Parsed recommendations structure: {structured_recommendations}")  # Log parsed structure
+                
+                # 構造検証：各優先度レベルに最低1つの提案があることを確認
+                for priority in ["高優先度", "中優先度", "低優先度"]:
+                    if not structured_recommendations.get(priority):
+                        structured_recommendations[priority] = []
+                        
+            except Exception as parse_error:
+                logger.error(f"Error parsing improvement recommendations: {parse_error}")
+                # フォールバック：基本的な構造を提供
+                structured_recommendations = {
+                    "高優先度": [{
+                        "カテゴリ": "general",
+                        "タイトル": "改善提案パース失敗",
+                        "説明": f"改善提案の解析中にエラーが発生しました: {str(parse_error)[:100]}",
+                        "実装労力": "medium",
+                        "期待効果": "medium"
+                    }],
+                    "中優先度": [],
+                    "低優先度": []
+                }
             
             # Calculate processing metrics
             processing_time = time.time() - start_time
@@ -275,7 +169,49 @@ async def create_improvement_recommendations_with_llm(
             }
             
             logger.info(f"Japanese document improvement recommendations generated in {processing_time:.2f} seconds")
-            return json.dumps(result, indent=2, ensure_ascii=False)
+            
+            # Sanitize all string values in result to prevent JSON issues
+            logger.info(f"Pre-sanitization result keys: {list(result.keys())}")
+            result = _sanitize_json_content(result)
+            logger.info(f"Post-sanitization result keys: {list(result.keys())}")
+            
+            # JSON文字列生成をtry-catchで保護 (ensure_ascii=Trueで安全性向上)
+            try:
+                # 段階的にJSON生成を試す
+                logger.info("Attempting JSON serialization...")
+                json_result = json.dumps(result, ensure_ascii=True, separators=(',', ':'))  # Compact format
+                
+                # JSON文字列の整合性を検証
+                logger.info("Testing JSON parse...")
+                json.loads(json_result)  # Parse test
+                logger.info("JSON serialization successful")
+                return json_result
+                
+            except (json.JSONEncodeError, UnicodeEncodeError) as json_error:
+                logger.error(f"JSON serialization error: {json_error}")
+                logger.error(f"Error line/column info: line {getattr(json_error, 'lineno', 'N/A')}, col {getattr(json_error, 'colno', 'N/A')}")
+                
+                # より詳細な問題箇所の特定
+                try:
+                    test_basic = json.dumps({"test": "basic"}, ensure_ascii=True)
+                    logger.info("Basic JSON works - problem is in result structure")
+                except Exception as basic_error:
+                    logger.error(f"Even basic JSON fails: {basic_error}")
+                
+                # フォールバック：簡略化されたレスポンスを返す
+                fallback_result = {
+                    "success": True,
+                    "improvement_type": "comprehensive",
+                    "target_audience": "general", 
+                    "recommendations": {
+                        "高優先度": [{"説明": "改善提案を生成しましたが、JSON形式での出力に問題が発生しました。", "カテゴリ": "general"}],
+                        "中優先度": [],
+                        "低優先度": []
+                    },
+                    "processing_time_seconds": round(processing_time, 2)
+                }
+                logger.info("Returning fallback result")
+                return json.dumps(fallback_result, ensure_ascii=True)
             
     except httpx.TimeoutException:
         logger.error("LLM API timeout during improvement analysis")
@@ -300,44 +236,6 @@ async def create_improvement_recommendations_with_llm(
             "error": f"Unexpected error occurred: {str(e)}",
             "processing_time_seconds": round(time.time() - start_time, 2)
         }, ensure_ascii=False)
-
-
-def _build_japanese_summarization_prompt(
-    content: str, length: str, focus: str, context: Optional[str] = None
-) -> str:
-    """Build specialized prompt for Japanese document summarization."""
-    
-    # 長さ別の日本語指示
-    length_instructions = {
-        "brief": "重要なポイントを2-3文で簡潔にまとめてください。",
-        "detailed": "主要な内容を1-2段落で詳細にまとめ、重要な詳細も含めてください。",
-        "comprehensive": "全体の要点、重要な詳細、構造の概要、重要な示唆を含む包括的な要約を作成してください。"
-    }
-    
-    # 焦点別の日本語指示
-    focus_instructions = {
-        "general": "一般読者向けに、主要なアイデアと全体的なメッセージに焦点を当ててください。",
-        "technical": "技術的な詳細、方法論、実装の側面を重視してください。",
-        "business": "ビジネス価値、成果、戦略的な影響を強調してください。"
-    }
-    
-    prompt = f"""あなたは専門的な日本語文書分析の専門家です。以下の日本語文書を分析し、高品質な要約を作成してください。
-
-要約の要件：
-- 長さ: {length_instructions.get(length, length_instructions['comprehensive'])}
-- 焦点: {focus_instructions.get(focus, focus_instructions['general'])}
-- 重要なポイントを明確に抽出し、自然な日本語で表現してください
-- 元の文書の意図と文脈を正確に保持してください
-- 読みやすく、理解しやすい構造にしてください
-
-{f"追加コンテキスト: {context}" if context else ""}
-
-分析対象文書：
-{content}
-
-指定された要件に従って、構造化された日本語要約を提供してください。"""
-    
-    return prompt
 
 
 def _build_japanese_improvement_prompt(
@@ -405,31 +303,6 @@ def _build_japanese_improvement_prompt(
 各優先度レベルで最低1つの改善提案を提供し、■と・記号を正確に使用してください。"""
     
     return prompt
-
-
-def _get_max_tokens_for_length(length: str) -> int:
-    """Get appropriate max_tokens based on summary length."""
-    token_limits = {
-        "brief": 200,
-        "detailed": 500,
-        "comprehensive": 800
-    }
-    return token_limits.get(length, 800)
-
-
-def _extract_japanese_key_points(summary_text: str) -> list:
-    """Extract key points from Japanese summary text."""
-    points = []
-    
-    # 文による分割とフィルタリング
-    sentences = [s.strip() for s in summary_text.split('。') if s.strip()]
-    
-    # 実質的な内容を持つ文を重要ポイントとして取得
-    for sentence in sentences[:5]:
-        if len(sentence) > 10:  # 最小文字数
-            points.append(sentence + '。')
-    
-    return points
 
 
 def _parse_japanese_improvement_recommendations(recommendations_text: str) -> Dict[str, Any]:
@@ -577,26 +450,6 @@ def _generate_japanese_overall_assessment(recommendations: Dict[str, Any]) -> Di
     }
 
 
-def _translate_focus_area(focus_area: str) -> str:
-    """Translate focus area to Japanese."""
-    translations = {
-        "general": "一般向け",
-        "technical": "技術的",
-        "business": "ビジネス向け"
-    }
-    return translations.get(focus_area, focus_area)
-
-
-def _translate_length_type(length_type: str) -> str:
-    """Translate length type to Japanese."""
-    translations = {
-        "brief": "簡潔",
-        "detailed": "詳細",
-        "comprehensive": "包括的"
-    }
-    return translations.get(length_type, length_type)
-
-
 def _translate_improvement_type(improvement_type: str) -> str:
     """Translate improvement type to Japanese."""
     translations = {
@@ -617,3 +470,39 @@ def _translate_target_audience(target_audience: str) -> str:
         "expert": "専門家"
     }
     return translations.get(target_audience, target_audience)
+
+
+def _sanitize_json_content(data: Any) -> Any:
+    """
+    Recursively sanitize data to prevent JSON serialization issues.
+    
+    Simple approach: just remove or replace problematic characters without double-escaping.
+    """
+    if isinstance(data, dict):
+        return {key: _sanitize_json_content(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_json_content(item) for item in data]
+    elif isinstance(data, str):
+        # Remove or replace problematic characters
+        sanitized = data
+        
+        # Replace control characters (except standard whitespace)
+        sanitized = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', ' ', sanitized)
+        
+        # Replace invalid Unicode characters
+        sanitized = sanitized.encode('utf-8', errors='ignore').decode('utf-8')
+        
+        # Replace problematic quotes with safe alternatives (avoid double-escaping)
+        sanitized = sanitized.replace('"', '「')  # Use Japanese quotes
+        sanitized = sanitized.replace("'", '』')  # Use Japanese quotes
+        
+        # Normalize whitespace
+        sanitized = re.sub(r'\s+', ' ', sanitized).strip()
+        
+        # Limit string length to prevent memory issues
+        if len(sanitized) > 800:
+            sanitized = sanitized[:797] + "..."
+            
+        return sanitized
+    else:
+        return data

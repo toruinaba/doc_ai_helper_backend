@@ -22,7 +22,7 @@ os.environ["SECRET_KEY"] = "test-secret-key"
 # Import main app
 from doc_ai_helper_backend.main import app
 from doc_ai_helper_backend.api.dependencies import get_llm_service
-from doc_ai_helper_backend.services.llm.mock_service import MockLLMService
+from doc_ai_helper_backend.services.llm.providers.mock_service import MockLLMService
 
 
 def get_test_llm_service():
