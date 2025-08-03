@@ -104,7 +104,7 @@ class LinkTransformer:
         root_path: Optional[str] = None
     ) -> str:
         """
-        Markdown内のリンクを変換する。
+        Markdown内のリンクを変換する（画像・静的リソースのみ）。
 
         Args:
             content: 生のMarkdownコンテンツ
@@ -117,7 +117,7 @@ class LinkTransformer:
             root_path: ドキュメントルートディレクトリ（リンク解決の基準）
 
         Returns:
-            リンク変換済みのコンテンツ
+            画像・静的リソースのみCDN変換済みのコンテンツ
         """
         transformed_content = content
 
@@ -128,26 +128,11 @@ class LinkTransformer:
         else:
             base_dir = os.path.dirname(path)
 
-        # 通常のリンクを変換
-        transformed_content = re.sub(
-            cls.MD_LINK_PATTERN,
-            lambda m: cls._transform_link_match(m, base_dir, base_url, service, owner, repo, ref),
-            transformed_content,
-        )
-
-        # 画像リンクを変換
+        # 画像リンクのみを変換（通常のドキュメントリンクは変換しない）
         transformed_content = re.sub(
             cls.IMG_LINK_PATTERN,
             lambda m: cls._transform_image_match(m, base_dir, base_url, service, owner, repo, ref),
             transformed_content,
-        )
-
-        # HTMLアンカータグを変換
-        transformed_content = re.sub(
-            cls.HTML_ANCHOR_PATTERN,
-            lambda m: cls._transform_html_anchor_match(m, base_dir, base_url, service, owner, repo, ref),
-            transformed_content,
-            flags=re.DOTALL,
         )
 
         # HTMLイメージタグを変換
@@ -157,7 +142,15 @@ class LinkTransformer:
             transformed_content,
         )
 
-        # HTMLリンクタグを変換
+        # HTMLアンカータグ内の画像リンクのみを変換
+        transformed_content = re.sub(
+            cls.HTML_ANCHOR_PATTERN,
+            lambda m: cls._transform_html_anchor_match_images_only(m, base_dir, base_url, service, owner, repo, ref),
+            transformed_content,
+            flags=re.DOTALL,
+        )
+
+        # HTMLリンクタグ（CSS・JS等静的リソース）を変換
         transformed_content = re.sub(
             cls.HTML_LINK_PATTERN,
             lambda m: cls._transform_html_link_match(m, base_dir, base_url, service, owner, repo, ref),
@@ -437,6 +430,59 @@ class LinkTransformer:
             transformed_url += f"?ref={ref}"
 
         return original_tag.replace(url, transformed_url)
+
+    @classmethod
+    def _transform_html_anchor_match_images_only(
+        cls, 
+        match: Match, 
+        base_dir: str, 
+        base_url: str,
+        service: Optional[str] = None,
+        owner: Optional[str] = None,
+        repo: Optional[str] = None,
+        ref: Optional[str] = None
+    ) -> str:
+        """
+        HTMLアンカータグマッチを変換する（画像リンクのみ）。
+
+        Args:
+            match: 正規表現マッチオブジェクト
+            base_dir: 基準ディレクトリ
+            base_url: 変換に使用する基本URL
+            service: Gitサービス名
+            owner: リポジトリオーナー
+            repo: リポジトリ名
+            ref: ブランチ/タグ名
+
+        Returns:
+            変換されたHTMLアンカータグ文字列（画像リンクのみ変換）
+        """
+        url, text = match.groups()
+        original_tag = match.group(0)
+
+        # 外部リンクはそのまま
+        if cls.is_external_link(url):
+            return original_tag
+
+        # アンカーリンクはそのまま
+        if url.startswith("#"):
+            return original_tag
+
+        # 画像リンクでない場合はそのまま（一般ドキュメントリンクは変換しない）
+        if not cls.is_image_link(url):
+            return original_tag
+
+        # 相対パスを絶対パスに変換
+        abs_path = cls.resolve_relative_path(base_dir, url)
+
+        # 画像リンクの場合は外部Raw URLに変換
+        if service and owner and repo and ref:
+            raw_url = cls._build_raw_url(service, owner, repo, ref, abs_path)
+            if raw_url:
+                return original_tag.replace(url, raw_url)
+
+        # 変換できない場合はそのまま
+        return original_tag
 
     @staticmethod
     def _build_raw_url(service: str, owner: str, repo: str, ref: str, path: str, service_base_url: Optional[str] = None) -> Optional[str]:

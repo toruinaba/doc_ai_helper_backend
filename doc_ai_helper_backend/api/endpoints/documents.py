@@ -35,7 +35,7 @@ async def get_document(
     path: str = Path(..., description="Document path"),
     ref: Optional[str] = Query(default="main", description="Branch or tag name"),
     transform_links: bool = Query(
-        default=True, description="Transform relative links to absolute"
+        default=True, description="Transform image and static resource links to CDN URLs"
     ),
     base_url: Optional[str] = Query(
         default=None, description="Base URL for link transformation"
@@ -54,7 +54,7 @@ async def get_document(
         repo: Repository name
         path: Document path
         ref: Branch or tag name. Default is "main"
-        transform_links: Whether to transform relative links to absolute. Default is True
+        transform_links: Whether to transform image and static resource links to CDN URLs. Default is True
         base_url: Base URL for link transformation. If None, will be constructed from request parameters
         root_path: Root directory path for link resolution. If specified, relative links are resolved from this directory
         document_service: Document service instance

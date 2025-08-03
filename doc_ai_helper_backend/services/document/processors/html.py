@@ -141,7 +141,7 @@ class HTMLProcessor(DocumentProcessorBase):
         root_path: Optional[str] = None
     ) -> str:
         """
-        HTMLドキュメント内のリンクを変換する。
+        HTMLドキュメント内のリンクを変換する（画像・静的リソースのみ）。
 
         Args:
             content: HTMLコンテンツ
@@ -154,7 +154,7 @@ class HTMLProcessor(DocumentProcessorBase):
             root_path: ドキュメントルートディレクトリ（リンク解決の基準）
 
         Returns:
-            リンクが変換されたHTMLコンテンツ
+            画像・静的リソースのみCDN変換されたHTMLコンテンツ
         """
         soup = HTMLAnalyzer.parse_html_safely(content)
 
@@ -165,23 +165,18 @@ class HTMLProcessor(DocumentProcessorBase):
         else:
             base_dir = os.path.dirname(path)
 
-        # aタグのhref属性を変換
+        # aタグのhref属性を変換（画像リンクのみ）
         for link_tag in soup.find_all("a", href=True):
             href = link_tag.get("href")
             if not self._is_external_link(href) and not href.startswith("#"):
-                # 相対パスを絶対パスに変換
-                abs_path = self._resolve_relative_path(base_dir, href)
-                
-                # 画像リンクの場合は外部Raw URLに変換
+                # 画像リンクの場合のみ外部Raw URLに変換
                 if self._is_image_link(href) and service and owner and repo and ref:
+                    # 相対パスを絶対パスに変換
+                    abs_path = self._resolve_relative_path(base_dir, href)
                     raw_url = self._build_raw_url(service, owner, repo, ref, abs_path)
                     if raw_url:
                         link_tag["href"] = raw_url
-                        continue
-                
-                # 通常のリンクはAPI経由
-                new_href = self._convert_to_absolute_url(href, base_url)
-                link_tag["href"] = new_href
+                # 一般ドキュメントリンクは変換しない（フロントエンド側で処理）
 
         # imgタグのsrc属性を変換
         for img_tag in soup.find_all("img", src=True):

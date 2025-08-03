@@ -139,7 +139,7 @@ class MarkdownProcessor(DocumentProcessorBase):
         root_path: Optional[str] = None
     ) -> str:
         """
-        Markdown内のリンクを変換する。
+        Markdown内のリンクを変換する（画像・静的リソースのみ）。
 
         Args:
             content: 生のMarkdownコンテンツ
@@ -152,7 +152,7 @@ class MarkdownProcessor(DocumentProcessorBase):
             root_path: ドキュメントルートディレクトリ（リンク解決の基準）
 
         Returns:
-            リンク変換済みのコンテンツ
+            画像・静的リソースのみCDN変換済みのコンテンツ
         """
         return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref, root_path)
 

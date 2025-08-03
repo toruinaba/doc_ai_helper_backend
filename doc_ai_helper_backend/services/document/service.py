@@ -60,7 +60,7 @@ class DocumentService:
             path: Document path
             ref: Branch or tag name. Default is "main"
             use_cache: Whether to use cache. Default is True
-            transform_links: Whether to transform relative links to absolute. Default is True
+            transform_links: Whether to transform image and static resource links to CDN URLs. Default is True
             base_url: Base URL for link transformation. If None, will be constructed from request parameters
             root_path: Root directory path for link resolution. If specified, relative links are resolved from this directory
 

@@ -179,7 +179,7 @@ class QuartoProcessor(DocumentProcessorBase):
         ref: Optional[str] = None
     ) -> str:
         """
-        Quarto内のリンクを変換する。
+        Quarto内のリンクを変換する（画像・静的リソースのみ）。
 
         Args:
             content: 生のQuartoコンテンツ
@@ -191,7 +191,7 @@ class QuartoProcessor(DocumentProcessorBase):
             ref: ブランチ/タグ名
 
         Returns:
-            リンク変換済みのコンテンツ
+            画像・静的リソースのみCDN変換済みのコンテンツ
         """
         return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref)
 

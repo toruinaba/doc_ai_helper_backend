@@ -48,7 +48,7 @@ class TestLinkTransformer:
         )
 
     def test_transform_links(self):
-        """リンク変換のテスト"""
+        """リンク変換のテスト（画像・静的リソースのみ）"""
         content = """
 # リンク変換テスト
 
@@ -65,32 +65,31 @@ class TestLinkTransformer:
 
         path = "docs/dir/document.md"
         base_url = "/api/v1/documents/contents/github/owner/repo"
+        service = "github"
+        owner = "owner"
+        repo = "repo"
+        ref = "main"
 
-        transformed = LinkTransformer.transform_links(content, path, base_url)
+        transformed = LinkTransformer.transform_links(
+            content, path, base_url, service, owner, repo, ref
+        )
 
         # 変換結果をコンソールに出力してデバッグ
         print(f"\nTransformed content:\n{transformed}")
 
-        # リンクが正しく変換されているか確認
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/dir/file.md"
-            in transformed
-        )
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/parent.md" in transformed
-        )
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/dir/subdir/file.md"
-            in transformed
-        )
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/absolute/path.md"
-            in transformed
-        )
+        # 一般リンクは変換されていないことを確認
+        assert "[相対リンク](./file.md)" in transformed
+        assert "[親ディレクトリリンク](../parent.md)" in transformed
+        assert "[サブディレクトリリンク](subdir/file.md)" in transformed
+        assert "[絶対パスリンク](/absolute/path.md)" in transformed
+
+        # 画像リンクはCDN URLに変換されていることを確認
+        assert "https://raw.githubusercontent.com/owner/repo/main/docs/dir/image.png" in transformed
 
         # 外部リンクとアンカーリンクは変換されていないことを確認
         assert "https://github.com" in transformed
         assert "(#section)" in transformed
+        assert "![外部画像](https://example.com/image.jpg)" in transformed
 
     def test_transform_html_tags(self):
         """HTMLタグ内のリンク変換のテスト"""
@@ -127,19 +126,10 @@ class TestLinkTransformer:
         # 変換結果をコンソールに出力してデバッグ
         print(f"\nTransformed HTML content:\n{transformed}")
 
-        # HTMLアンカータグが正しく変換されているか確認
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/dir/relative-link.md?ref=main"'
-            in transformed
-        )
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/parent.md?ref=main"'
-            in transformed
-        )
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/dir/subdir/nested.md?ref=main"'
-            in transformed
-        )
+        # HTMLアンカータグの一般リンクは変換されていないことを確認
+        assert '<a href="./relative-link.md">HTMLアンカータグ</a>' in transformed
+        assert '<a href="../parent.md">相対リンク</a>' in transformed
+        assert '<a href="./subdir/nested.md">ネストされたHTMLリンク</a>' in transformed
 
         # HTMLイメージタグが正しく変換されているか確認（画像は外部Raw URLに変換）
         assert (
@@ -174,11 +164,10 @@ class TestLinkTransformer:
 
         transformed = LinkTransformer.transform_links(content, path, base_url)
 
-        # Git情報がない場合はAPI経由で変換
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/dir/relative-link.md"'
-            in transformed
-        )
+        # Git情報がない場合、一般リンクは変換されない
+        assert '<a href="./relative-link.md">HTMLアンカータグ</a>' in transformed
+        
+        # 画像はフォールバックでAPI経由に変換される
         assert (
             'src="/api/v1/documents/contents/github/owner/repo/docs/dir/images/local.png"'
             in transformed
@@ -212,17 +201,13 @@ class TestLinkTransformer:
             content, path, base_url, service, owner, repo, ref
         )
 
-        # 複雑なHTML構造内でも正しく変換されているか確認
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/dir/details.md?ref=main"'
-            in transformed
-        )
+        # 複雑なHTML構造内でも一般リンクは変換されない
+        assert '<a href="./details.md">リンク</a>' in transformed
+        assert '<a href="./table-link.md">テーブル内リンク</a>' in transformed
+        
+        # 画像のみ正しく変換されている
         assert (
             'src="https://raw.githubusercontent.com/owner/repo/main/docs/dir/images/detail.png"'
-            in transformed
-        )
-        assert (
-            'href="/api/v1/documents/contents/github/owner/repo/docs/dir/table-link.md?ref=main"'
             in transformed
         )
         assert (
@@ -264,33 +249,14 @@ class TestLinkTransformer:
         print(f"\nWithout root_path:\n{transformed_without_root}")
         print(f"\nWith root_path:\n{transformed_with_root}")
 
-        # root_pathなしの場合は、docs/guide/をベースにリンクが解決される
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md?ref=main"
-            in transformed_without_root
-        )
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/parent.md?ref=main"
-            in transformed_without_root
-        )
-        assert (
-            "https://raw.githubusercontent.com/owner/repo/main/docs/images/test.png"
-            in transformed_without_root
-        )
-
-        # root_pathありの場合は、docs/をベースにリンクが解決される
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/docs/file.md?ref=main"
-            in transformed_with_root
-        )
-        assert (
-            "/api/v1/documents/contents/github/owner/repo/parent.md?ref=main"
-            in transformed_with_root
-        )
-        assert (
-            "https://raw.githubusercontent.com/owner/repo/main/images/test.png"
-            in transformed_with_root
-        )
+        # 一般リンクは変換されない
+        assert "[相対リンク](./file.md)" in transformed_without_root
+        assert "[親ディレクトリリンク](../parent.md)" in transformed_without_root
+        assert "[画像リンク](../images/test.png)" in transformed_without_root
+        
+        assert "[相対リンク](./file.md)" in transformed_with_root
+        assert "[親ディレクトリリンク](../parent.md)" in transformed_with_root
+        assert "[画像リンク](../images/test.png)" in transformed_with_root
 
         # 画像の変換も確認
         assert (
@@ -316,16 +282,16 @@ class TestLinkTransformer:
         transformed_empty = LinkTransformer.transform_links(
             content, path, base_url, root_path=""
         )
-        assert "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md" in transformed_empty
+        assert "[リンク](./file.md)" in transformed_empty
 
         # root_pathが"/"で終わっている場合
         transformed_slash = LinkTransformer.transform_links(
             content, path, base_url, root_path="docs/"
         )
-        assert "/api/v1/documents/contents/github/owner/repo/docs/file.md" in transformed_slash
+        assert "[リンク](./file.md)" in transformed_slash
 
-        # root_pathがNoneの場合（従来の動作）
+        # root_pathがNoneの場合（一般リンクは変換されない）
         transformed_none = LinkTransformer.transform_links(
             content, path, base_url, root_path=None
         )
-        assert "/api/v1/documents/contents/github/owner/repo/docs/guide/file.md" in transformed_none
+        assert "[リンク](./file.md)" in transformed_none
