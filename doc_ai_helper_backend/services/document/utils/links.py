@@ -92,6 +92,57 @@ class LinkTransformer:
         return abs_path
 
     @classmethod
+    def _get_document_base_directory(
+        cls,
+        path: str,
+        repository_root: Optional[str] = None,
+        document_root_directory: Optional[str] = None,
+        root_path: Optional[str] = None
+    ) -> str:
+        """
+        ドキュメントのベースディレクトリを取得する（新旧両方式対応）。
+        
+        新しいセマンティクス:
+        - repository_root: リポジトリのベースディレクトリ (デフォルト: "/")
+        - document_root_directory: リポジトリルートからドキュメントルートディレクトリへの絶対パス (デフォルト: "/")
+        
+        Args:
+            path: ドキュメントのパス
+            repository_root: リポジトリベースディレクトリ（新方式）
+            document_root_directory: ドキュメントルートディレクトリの絶対パス（新方式）
+            root_path: ドキュメントルートディレクトリ（旧方式）
+            
+        Returns:
+            ベースディレクトリパス
+        """
+        # 新方式優先
+        if repository_root is not None and document_root_directory is not None:
+            # repository_root と document_root_directory を結合
+            repo_root = repository_root.rstrip('/') if repository_root != '/' else ''
+            doc_root = document_root_directory.rstrip('/') if document_root_directory != '/' else ''
+            
+            # document_root_directory が絶対パスの場合
+            if doc_root.startswith('/'):
+                if doc_root == '':  # document_root_directory が "/" の場合
+                    return repo_root if repo_root else '/'
+                else:
+                    return f"{repo_root}{doc_root}" if repo_root else doc_root
+            else:
+                # 相対パスの場合（後方互換性のため）
+                return f"{repo_root}/{doc_root}" if repo_root else f"/{doc_root}"
+        
+        # repository_rootのみ指定の場合
+        if repository_root is not None:
+            return repository_root.rstrip('/') if repository_root != '/' else '/'
+        
+        # 旧方式フォールバック
+        if root_path is not None and root_path.strip():
+            return root_path.rstrip('/')
+        
+        # デフォルト: ファイルのディレクトリ
+        return os.path.dirname(path)
+
+    @classmethod
     def transform_links(
         cls, 
         content: str, 
@@ -101,7 +152,9 @@ class LinkTransformer:
         owner: Optional[str] = None,
         repo: Optional[str] = None,
         ref: Optional[str] = None,
-        root_path: Optional[str] = None
+        root_path: Optional[str] = None,
+        repository_root: Optional[str] = None,
+        document_root_directory: Optional[str] = None
     ) -> str:
         """
         Markdown内のリンクを変換する（画像・静的リソースのみ）。
@@ -114,19 +167,22 @@ class LinkTransformer:
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
-            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
+            root_path: DEPRECATED: ドキュメントルートディレクトリ（リンク解決の基準）
+            repository_root: リポジトリベースディレクトリ
+            document_root_directory: ドキュメントルートディレクトリ
 
         Returns:
             画像・静的リソースのみCDN変換済みのコンテンツ
         """
         transformed_content = content
 
-        # ドキュメントのベースディレクトリを取得
-        # root_pathが指定されている場合はそれを使用、そうでなければファイルのディレクトリを使用
-        if root_path is not None and root_path.strip():
-            base_dir = root_path.rstrip('/')
-        else:
-            base_dir = os.path.dirname(path)
+        # ドキュメントのベースディレクトリを取得（デュアル対応）
+        base_dir = cls._get_document_base_directory(
+            path=path,
+            repository_root=repository_root,
+            document_root_directory=document_root_directory,
+            root_path=root_path
+        )
 
         # 画像リンクのみを変換（通常のドキュメントリンクは変換しない）
         transformed_content = re.sub(

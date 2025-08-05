@@ -64,6 +64,11 @@ class RepositoryService:
                 url=str(repo_data.url),
                 base_url=repo_data.base_url,
                 default_branch=repo_data.default_branch,
+                # New path resolution fields
+                repository_root=repo_data.repository_root,
+                document_root_directory=repo_data.document_root_directory,
+                root_document_path=repo_data.root_document_path,
+                # Legacy field (deprecated but maintained)
                 root_path=repo_data.root_path,
                 description=repo_data.description,
                 is_public=repo_data.is_public,
@@ -288,6 +293,11 @@ class RepositoryService:
             url=db_repo.url,
             base_url=db_repo.base_url,
             default_branch=db_repo.default_branch,
+            # New path resolution fields
+            repository_root=db_repo.repository_root,
+            document_root_directory=db_repo.document_root_directory,
+            root_document_path=db_repo.root_document_path,
+            # Legacy field (deprecated but maintained)
             root_path=db_repo.root_path,
             description=db_repo.description,
             is_public=db_repo.is_public,

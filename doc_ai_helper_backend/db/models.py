@@ -28,7 +28,14 @@ class Repository(Base):
     # RepositoryContext generation fields
     base_url = Column(String, nullable=True, comment="Custom git service base URL")
     default_branch = Column(String, default="main", comment="Default branch")
-    root_path = Column(String, nullable=True, comment="Documentation root directory path")
+    
+    # Document path resolution fields
+    repository_root = Column(String, default="/", comment="Repository base directory")
+    document_root_directory = Column(String, nullable=True, comment="Document root directory (e.g., 'docs')")
+    root_document_path = Column(String, nullable=True, comment="Main document file path (e.g., 'docs/README.md')")
+    
+    # Legacy field (deprecated but maintained for compatibility)
+    root_path = Column(String, nullable=True, comment="DEPRECATED: Use root_document_path instead")
 
     # Repository management fields
     description = Column(Text, nullable=True, comment="Repository description")

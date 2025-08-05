@@ -136,7 +136,9 @@ class MarkdownProcessor(DocumentProcessorBase):
         owner: Optional[str] = None,
         repo: Optional[str] = None,
         ref: Optional[str] = None,
-        root_path: Optional[str] = None
+        root_path: Optional[str] = None,
+        repository_root: Optional[str] = None,
+        document_root_directory: Optional[str] = None
     ) -> str:
         """
         Markdown内のリンクを変換する（画像・静的リソースのみ）。
@@ -149,12 +151,17 @@ class MarkdownProcessor(DocumentProcessorBase):
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
-            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
+            root_path: DEPRECATED: ドキュメントルートディレクトリ（リンク解決の基準）
+            repository_root: リポジトリベースディレクトリ（新方式）
+            document_root_directory: ドキュメントルートディレクトリ（新方式）
 
         Returns:
             画像・静的リソースのみCDN変換済みのコンテンツ
         """
-        return LinkTransformer.transform_links(content, path, base_url, service, owner, repo, ref, root_path)
+        return LinkTransformer.transform_links(
+            content, path, base_url, service, owner, repo, ref, root_path,
+            repository_root, document_root_directory
+        )
 
     def _extract_title_from_content(self, content: str) -> str:
         """

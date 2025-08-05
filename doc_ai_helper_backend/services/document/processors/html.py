@@ -138,7 +138,9 @@ class HTMLProcessor(DocumentProcessorBase):
         owner: Optional[str] = None,
         repo: Optional[str] = None,
         ref: Optional[str] = None,
-        root_path: Optional[str] = None
+        root_path: Optional[str] = None,
+        repository_root: Optional[str] = None,
+        document_root_directory: Optional[str] = None
     ) -> str:
         """
         HTMLドキュメント内のリンクを変換する（画像・静的リソースのみ）。
@@ -151,19 +153,24 @@ class HTMLProcessor(DocumentProcessorBase):
             owner: リポジトリオーナー
             repo: リポジトリ名
             ref: ブランチ/タグ名
-            root_path: ドキュメントルートディレクトリ（リンク解決の基準）
+            root_path: DEPRECATED: ドキュメントルートディレクトリ（リンク解決の基準）
+            repository_root: リポジトリベースディレクトリ（新方式）
+            document_root_directory: ドキュメントルートディレクトリ（新方式）
 
         Returns:
             画像・静的リソースのみCDN変換されたHTMLコンテンツ
         """
+        from ..utils.links import LinkTransformer
+        
         soup = HTMLAnalyzer.parse_html_safely(content)
 
-        # ドキュメントのベースディレクトリを取得
-        # root_pathが指定されている場合はそれを使用、そうでなければファイルのディレクトリを使用
-        if root_path is not None and root_path.strip():
-            base_dir = root_path.rstrip('/')
-        else:
-            base_dir = os.path.dirname(path)
+        # ドキュメントのベースディレクトリを取得（デュアル対応）
+        base_dir = LinkTransformer._get_document_base_directory(
+            path=path,
+            repository_root=repository_root,
+            document_root_directory=document_root_directory,
+            root_path=root_path
+        )
 
         # aタグのhref属性を変換（画像リンクのみ）
         for link_tag in soup.find_all("a", href=True):

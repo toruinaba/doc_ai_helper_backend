@@ -29,10 +29,75 @@ class RepositoryBase(BaseModel):
     # RepositoryContext generation fields
     base_url: Optional[str] = Field(None, description="Custom git service base URL")
     default_branch: str = Field("main", description="Default branch")
-    root_path: Optional[str] = Field(None, description="Documentation root directory path")
+    
+    # Document path resolution fields
+    repository_root: str = Field("/", description="Repository base directory")
+    document_root_directory: str = Field("/", description="Document root directory path from repository root (e.g., '/docs', default: '/')")
+    root_document_path: Optional[str] = Field(None, description="Main document file path relative to document root directory (e.g., 'README.md')")
+    
+    # Legacy field (deprecated but maintained for compatibility)
+    root_path: Optional[str] = Field(None, description="DEPRECATED: Use root_document_path instead")
     
     description: Optional[str] = Field(None, description="Repository description")
     is_public: bool = Field(default=True, description="Is repository public")
+
+    @field_validator('repository_root')
+    @classmethod
+    def validate_repository_root(cls, v: Optional[str]) -> str:
+        """Ensure repository_root ends with / unless it's just /, handle NULL values from DB"""
+        # Handle NULL values from database by setting default
+        if v is None or v == '':
+            return '/'
+        
+        # Normalize directory separators (Windows compatibility)
+        v = v.replace('\\', '/')
+        
+        # Normalize path (remove redundant separators, resolve . and ..)
+        import os.path
+        v = os.path.normpath(v).replace('\\', '/')
+        
+        # Handle leading double slashes after normpath (Unix keeps them)
+        import re
+        v = re.sub(r'^/+', '/', v)
+        
+        # Ensure it starts with / (absolute path)
+        if not v.startswith('/'):
+            v = '/' + v
+        
+        # Ensure it ends with / unless it's just /
+        if v != '/' and not v.endswith('/'):
+            v = v + '/'
+        
+        return v
+    
+    @field_validator('document_root_directory')
+    @classmethod
+    def validate_document_root_directory(cls, v: Optional[str]) -> str:
+        """Ensure document_root_directory is absolute path, handle NULL values from DB"""
+        # Handle NULL values from database by setting default
+        if v is None or v == '':
+            return '/'
+        
+        # Normalize directory separators (Windows compatibility)
+        v = v.replace('\\', '/')
+        
+        # Normalize path (remove redundant separators, resolve . and ..)
+        import os.path
+        v = os.path.normpath(v).replace('\\', '/')
+        
+        # Handle leading double slashes after normpath (Unix keeps them)
+        import re
+        v = re.sub(r'^/+', '/', v)
+        
+        # Ensure it starts with / (absolute path)
+        if not v.startswith('/'):
+            v = '/' + v
+        
+        # Ensure it ends with / unless it's just /
+        if v != '/' and not v.endswith('/'):
+            v = v + '/'
+        
+        return v
 
 
 class RepositoryCreate(RepositoryBase):
@@ -57,7 +122,14 @@ class RepositoryUpdate(BaseModel):
     # RepositoryContext generation fields
     base_url: Optional[str] = Field(None, description="Custom git service base URL")
     default_branch: Optional[str] = Field(None, description="Default branch")
-    root_path: Optional[str] = Field(None, description="Documentation root directory path")
+    
+    # Document path resolution fields
+    repository_root: Optional[str] = Field(None, description="Repository base directory")
+    document_root_directory: Optional[str] = Field(None, description="Document root directory path from repository root (e.g., '/docs', default: '/')")
+    root_document_path: Optional[str] = Field(None, description="Main document file path relative to document root directory (e.g., 'README.md')")
+    
+    # Legacy field (deprecated but maintained for compatibility)
+    root_path: Optional[str] = Field(None, description="DEPRECATED: Use root_document_path instead")
     
     description: Optional[str] = Field(None, description="Repository description")
     is_public: Optional[bool] = Field(None, description="Is repository public")
@@ -65,6 +137,56 @@ class RepositoryUpdate(BaseModel):
         None, description="Access token for private repositories"
     )
     metadata: Optional[Dict[str, Any]] = Field(None, description="Repository metadata")
+
+    @field_validator('repository_root')
+    @classmethod
+    def validate_repository_root(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure repository_root ends with / unless it's just /"""
+        if v is not None:
+            # Normalize directory separators (Windows compatibility)
+            v = v.replace('\\', '/')
+            
+            # Normalize path (remove redundant separators, resolve . and ..)
+            import os.path
+            v = os.path.normpath(v).replace('\\', '/')
+            
+            # Handle leading double slashes after normpath (Unix keeps them)
+            import re
+            v = re.sub(r'^/+', '/', v)
+            
+            # Ensure it starts with / (absolute path)
+            if not v.startswith('/'):
+                v = '/' + v
+                
+            # Ensure it ends with / unless it's just /
+            if v != '/' and not v.endswith('/'):
+                v = v + '/'
+        return v
+    
+    @field_validator('document_root_directory')
+    @classmethod
+    def validate_document_root_directory(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure document_root_directory is absolute path"""
+        if v is not None:
+            # Normalize directory separators (Windows compatibility)
+            v = v.replace('\\', '/')
+            
+            # Normalize path (remove redundant separators, resolve . and ..)
+            import os.path
+            v = os.path.normpath(v).replace('\\', '/')
+            
+            # Handle leading double slashes after normpath (Unix keeps them)
+            import re
+            v = re.sub(r'^/+', '/', v)
+            
+            # Ensure it starts with / (absolute path)
+            if not v.startswith('/'):
+                v = '/' + v
+            
+            # Ensure it ends with / unless it's just /
+            if v != '/' and not v.endswith('/'):
+                v = v + '/'
+        return v
 
 
 class RepositoryResponse(RepositoryBase):

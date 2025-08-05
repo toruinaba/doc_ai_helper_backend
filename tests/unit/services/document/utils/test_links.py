@@ -12,6 +12,63 @@ from doc_ai_helper_backend.services.document.utils.links import (
 class TestLinkTransformer:
     """リンク変換ユーティリティのテスト"""
 
+    def test_get_document_base_directory_new_method(self):
+        """新方式でのベースディレクトリ取得テスト"""
+        # 新方式: repository_root + document_root_directory
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="docs/guide/getting-started.md",
+            repository_root="/",
+            document_root_directory="docs"
+        )
+        assert base_dir == "/docs"
+
+        # repository_rootが"/"でない場合
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="project/docs/guide/getting-started.md",
+            repository_root="/project",
+            document_root_directory="docs"
+        )
+        assert base_dir == "/project/docs"
+
+        # document_root_directoryがNoneの場合
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="README.md",
+            repository_root="/",
+            document_root_directory=None
+        )
+        assert base_dir == "/"
+
+    def test_get_document_base_directory_legacy_fallback(self):
+        """旧方式フォールバックのテスト"""
+        # 新方式のパラメータがNoneの場合は旧方式を使用
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="docs/guide/getting-started.md",
+            repository_root=None,
+            document_root_directory=None,
+            root_path="docs"
+        )
+        assert base_dir == "docs"
+
+        # 旧方式もNoneの場合はファイルのディレクトリを使用
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="docs/guide/getting-started.md",
+            repository_root=None,
+            document_root_directory=None,
+            root_path=None
+        )
+        assert base_dir == "docs/guide"
+
+    def test_get_document_base_directory_priority(self):
+        """新旧方式の優先順位テスト"""
+        # 新方式が優先される
+        base_dir = LinkTransformer._get_document_base_directory(
+            path="docs/guide/getting-started.md",
+            repository_root="/",
+            document_root_directory="documentation",
+            root_path="docs"
+        )
+        assert base_dir == "/documentation"  # 新方式が優先
+
     def test_is_external_link(self):
         """外部リンク判定のテスト"""
         # 外部リンク
